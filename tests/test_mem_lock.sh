@@ -67,6 +67,23 @@ elapsed=$((end - start))
 assert_eq "0" "$third_rc" "acquire after killed holder succeeds"
 assert_eq "0" "$( [ "$elapsed" -lt 2 ] && echo 0 || echo 1 )" "acquire after killed holder is fast (${elapsed}s, expected <2s not ~10s)"
 
+# --- 5. TOCTOU: unreadable mtime must never be treated as stale ---
+# Simulates the race where the lock dir exists at the `[ -d ]` check but its
+# mtime can't be read a moment later (e.g. a legitimate holder released it in
+# between). _reclaim_if_stale must skip the cycle, not rmdir a possibly-live
+# lock. Shadow `stat` to always fail, then source mem-lock.sh (dispatch is
+# guarded and skipped when sourced) and call _reclaim_if_stale directly.
+toctou_out="$(
+  stat() { return 1; }
+  . "$LOCK_SCRIPT"
+  mkdir -p "$SWARM_ROOT/.lock.d"
+  _reclaim_if_stale
+  echo "STILL_THERE=$( [ -d "$SWARM_ROOT/.lock.d" ] && echo yes || echo no )"
+)"
+rm -rf "$SWARM_ROOT/.lock.d"
+assert_eq "0" "$(echo "$toctou_out" | grep -qi "stale" && echo 1 || echo 0)" "unreadable mtime does not log stale-reclaim"
+assert_eq "STILL_THERE=yes" "$(echo "$toctou_out" | grep '^STILL_THERE=')" "unreadable mtime: lock dir is not rmdir'd"
+
 rm -rf "$fixture"
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
