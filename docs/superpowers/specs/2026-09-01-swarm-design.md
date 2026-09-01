@@ -1,6 +1,6 @@
 # Swarm — enjambre de agentes Claude Code para el ciclo de desarrollo
 
-Fecha: 2026-09-01 · Estado: v2 tras grill ×3 (2026-09-01) · Plugin: `swarm`
+Fecha: 2026-09-01 · Estado: v2.1 tras grill ×3 + dominio requirements (2026-09-01) · Plugin: `swarm`
 
 ## 1. Objetivo
 
@@ -30,6 +30,7 @@ producto es genérico.
 ```
 orchestrator (raíz · opus)
 ├─ memory-orchestrator (haiku)          → memory-builder · memory-curator · backends [instancia única por run]
+├─ requirements-orchestrator (haiku)    → env-checker · dependency-auditor · dependency-installer
 ├─ discovery-orchestrator (sonnet)      → value-critic · research-analyst · options-generator · feasibility-spiker
 ├─ analysis-orchestrator (sonnet)       → opportunity-analyst · architecture-auditor · security-auditor
 │                                          · vulnerability-scanner · performance-analyst · data-model-auditor
@@ -214,6 +215,24 @@ peer-to-peer, §5) — no se repite en cada fila. `tools` completo por agente vi
 |---|---|---|---|---|---|
 | `orchestrator` | root | opus | Agent, Read, Bash (restringido por hook), SendMessage | 30 | clasifica tier (§9.1), elige dominios, exige pack, arbitra conflictos entre dominios, presenta el batch de discovery con `AskUserQuestion` |
 
+### Requisitos (entorno y dependencias)
+| agente | rol | modelo | maxTurns | responsabilidad |
+|---|---|---|---|---|
+| `requirements-orchestrator` | domain-orchestrator | haiku | 10 | fusiona `requirements.json` del plugin + del pack activo; lanza checker/auditor; solo autoriza installer con aprobación explícita del owner (vía raíz) |
+| `env-checker` | leaf | haiku | 6 | determinista: `scripts/req-check.sh` verifica tools de OS (`git`, `python3`, `uuidgen`; opcionales `jq`, `gh`, `docker`…) y versiones; informe JSON + hint de instalación; modelo solo para residual |
+| `dependency-auditor` | leaf | sonnet | 12 | dependencias de proyecto: desactualizadas, sin uso, licencias, CVE (comandos del pack: `scan-deps`, `outdated`); read-only |
+| `dependency-installer` | leaf | sonnet | 10 | instala/actualiza lo que el owner aprobó (brew/apt, composer/npm…); mutante, nunca en `direct`/`light` sin aprobación |
+
+Contrato `requirements.json` (plugin raíz y cada `skills/pack-<stack>/requirements.json`, mismo esquema):
+```json
+{ "os":      [ {"tool":"git","min":"2.30","required":true,"install":{"brew":"git","apt":"git"}},
+               {"tool":"jq","required":false,"install":{"brew":"jq","apt":"jq"}} ],
+  "project": [ {"file":"composer.json","required":true} ],
+  "libs":    [ {"name":"phpstan/phpstan","manager":"composer","min":"2.1","required":false} ] }
+```
+`/swarm:init` y `/swarm:doctor` invocan `env-checker`; un `required` ausente → `BLOCKED <tool>` con el hint.
+Añadir requisitos = editar JSON (plugin o pack); los agentes no cambian (extensible por packs, SRP).
+
 ### Discovery (antes de diseño)
 | agente | rol | modelo | maxTurns | responsabilidad |
 |---|---|---|---|---|
@@ -280,6 +299,7 @@ commands.md       lint | fix | typecheck | test | test-one | scan-deps | scan-se
 conventions.md    estilo, arquitectura, capas, naming
 boundaries.md     qué NO tocar (generado, vendor, migraciones aplicadas…)
 precedents.md     patrones ya en uso (se rellena desde el pack de memoria)
+requirements.json tools de OS / ficheros de proyecto / librerías que el pack necesita (§7 Requisitos)
 ```
 
 ### 8.1 Detección de stack (precedencia)
@@ -340,13 +360,16 @@ canónico).
 ```
 .claude-plugin/plugin.json
 agents/                        un .md por agente (§7), flat (nombres `swarm:<agente>`)
-commands/                      init.md · run.md · status.md · findings.md
+commands/                      init.md · run.md · status.md · findings.md · doctor.md
+requirements.json              requisitos de OS del propio plugin (§7 Requisitos)
 skills/swarm-protocol/         contrato universal (§6)
 skills/pack-php-ddd-symfony8/  primer stack pack (§8)
-scripts/mem-files.sh           backend files; flock por escritura
+scripts/mem-files.sh           backend files; lock atómico por escritura (mkdir; macOS sin flock)
+scripts/req-check.sh           verificación determinista de requirements.json (env-checker)
 scripts/mem-stale.sh           tree-state hash (§4.4)
 scripts/mem-manifest.sh        manifest per-agente append-only
-scripts/validate-output.sh     valida contrato de evidencia (usado por hooks/hooks.json)
+hooks/validate-output.py       valida contrato de evidencia (SubagentStop; python3 stdlib, sin jq)
+hooks/bash-guard.py            PreToolUse: allowlist de Bash por agent_type
 hooks/hooks.json               SubagentStart/SubagentStop/PreToolUse (§3.1, §6.1)
 hooks/bash-allowlist.json      allowlist de prefijos Bash por agent_type (§3.1)
 docs/superpowers/specs/        este spec + planes
@@ -385,6 +408,7 @@ Smoke tests en `tests/` (repo fixture mínimo):
 ## 15. Fases de entrega
 1. Núcleo: `orchestrator`, subsistema memoria (3 agentes + backends files/claude-mem), `swarm-protocol`,
    hooks (incl. hook de evidencia §6.1 y `bash-allowlist`), comando `/swarm:init`, smoke tests 1-8.
+1b. Requisitos: `requirements-orchestrator` + `env-checker` (+ `req-check.sh`, `requirements.json` del plugin, `/swarm:doctor`); `dependency-auditor`/`installer` con el primer pack (fase 5).
 2. Discovery: `discovery-orchestrator` + 4 hojas, integración `AskUserQuestion` en la raíz.
 3. Análisis: `analysis-orchestrator` + 6 lentes.
 4. Diseño: `design-orchestrator`, `planner`, `pattern-advisor`, `domain-modeler`, integración grill×3.
@@ -414,3 +438,7 @@ lo que expone el CLI.
 13. Modo adhoc para hojas invocadas sin `run-id`.
 14. Nuevo dominio `discovery-orchestrator` (fase 2) con 4 hojas; batch único de preguntas presentado por la raíz vía `AskUserQuestion`.
 15. Columna `rol` en el roster + tabla "modelo por tier" (§7.0).
+
+## 18. Changelog v2→v2.1
+1. Nuevo dominio `requirements-orchestrator` (haiku) con `env-checker`, `dependency-auditor`, `dependency-installer`; contrato `requirements.json` en plugin y en cada pack; comando `/swarm:doctor`; fase 1b.
+2. Portabilidad macOS: lock atómico `mkdir` en lugar de `flock`; hooks en `python3` stdlib (sin `jq` obligatorio; `jq` opcional declarado en `requirements.json`).
