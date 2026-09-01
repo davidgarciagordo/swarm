@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_SCRIPT="$SCRIPT_DIR/mem-lock.sh"
 
 SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"
+export SWARM_ROOT
 REPO_ROOT="$(dirname "$SWARM_ROOT")"
 
 _with_lock() {
@@ -13,6 +14,9 @@ _with_lock() {
   trap '"$LOCK_SCRIPT" release' EXIT INT TERM
   "$@"
   local rc=$?
+  # Explicit release on the normal path, on top of the trap's release on
+  # INT/TERM/unexpected EXIT. A double release is intentional and harmless:
+  # rmdir on an already-removed lock dir just no-ops.
   "$LOCK_SCRIPT" release
   trap - EXIT INT TERM
   return $rc
@@ -158,15 +162,15 @@ cmd_query() {
     echo "usage: mem-files.sh query <regex> [--scope findings|decisions|pack|all]" >&2
     return 64
   fi
-  local targets=""
+  local targets
   case "$scope" in
-    findings) targets="$SWARM_ROOT/findings" ;;
-    decisions) targets="$SWARM_ROOT/decisions.md" ;;
-    pack) targets="$SWARM_ROOT/context-pack.md" ;;
-    all) targets="$SWARM_ROOT/findings $SWARM_ROOT/decisions.md $SWARM_ROOT/context-pack.md" ;;
+    findings) targets=("$SWARM_ROOT/findings") ;;
+    decisions) targets=("$SWARM_ROOT/decisions.md") ;;
+    pack) targets=("$SWARM_ROOT/context-pack.md") ;;
+    all) targets=("$SWARM_ROOT/findings" "$SWARM_ROOT/decisions.md" "$SWARM_ROOT/context-pack.md") ;;
     *) echo "swarm: mem-files.sh query — unknown scope $scope" >&2; return 64 ;;
   esac
-  grep -rEn -- "$pattern" $targets 2>/dev/null | head -20
+  grep -rEn -- "$pattern" "${targets[@]}" 2>/dev/null | head -20
   return 0
 }
 
