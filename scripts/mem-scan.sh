@@ -5,7 +5,9 @@ set -u
 ROOT="$PWD"
 while [ $# -gt 0 ]; do
   case "$1" in
-    --root) ROOT="$2"; shift 2 ;;
+    --root)
+      [ $# -ge 2 ] || { echo "mem-scan.sh: --root requires a value" >&2; exit 1; }
+      ROOT="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -38,7 +40,7 @@ echo "covers: $covers"
 echo ""
 echo "## Tree"
 find "$ROOT" -maxdepth 3 -type d \
-  ! -path '*/vendor/*' ! -path '*/node_modules/*' ! -path '*/.git/*' ! -path '*/var/*' 2>/dev/null
+  ! -path "$ROOT/vendor/*" ! -path "$ROOT/node_modules/*" ! -path "$ROOT/.git/*" ! -path "$ROOT/var/*" 2>/dev/null
 
 echo ""
 echo "## Entrypoints"
