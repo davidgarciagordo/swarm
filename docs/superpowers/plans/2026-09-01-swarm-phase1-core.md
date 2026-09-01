@@ -2973,6 +2973,18 @@ Lanza `memory-orchestrator` NOMBRADO exactamente `memory-orchestrator` (instanci
 spec §4.5) en la misma tanda en que lances cualquier otra hoja/orquestador de dominio — el roster
 de hermanos es un snapshot al inicio (spec §3.1).
 
+**Convención obligatoria (única productora de esta señal, spec §9.2 / skill swarm-protocol §2):**
+la PRIMERA línea del prompt de lanzamiento de CUALQUIER agente que lances (memory-orchestrator,
+y en fases futuras cualquier orquestador de dominio u hoja) debe ser literalmente:
+```
+run-id: $RUN
+```
+seguida de una línea `swarm-root: <ruta absoluta de .swarm>`. Es la única forma en que un agente
+lanzado distingue "estoy dentro de un run" de "modo adhoc" (skill swarm-protocol §2) — si omites
+esta línea, el agente se clasifica adhoc y escribe en `run/adhoc/` en vez del run real. Todo
+orquestador de dominio que se implemente en fases futuras hereda esta misma obligación al lanzar
+sus propias hojas.
+
 Registra tu propio rol en el manifest:
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register \
