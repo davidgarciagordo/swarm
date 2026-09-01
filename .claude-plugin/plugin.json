@@ -1,0 +1,10 @@
+{
+  "name": "swarm",
+  "version": "0.1.0",
+  "description": "Enjambre de agentes Claude Code de responsabilidad única para análisis, diseño, implementación, testing, documentación y entrega — optimizado en calidad por token.",
+  "skills": "./skills/",
+  "commands": [
+    "./commands/init.md",
+    "./commands/run.md"
+  ]
+}
