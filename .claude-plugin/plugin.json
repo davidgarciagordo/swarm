@@ -1,10 +1,11 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "swarm",
+  "displayName": "Swarm",
   "version": "0.1.0",
-  "description": "Enjambre de agentes Claude Code de responsabilidad única para análisis, diseño, implementación, testing, documentación y entrega — optimizado en calidad por token.",
+  "description": "Enjambre de agentes Claude Code con responsabilidad única para el ciclo de desarrollo, optimizado en calidad por token.",
+  "author": { "name": "David García Gordo" },
+  "license": "MIT",
   "skills": "./skills/",
-  "commands": [
-    "./commands/init.md",
-    "./commands/run.md"
-  ]
+  "commands": ["./commands/init.md", "./commands/run.md"]
 }
