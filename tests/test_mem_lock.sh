@@ -19,7 +19,7 @@ assert_eq "1" "$( [ -d "$SWARM_ROOT/.lock.d" ]; echo $? )" "lock dir absent afte
 # --- 2. concurrent acquire: one waits, succeeds after the other releases ---
 (
   "$LOCK_SCRIPT" acquire
-  sleep 1
+  sleep 2
   "$LOCK_SCRIPT" release
 ) &
 holder_pid=$!
