@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SubagentStop": [
+      {
+        "matcher": "^swarm:",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/validate-output.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

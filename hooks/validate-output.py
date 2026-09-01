@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""hooks/validate-output.py — SubagentStop hook: valida el contrato de evidencia swarm (spec §6.1).
+
+Contrato de stdin (JSON):
+  {"agent_type": "swarm:<name>", "output": "<texto completo producido por el subagente>"}
+
+Comportamiento:
+  - agent_type que no empieza por "swarm:" -> exit 0, sin salida (no es de nuestra incumbencia).
+  - línea 1 debe ser un veredicto: OK | KO <motivo> | DONE | BLOCKED <motivo>.
+  - línea 2 debe ser `evidence: files=N cmds=M turns=k/max` (tolerante a espacios).
+  - OK con files=0 se rechaza (verdicto verde sin evidencia real).
+  - narración (prosa larga en vez del formato de hallazgo) se rechaza.
+  - si turns == max: NO es un bloqueo; se emite un systemMessage y se sale con 0.
+  - un rechazo se reintenta como máximo una vez (contador en
+    run/<run>/retries/<agente>-<hash(motivo)>, es decir por agente + motivo concreto de
+    fallo -- dos motivos distintos del mismo agente son cada uno una "primera falta"); al
+    SEGUNDO rechazo por el MISMO motivo del mismo agente en el mismo run, se acepta como
+    BLOCKED (con systemMessage) en vez de rechazar de nuevo -- nunca bucle infinito.
+"""
+import hashlib
+import json
+import os
+import re
+import sys
+
+VERDICT_RE = re.compile(r'^(OK|KO .+|DONE|BLOCKED .+)$')
+EVIDENCE_RE = re.compile(
+    r'^evidence:\s*files\s*=\s*(\d+)\s+cmds\s*=\s*(\d+)\s+turns\s*=\s*(\d+)\s*/\s*(\d+)\s*$'
+)
+FINDING_RE = re.compile(r'^[A-Z0-9_-]+\s*·\s*\S+:\d+\s*·\s.+→.+$')
+MAX_FINDING_LINE_LEN = 120
+
+
+def _swarm_root():
+    return os.environ.get('SWARM_ROOT', os.path.join(os.getcwd(), '.swarm'))
+
+
+def _current_run(swarm_root):
+    current_file = os.path.join(swarm_root, 'run', 'current')
+    try:
+        with open(current_file) as f:
+            run_id = f.read().strip()
+            if run_id:
+                return run_id
+    except OSError:
+        pass
+    return 'adhoc'
+
+
+def _retry_key(agent_type, reason):
+    # Keyed by agent + reason (not agent alone): two *different* failure
+    # reasons for the same agent in the same run are each a first offense;
+    # only a repeat of the SAME failure counts as the second strike.
+    agent_basename = agent_type.split(':')[-1]
+    reason_hash = hashlib.sha256(reason.encode('utf-8')).hexdigest()[:8]
+    return '%s-%s' % (agent_basename, reason_hash)
+
+
+def _retry_count(swarm_root, run_id, retry_key):
+    retries_dir = os.path.join(swarm_root, 'run', run_id, 'retries')
+    path = os.path.join(retries_dir, retry_key)
+    try:
+        with open(path) as f:
+            return int(f.read().strip() or '0'), path, retries_dir
+    except (OSError, ValueError):
+        return 0, path, retries_dir
+
+
+def _bump_retry(path, retries_dir, count):
+    os.makedirs(retries_dir, exist_ok=True)
+    with open(path, 'w') as f:
+        f.write(str(count + 1))
+
+
+def _block(reason):
+    print(json.dumps({'decision': 'block', 'reason': reason}))
+    sys.exit(0)
+
+
+def _system_message(message):
+    print(json.dumps({'systemMessage': message}))
+    sys.exit(0)
+
+
+def main():
+    raw = sys.stdin.read()
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        sys.exit(0)
+
+    agent_type = data.get('agent_type', '') or ''
+    if not agent_type.startswith('swarm:'):
+        sys.exit(0)
+
+    output = data.get('output', '') or ''
+    lines = output.split('\n')
+
+    swarm_root = _swarm_root()
+    run_id = _current_run(swarm_root)
+
+    verdict_line = lines[0].strip() if len(lines) >= 1 else ''
+    evidence_line = lines[1].strip() if len(lines) >= 2 else ''
+
+    reason = None
+
+    if not VERDICT_RE.match(verdict_line):
+        reason = 'línea 1 debe ser un veredicto: OK | KO <motivo> | DONE | BLOCKED <motivo>'
+
+    evidence_match = None
+    if reason is None:
+        evidence_match = EVIDENCE_RE.match(evidence_line)
+        if not evidence_match:
+            reason = 'línea 2 obligatoria: evidence: files=N cmds=M turns=k/max'
+
+    turns_k = turns_max = None
+    if reason is None:
+        files_n = int(evidence_match.group(1))
+        turns_k = int(evidence_match.group(3))
+        turns_max = int(evidence_match.group(4))
+
+        if verdict_line == 'OK' and files_n == 0:
+            reason = 'OK con files=0 — verdict verde sin evidencia real'
+
+        if reason is None:
+            for line in lines[2:]:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                if stripped.startswith('- '):
+                    continue
+                if FINDING_RE.match(stripped):
+                    continue
+                if len(stripped) > MAX_FINDING_LINE_LEN:
+                    reason = 'narración detectada fuera del formato TAG · file:línea · problema → fix'
+                    break
+
+    if reason is None:
+        if turns_k is not None and turns_k == turns_max:
+            _system_message(
+                'swarm: %s alcanzó maxTurns → tratar como BLOCKED maxTurns' % agent_type
+            )
+        sys.exit(0)
+
+    retry_key = _retry_key(agent_type, reason)
+    retry_count, retry_path, retries_dir = _retry_count(swarm_root, run_id, retry_key)
+
+    if retry_count >= 1:
+        _system_message(
+            'swarm: %s falló la validación dos veces (%s) → aceptado como BLOCKED' % (agent_type, reason)
+        )
+
+    _bump_retry(retry_path, retries_dir, retry_count)
+    _block(reason)
+
+
+if __name__ == '__main__':
+    main()
