@@ -22,6 +22,10 @@ mismo para raíz, orquestadores de dominio y hojas — spec
    cat "$SWARM_ROOT/run/${RUN:-adhoc}/mailbox/<tu-nombre>.md" 2>/dev/null
    ```
    Si el fichero no existe, no hay mensajes pendientes — continúa normalmente.
+   **Ojo con `$SWARM_ROOT`**: si tu frontmatter tiene `isolation: worktree`, usa la ruta ABSOLUTA
+   que te dieron en el prompt de lanzamiento (ver §3) — NO el `$SWARM_ROOT` por defecto, que en un
+   worktree resuelve a `$PWD/.swarm` (ruta equivocada). El `2>/dev/null` de arriba se traga el
+   fallo: con la ruta mal leerías un buzón vacío creyendo que no tienes mensajes.
 
 ## 2. Modo run vs modo adhoc (§9.2)
 
@@ -68,7 +72,9 @@ evidence: files=N cmds=M turns=k/max
   leídos, `M` = comandos deterministas ejecutados, `k/max` = turno actual sobre el `maxTurns` del
   frontmatter. El hook de validación es TOLERANTE con espacios extra alrededor de `=` y después de
   `:` (p. ej. `evidence:  files=2  cmds=1  turns=3/10` es válido) — pero el formato base (las
-  claves `files=`, `cmds=`, `turns=.../...`) es obligatorio.
+  claves `files=`, `cmds=`, `turns=.../...`) es obligatorio. El regex del hook ancla el final de
+  línea (`\s*$`): la línea debe TERMINAR justo tras el valor de `turns` — nada de texto detrás
+  (ni comentarios, ni un hallazgo pegado, ni puntuación).
 - **`OK` con `files=0` se rechaza siempre** — un veredicto verde sin haber leído nada no es
   evidencia real.
 - **Resto de líneas — hallazgos**, uno por línea, formato:
@@ -77,6 +83,9 @@ evidence: files=N cmds=M turns=k/max
   salida que lee el hook — cualquier prosa suelta ahí se interpreta como narración y se rechaza.
 
 ### 4.1 Cheat-sheet de invocación (rutas desde `${CLAUDE_PLUGIN_ROOT}`)
+
+> Estas invocaciones directas son para agentes SIN `isolation: worktree`; si tu frontmatter la
+> tiene, ver §3 — nunca escribas directo, todo pasa por `memory-orchestrator`.
 
 ```bash
 # salud del backend files (antes de cualquier escritura, si tienes dudas)
