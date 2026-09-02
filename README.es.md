@@ -1,6 +1,6 @@
 # swarm
 
-Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Solo fase 1 (núcleo) por ahora**: subsistema de memoria + orquestador raíz.
+Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Construido hasta ahora: fases 1, 1b y 2** — subsistema de memoria, orquestador raíz, dominio de requisitos y dominio discovery (batch de preguntas presentado al owner con `AskUserQuestion`).
 
 ## Instalación
 
@@ -10,10 +10,11 @@ Todavía no hay listing en el marketplace — solo desarrollo local:
 claude --plugin-dir /ruta/a/multiagents
 ```
 
-## Comandos (fase 1 — núcleo)
+## Comandos
 
 - `/swarm:init` — crea `.swarm/` en el repo target, health-gated sobre el backend `files`.
 - `/swarm:run <objetivo> [--tier=direct|light|full]` — lanza el orquestador raíz.
+- `/swarm:doctor` — verifica los requisitos de entorno del repo contra `requirements.json`.
 
 ## Cómo funciona
 
@@ -25,15 +26,26 @@ flowchart TD
     MO["memory-orchestrator (haiku)"]
     MB["memory-builder (sonnet)"]
     MC["memory-curator (haiku)"]
+    RO["requirements-orchestrator (haiku)"]
+    EC["env-checker (haiku)"]
+    DO["discovery-orchestrator (sonnet)"]
+    VC["value-critic (opus)"]
+    RA["research-analyst (sonnet)"]
+    OG["options-generator (opus)"]
+    FS["feasibility-spiker (sonnet)"]
 
     O --> MO
     MO --> MB
     MO --> MC
+    O --> DO
+    DO --> VC
+    DO --> RA
+    DO --> OG
+    DO --> FS
+    RO --> EC
 
-    subgraph planned["planeado, no construido (spec §15, fases 1b-6)"]
+    subgraph planned["planeado, no construido (spec §15, fases 3-6)"]
         direction TB
-        RO["requirements-orchestrator"]
-        DO["discovery-orchestrator"]
         AO["analysis-orchestrator"]
         DGO["design-orchestrator"]
         IO["implementation-orchestrator"]
@@ -43,11 +55,11 @@ flowchart TD
     O -.-> planned
 
     classDef planned fill:#eee,stroke:#999,color:#888,stroke-dasharray: 5 5;
-    class RO,DO,AO,DGO,IO,DLO planned
+    class AO,DGO,IO,DLO planned
     class planned planned
 ```
 
-El `orchestrator` raíz (opus) clasifica el tier del run y habla con un único dominio hoy: `memory-orchestrator`, que dirige a `memory-builder` (construye/refresca el context-pack) y `memory-curator` (compacta hallazgos, GC). Cualquier otro dominio del diseño — requisitos, discovery, análisis, diseño, implementación, entrega — está especificado pero no implementado (ver estado más abajo).
+El `orchestrator` raíz (opus) clasifica el tier del run y habla con dos dominios hoy: `memory-orchestrator`, que dirige a `memory-builder` (construye/refresca el context-pack) y `memory-curator` (compacta hallazgos, GC); y `discovery-orchestrator`, que dirige las cuatro hojas de discovery y devuelve UN batch de preguntas que la raíz presenta con `AskUserQuestion`. `requirements-orchestrator` (con `env-checker`) es un tercer dominio, invocado por `/swarm:doctor` y no dentro de un run. Los dominios restantes — análisis, diseño, implementación, entrega — están especificados pero no implementados (ver estado más abajo).
 
 ### Flujo de `/swarm:run`
 
@@ -106,7 +118,7 @@ Fases según spec §15:
 
 1. **Núcleo (construido).** `orchestrator`, subsistema de memoria (`memory-orchestrator` + `memory-builder` + `memory-curator`, backends `files`/`claude-mem`), skill `swarm-protocol`, hooks (validación del contrato de evidencia + allowlist de bash), `/swarm:init`, smoke tests 1-8.
 1b. **Requisitos (construido).** `requirements-orchestrator`, `env-checker`, `req-check.sh`, `requirements.json`, `/swarm:doctor`.
-2. **Discovery (planeado).** `discovery-orchestrator` + 4 hojas, integración `AskUserQuestion` en la raíz.
+2. **Discovery (construido).** `discovery-orchestrator` + `value-critic`, `research-analyst`, `options-generator`, `feasibility-spiker`; la raíz presenta UN batch de preguntas con `AskUserQuestion` y registra cada respuesta en `.swarm/decisions.md`.
 3. **Análisis (planeado).** `analysis-orchestrator` + 6 lentes read-only.
 4. **Diseño (planeado).** `design-orchestrator`, `planner`, `pattern-advisor`, `domain-modeler`, integración grill×3.
 5. **Implementación (planeado).** 7 agentes + `dependency-auditor`/`dependency-installer` + el stack pack `php-ddd-symfony8`.
