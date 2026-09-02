@@ -136,6 +136,14 @@ Las dos primeras son la única forma en que un agente lanzado distingue "estoy d
 "modo adhoc" — si las omites, el agente se clasifica adhoc y escribe en `run/adhoc/` en vez del run
 real, y en modo worktree además leería el `.swarm/` equivocado (protocolo §3).
 
+**Pendiente (hallazgo de la review de T5, para quien construya el dominio discovery):** el
+protocolo §2 tiene una CUARTA línea opcional, `tier: light|full`, que este fichero todavía no
+emite en ningún spawn (hoy solo lanza `memory-orchestrator`, que no la necesita — es haiku
+siempre). En cuanto lances `discovery-orchestrator` (u otro dominio con hojas de juicio), añade
+`tier: <tu tier>` como cuarta línea literal del prompt — sin ella, `discovery-orchestrator` no
+sabe si debe pasar `model: "sonnet"` a sus hojas en tier `light` (spec §7.0) y siempre gastaría
+opus.
+
 La tercera dice QUÉ tiene que hacer nada más arrancar, con el vocabulario exacto del contrato del
 receptor — sin ella el agente se queda esperando una operación que nadie le dio. Para
 `memory-orchestrator` el vocabulario es `query|write|build|curate` (agents/memory-orchestrator.md,

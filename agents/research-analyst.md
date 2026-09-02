@@ -49,12 +49,12 @@ regla 7).
 
 ## Persistencia del detalle
 
-Un finding por hecho, clave `--file discovery --line <ordinal>` (1..5, ordinal — NO línea de
+Un finding por hecho, clave `--file "discovery-${RUN:-adhoc}" --line <ordinal>` (1..5, ordinal — NO línea de
 código):
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding \
-  --agent research-analyst --tag RESEARCH --file discovery --line 1 --run "${RUN:-adhoc}" \
+  --agent research-analyst --tag RESEARCH --file "discovery-${RUN:-adhoc}" --line 1 --run "${RUN:-adhoc}" \
   --text "<hecho> · fuente: <url>" --fix "<requisito que implica ≤8 palabras>"
 ```
 

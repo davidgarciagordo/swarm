@@ -60,7 +60,7 @@ nombrado en tu roster (la raíz lo lanzó antes que a tu orquestador):
 
 ```
 SendMessage(to: "memory-orchestrator",
-  "write finding --agent feasibility-spiker --tag SPIKE --file discovery --line 1 --run <RUN> --text \"<pregunta> · resultado: viable con coste M · evidencia: <comando y salida en ≤20 palabras>\" --fix \"<qué implica para el diseño ≤8 palabras>\"")
+  "write finding --agent feasibility-spiker --tag SPIKE --file \"discovery-<RUN>\" --line 1 --run <RUN> --text \"<pregunta> · resultado: viable con coste M · evidencia: <comando y salida en ≤20 palabras>\" --fix \"<qué implica para el diseño ≤8 palabras>\"")
 ```
 
 `--line 1` es un ordinal (la pregunta nº 1), NO una línea de código. Espera su `OK`/`written`;

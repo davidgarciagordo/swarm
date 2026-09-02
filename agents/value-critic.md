@@ -53,12 +53,12 @@ las presenta (spec §3.2 regla 7).
 ## Persistencia del detalle
 
 Cada pregunta es UN finding en `findings/value-critic.md`. Como no citas código, la clave usa
-`--file discovery --line <ordinal>` (1, 2, 3 — el ordinal de la pregunta, NO una línea de
+`--file "discovery-${RUN:-adhoc}" --line <ordinal>` (1, 2, 3 — el ordinal de la pregunta, NO una línea de
 fichero; misma convención que `requirements.json:0` en fase 1b):
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding \
-  --agent value-critic --tag VALUE --file discovery --line 1 --run "${RUN:-adhoc}" \
+  --agent value-critic --tag VALUE --file "discovery-${RUN:-adhoc}" --line 1 --run "${RUN:-adhoc}" \
   --text "<pregunta> · A) <opción> · B) <opción> · C) <opción> · rec A: <por qué en ≤15 palabras>" \
   --fix "responder antes de diseñar"
 ```

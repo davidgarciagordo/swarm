@@ -29,7 +29,7 @@ check_common() { # check_common <name> <model> <maxTurns>
   assert_eq "1" "$(has "$tools" 'AskUserQuestion')" "$name NEVER has AskUserQuestion (spec §3.2 rule 7)"
   assert_eq "0" "$(has "$tools" 'SendMessage')" "$name has SendMessage (peer-to-peer §5)"
   assert_eq "0" "$(has "$tools" 'Read')" "$name has Read"
-  assert_eq "0" "$(has "$(body "$f")" 'discovery --line')" "$name body documents --file discovery --line <ordinal>"
+  assert_eq "0" "$(has "$(body "$f")" 'discovery-')" "$name body documents a run-scoped --file discovery-<RUN> (not bare 'discovery' — cross-run write collision, T5 review finding)"
   assert_eq "0" "$(has "$(body "$f")" 'AskUserQuestion')" "$name body says explicitly it never asks the owner"
 }
 

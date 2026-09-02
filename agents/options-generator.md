@@ -51,16 +51,16 @@ RAÍZ (spec §3.2 regla 7).
 ## Persistencia del detalle
 
 Un finding por enfoque (`--line 1..3`) y uno para la recomendación (`--line 9`, ordinal fijo para
-que el orquestador lo localice). Clave `--file discovery --line <ordinal>` (ordinal, NO línea de
+que el orquestador lo localice). Clave `--file "discovery-${RUN:-adhoc}" --line <ordinal>` (ordinal, NO línea de
 código):
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding \
-  --agent options-generator --tag OPTION --file discovery --line 1 --run "${RUN:-adhoc}" \
+  --agent options-generator --tag OPTION --file "discovery-${RUN:-adhoc}" --line 1 --run "${RUN:-adhoc}" \
   --text "A) <enfoque> · toca <módulos> · coste S · riesgo <…>" --fix "<trade-off ≤8 palabras>"
 
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding \
-  --agent options-generator --tag OPTION --file discovery --line 9 --run "${RUN:-adhoc}" \
+  --agent options-generator --tag OPTION --file "discovery-${RUN:-adhoc}" --line 9 --run "${RUN:-adhoc}" \
   --text "recomendación: A" --fix "<porqué ≤8 palabras>"
 ```
 
