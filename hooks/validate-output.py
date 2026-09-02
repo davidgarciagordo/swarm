@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """hooks/validate-output.py — SubagentStop hook: valida el contrato de evidencia swarm (spec §6.1).
 
-Contrato de stdin (JSON):
-  {"agent_type": "swarm:<name>", "output": "<texto completo producido por el subagente>"}
+Contrato de stdin (JSON, campo real de la plataforma — verificado empíricamente, ver C1):
+  {"agent_type": "swarm:<name>", "last_assistant_message": "<texto completo del subagente>"}
 
 Comportamiento:
   - agent_type que no empieza por "swarm:" -> exit 0, sin salida (no es de nuestra incumbencia).
