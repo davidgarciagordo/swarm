@@ -100,6 +100,26 @@ EOF
 )"
 assert_eq "" "$out" "short dash-prefixed batch lines are accepted (no output)"
 
+# C1 real (review final fase 2, 2026-09-02): una línea -Q de verdad, con pregunta larga y 3
+# opciones al límite de 8 palabras, supera los 120 chars con normalidad (184-212 en el run real)
+# -- el cap uniforme la rechazaba como narración. Debe seguir aceptándose SOLO por reconocer el
+# formato estructural (cabecera + · A) ... · rec: <letra>), no por venir con "- " delante.
+long_real_q="- Q1 [Alcance] Que conjunto exporta el boton, cambia arquitectura entera · A) solo pagina visible · B) todo el resultado del filtro con tope · C) todo el historico de facturas · rec: B"
+out="$(python3 "$HOOK" <<EOF
+{"agent_type": "swarm:discovery-orchestrator", "last_assistant_message": "DONE\nevidence: files=2 cmds=3 turns=6/15\n$long_real_q"}
+EOF
+)"
+assert_eq "" "$out" "a real 184-char Q line with question+3 options+rec is accepted (C1 fix)"
+
+# Un -Q malformado (sin rec: al final) NO se exime solo por parecerse -- sigue sujeto al cap si
+# se pasa de 120, para no reabrir la narración disfrazada de pregunta.
+malformed_q="- Q1 sin las opciones ni el rec al final, texto largo relleno relleno relleno relleno relleno relleno relleno relleno relleno relleno relleno relleno relleno"
+out="$(python3 "$HOOK" <<EOF
+{"agent_type": "swarm:discovery-orchestrator", "last_assistant_message": "DONE\nevidence: files=1 cmds=1 turns=2/15\n$malformed_q"}
+EOF
+)"
+assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "a malformed -Q line (no rec:) over 120 chars is still rejected, not exempted"
+
 rm -rf "$fixture"
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
