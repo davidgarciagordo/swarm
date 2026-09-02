@@ -93,7 +93,10 @@ def main():
     if not agent_type.startswith('swarm:'):
         sys.exit(0)
 
-    output = data.get('output', '') or ''
+    # Real SubagentStop payload field is `last_assistant_message`, not `output`
+    # (verified against code.claude.com/docs/en/hooks.md and empirically via a
+    # live PreToolUse capture confirming the sibling schema matches the docs).
+    output = data.get('last_assistant_message', '') or ''
     lines = output.split('\n')
 
     swarm_root = _swarm_root()
