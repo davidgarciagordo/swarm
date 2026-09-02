@@ -120,6 +120,36 @@ EOF
 )"
 assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "a malformed -Q line (no rec:) over 120 chars is still rejected, not exempted"
 
+# Análisis (fix Task 6, review 2026-09-02): una línea `- lentes: ...` real con las 6 hojas del
+# dominio analysis (agents/analysis-orchestrator.md "## Salida") supera con normalidad los 120
+# chars -- confirmado en vivo a 231 chars. Debe seguir aceptándose SOLO por reconocer el
+# vocabulario fijo `- lentes: ...`/`- sin hallazgos: ...` (DISCOVERY_OTHER_RE ampliada), no por
+# venir con "- " delante.
+long_real_lentes="- lentes: opportunity-analyst, architecture-auditor, security-auditor, vulnerability-scanner, performance-analyst, data-model-auditor, motivo: objetivo casó con seguridad, rendimiento, arquitectura, datos y oportunidades de negocio"
+out="$(python3 "$HOOK" <<EOF
+{"agent_type": "swarm:analysis-orchestrator", "last_assistant_message": "DONE\nevidence: files=1 cmds=6 turns=8/20\n$long_real_lentes"}
+EOF
+)"
+assert_eq "" "$out" "a real 231-char - lentes: line with all 6 lenses is accepted"
+
+# Una línea "- " cualquiera que NO case con el vocabulario fijo de analysis (ni lentes/sin
+# hallazgos/hallazgos adicionales/BLOCKED) NO se exime solo por parecerse -- sigue sujeta al cap,
+# para no reabrir narración disfrazada de salida de analysis.
+unstructured_analysis_line="- resumen: revisé bastante código de seguridad y rendimiento y encontré varias cosas que convendría mirar con calma en otra pasada más adelante"
+out="$(python3 "$HOOK" <<EOF
+{"agent_type": "swarm:analysis-orchestrator", "last_assistant_message": "DONE\nevidence: files=1 cmds=6 turns=8/20\n$unstructured_analysis_line"}
+EOF
+)"
+assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "an unstructured long - line from analysis-orchestrator is still rejected, not exempted"
+
+# Las otras dos líneas fijas de analysis (prefijo dinámico) también se aceptan sin más -- cubren
+# ANALYSIS_ADDITIONAL_RE y ANALYSIS_LEAF_BLOCKED_RE.
+out="$(python3 "$HOOK" <<'EOF'
+{"agent_type": "swarm:analysis-orchestrator", "last_assistant_message": "DONE\nevidence: files=1 cmds=6 turns=8/20\n- 3 hallazgos adicionales en .swarm/findings/architecture-auditor.md\n- vulnerability-scanner BLOCKED: repo demasiado grande para el escaneo en este turno"}
+EOF
+)"
+assert_eq "" "$out" "the two dynamic-prefix analysis lines (N hallazgos adicionales / hoja BLOCKED) are accepted"
+
 rm -rf "$fixture"
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

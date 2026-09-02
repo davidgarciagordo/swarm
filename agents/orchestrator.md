@@ -118,8 +118,9 @@ en un mismo mensaje.
 
 **Convención de nombre (skill swarm-protocol §2bis, decisión del owner):** todo agente que lances
 va NOMBRADO — nunca anónimo — y su nombre es exactamente su rol, el basename de su tipo, sin
-sufijos ni variantes (`memory-orchestrator`, y en fases futuras `analysis-orchestrator`,
-`security-auditor`…). Es lo que permite que los pares se manden `SendMessage(to: "<rol>", …)`
+sufijos ni variantes (`memory-orchestrator`, `analysis-orchestrator` — ya implementado, fase 3, §8
+—, y en fases futuras `security-auditor`…). Es lo que permite que los pares se manden
+`SendMessage(to: "<rol>", …)`
 sabiendo el nombre de antemano y que el owner se dirija a un agente concreto por su rol ("avisa a
 `memory-builder` cuando termines") sin que tú tengas que descubrir ningún nombre.
 
@@ -151,15 +152,17 @@ de fases futuras hereda las tres obligaciones (nombre = rol, las dos líneas de 
 `operation:`) al lanzar sus propias hojas.
 
 **Cuarta línea para orquestadores de dominio (protocolo §2, fase 2):** cuando lances un
-orquestador de dominio (hoy: `discovery-orchestrator`), añade `tier: light` o `tier: full` como
-cuarta línea — él la usa para bajar sus hojas de juicio de opus a sonnet en `light` (spec §7.0).
-`memory-orchestrator` no la necesita (no tiene hojas de juicio).
+orquestador de dominio (hoy: `discovery-orchestrator` o `analysis-orchestrator`, §8), añade `tier:
+light` o `tier: full` como cuarta línea — él la usa para bajar sus hojas de juicio de opus a sonnet
+en `light` (spec §7.0). `memory-orchestrator` no la necesita (no tiene hojas de juicio).
 
-**Quinta línea `objective:` — OBLIGATORIA para `discovery-orchestrator`.** Detrás de la cabecera,
-siempre que el tier sea `light`/`full` y vayas a lanzar discovery, escribes
-`objective: <objetivo literal del owner, sin el flag --tier>`. No es opcional:
-`discovery-orchestrator` la reenvía tal cual a sus cuatro hojas y no tiene fallback — sin ella el
-dominio entero se queda sin objetivo y su veredicto es `BLOCKED`.
+**Quinta línea `objective:` — OBLIGATORIA para `discovery-orchestrator` y `analysis-orchestrator`.**
+Detrás de la cabecera, siempre que el tier sea `light`/`full` y vayas a lanzar discovery o analysis,
+escribes `objective: <objetivo literal del owner, sin el flag --tier>`. No es opcional: cada uno la
+reenvía tal cual a sus propias hojas y no tiene fallback — sin ella el dominio entero se queda sin
+objetivo y su veredicto es `BLOCKED` (`discovery-orchestrator` se queda sin objetivo para sus cuatro
+hojas; `analysis-orchestrator` devuelve directamente `BLOCKED objetivo vacío`, agents/
+analysis-orchestrator.md "## Salida").
 
 ## 3. Política de pack (lazy, spec §9.1)
 
@@ -208,6 +211,14 @@ Línea por camino terminal (una sola llamada, la que corresponda):
 - análisis completado (§8.4): `- run cerrado: DONE · análisis completado, <n> hallazgos`
 - `BLOCKED`/`KO` propagado de analysis (§8.3): `- run cerrado: <veredicto literal de analysis-orchestrator>`
 - analysis omitido (§8.1): `- run cerrado: <tu veredicto> · analysis omitido: <motivo>`
+- ninguno de los dos dominios aplica (bugfix/refactor/docs/infra, §5.1 + §8.1): usa la línea
+  COMBINADA, `- run cerrado: <tu veredicto> · discovery y analysis omitidos: <motivo compartido>`
+  — **una sola llamada**, no las dos líneas anteriores por separado. Es el camino preferido cuando
+  discovery y analysis se saltan por el MISMO motivo de fondo (el objetivo no es "de producto" ni
+  "de análisis"). Las líneas individuales `discovery omitido: …` / `analysis omitido: …` de arriba
+  quedan para el caso en que la clasificación de cada dominio difiera de verdad entre sí (objetivo
+  ambiguo que casa con uno pero no con el otro) — pero §4 sigue exigiendo UNA sola llamada de
+  `summary` por cierre, así que si ambos motivos son el mismo, usa siempre la combinada.
 
 Y solo después, el cierre de memoria:
 
@@ -268,6 +279,9 @@ funcionalidad, nuevo producto, cambio de comportamiento visible para el usuario,
 formulación del tipo "qué construimos / cómo lo hacemos". **Se salta** para bugfix, refactor,
 docs, tests, tareas de infraestructura, y para un objetivo que `.swarm/decisions.md` YA cerró en un
 run anterior.
+
+Antes de saltarte discovery por este motivo, comprueba si el objetivo casa con la clasificación "de
+análisis" de §8.1 — si es así, no es un salto sin más: ve a §8 en vez de terminar aquí.
 
 **Cómo compruebas ese "ya cerró" (importa el CÓMO):** primero pasa el objetivo de ESTE run —el
 argumento de `/swarm:run` sin el flag `--tier`— por el **saneado de §5.0**, el mismo que aplicó §5.4
@@ -567,14 +581,20 @@ DIRECTAMENTE como tus propias líneas de salida — sin `AskUserQuestion`, sin r
 a consultar `mem-files.sh` (cada hoja de análisis ya persistió su detalle y ya te devolvió la
 versión corta a través de `analysis-orchestrator`). Copia sus líneas `- lentes: …`,
 `TAG · fichero:línea · …`, `- N hallazgos adicionales …` y `- <hoja> BLOCKED: …` tal cual a tu
-propia salida (§7), sin pasarlas por el saneado de §5.0 — no construyes ningún `--text`/`--line`
-nuevo con ellas, así que no hay shell que proteger; el saneado de §5.0 sigue aplicando SOLO donde tú
-mismo interpolas texto ajeno en un comando de Bash, cosa que no haces aquí.
+propia salida (§7) SIN pasarlas por el saneado de §5.0 — esa exención vale únicamente para las
+líneas que van a tu OUTPUT de turno (lo que lee `hooks/validate-output.py`), que nunca pasa por un
+shell, así que no hay nada que proteger ahí.
 
-Si `analysis-orchestrator` devuelve `BLOCKED …`/`KO …`, propaga su veredicto literal como el tuyo —
-cierra el run igual que en cualquier otro camino terminal (§4: `summary` con la línea de este camino
-y después `SendMessage(memory-orchestrator, "curate")`, esperando su `DONE`, antes de devolver el
-veredicto).
+**Esa exención NO cubre el `summary --line` del cierre.** Si `analysis-orchestrator` devuelve
+`BLOCKED …`/`KO …`, propagas su veredicto literal como el tuyo — pero cerrar el run (§4, §8.4)
+significa construir `"${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" summary --run <run-id> --line
+"<veredicto literal de analysis-orchestrator>"`, y eso SÍ es un `--line` nuevo que interpolas en un
+comando de Bash real, con texto ajeno (el `<motivo>` de una hoja, que puede citar código del repo
+con backticks/`$(...)`). Ese `--line` pasa por el saneado de §5.0 igual que cualquier otro `--line`
+de §4 que lleve texto ajeno — la única diferencia con discovery es de dónde sale el texto (una hoja
+de análisis en vez del owner), no si se sanea. Cierra el run igual que en cualquier otro camino
+terminal (§4: `summary` saneado con la línea de este camino y después
+`SendMessage(memory-orchestrator, "curate")`, esperando su `DONE`, antes de devolver el veredicto).
 
 ### 8.4 Cierre — nueva línea de resumen (extiende §4)
 
