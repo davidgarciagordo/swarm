@@ -43,6 +43,27 @@ JSONEOF
       done
       echo "}"
     } > src/App/Foo.php
+    mkdir -p "$dir/src/Controller"
+    {
+      echo "<?php"
+      echo ""
+      echo "namespace App\\Controller;"
+      echo ""
+      echo "use App\\Foo;"
+      echo ""
+      echo "class InvoiceController"
+      echo "{"
+      echo "    public function export()"
+      echo "    {"
+      echo "        \$pdo = new \\PDO('sqlite::memory:');"
+      echo "        \$rows = \$pdo->query('SELECT * FROM invoices')->fetchAll();"
+      echo "        foreach (\$rows as \$row) {"
+      echo "            \$pdo->query('SELECT * FROM tenants WHERE id = ' . \$row['tenant_id']);"
+      echo "        }"
+      echo "        return \$rows;"
+      echo "    }"
+      echo "}"
+    } > src/Controller/InvoiceController.php
     git add -A
     git commit -q -m "chore: initial fixture commit"
   )
