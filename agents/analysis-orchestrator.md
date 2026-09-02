@@ -35,6 +35,38 @@ ejecutas trabajo de hoja (§3.2 regla 4): no auditas tú mismo código, delegas 
    lances hojas a ciegas: `SendMessage(to: "memory-orchestrator", "build")`, espera su `OK`/`DONE`,
    y si no llega en tu siguiente turno, cierra con `BLOCKED falta context-pack`.
 
+## Saneado obligatorio de todo texto ajeno (si alguna vez construyes un `--text`/`--fix`/`--line`)
+
+Hoy tu único uso de Bash con texto ajeno interpolado es `register` (spec §5), y ahí el `--agent`
+que pasas es siempre un literal de la tabla de arriba (`architecture-auditor`, `security-auditor`…),
+nunca texto libre — así que no hay nada que sanear en el camino feliz actual. Pero tu cabecera trae
+`objective:` (el texto libre del owner) y tus hojas te devuelven motivos de `BLOCKED` (texto libre
+de una hoja), y tu allowlist de Bash incluye el prefijo completo `scripts/mem-*.sh` — si este
+fichero se extiende alguna vez para construir un `--text`/`--fix`/`--line` NUEVO a partir de ese
+`objective:` o de un motivo de hoja, aplica primero, en este orden, la MISMA regla compartida del
+protocolo (`skills/swarm-protocol/SKILL.md` §4.4, la que aplica todo agente `swarm:*`, y la que
+aplican `agents/orchestrator.md` §5.0 y `agents/discovery-orchestrator.md`):
+
+1. **sustituye cada backtick `` ` `` por una comilla simple `'`**
+2. **borra cada `$`** (desaparece)
+3. **sustituye cada comilla doble `"` por una comilla simple `'`** — se ELIMINA, nunca se escapa
+   como `\"`
+4. **borra cada barra invertida `\`** (desaparece; tampoco se escapa)
+5. colapsa cualquier salto de línea a un espacio
+
+Se BORRAN y no se escapan porque `split_segments` de `hooks/bash-guard.py` no tiene NINGÚN
+tratamiento de la barra invertida: ve un `\"` y da la comilla por CERRADA, mientras el shell real la
+mantiene abierta — un `|`/`;`/`&&` posterior del texto lo lee entonces FUERA de comillas y **deniega
+la llamada entera**, perdiendo en silencio lo que ibas a escribir. Borrando ambos caracteres en vez
+de escaparlos, el parser del guard y el shell ven exactamente lo mismo.
+
+**Esta regla NO cubre las líneas de tu propio `## Salida` de turno** (`- lentes: …`,
+`TAG · fichero:línea · …`, `- <hoja> BLOCKED: …`): esas las lee `hooks/validate-output.py` sobre el
+texto del turno, que nunca pasa por un shell, así que no hay nada que sanear ahí — igual que la
+exención que documenta `agents/orchestrator.md` §8.3 para las mismas líneas cuando la raíz las
+reenvía. Solo aplica si este fichero llega a construir un `--text`/`--fix`/`--line` nuevo con texto
+ajeno; hoy no lo hace.
+
 ## Selección de lentes por objetivo
 
 El objetivo (§1 arriba) decide qué subconjunto de las 6 lanzas — nunca las 6 por defecto salvo que
@@ -112,9 +144,12 @@ En `full` no pasas `model` a ninguna — vale el frontmatter de cada una.
    `- N hallazgos adicionales en .swarm/findings/<hoja>.md` por cada hoja con hallazgos fuera del
    corte — nunca trunques en silencio.
 4. Si una hoja devolvió `BLOCKED <motivo>`, propaga su línea literal como
-   `- <hoja> BLOCKED: <motivo>` (no la descartes, no la conviertas en hallazgo). Si NINGUNA hoja
-   lanzada respondió con hallazgos (todas `BLOCKED`, o todas `OK` con "sin hallazgos"), tu veredicto
-   sigue siendo `DONE`/`OK` — cero hallazgos es una auditoría completa y válida, no un fallo.
+   `- <hoja> BLOCKED: <motivo>` (no la descartes, no la conviertas en hallazgo). Un batch
+   **PARCIAL** —al menos una hoja lanzada respondió con hallazgos o con "sin hallazgos", aunque
+   otra(s) de la misma tanda hayan devuelto `BLOCKED`— sigue siendo `DONE`/`OK`: cero hallazgos de
+   una hoja no invalida lo que sí trajeron las demás, es una auditoría parcial pero válida. Solo si
+   **TODAS** las hojas lanzadas devolvieron `BLOCKED` (nada usable llegó de la tanda) tu veredicto
+   es `KO` — ver "## Salida" para el formato exacto.
 
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
@@ -127,7 +162,9 @@ cierre, §4 de `agents/orchestrator.md`).
 
 ## Salida
 
-≤22 líneas (20 hallazgos + hasta 2 líneas de lentes/overflow). Formato: reenvía las líneas
+≤32 líneas en el peor caso: 20 hallazgos + hasta 6 líneas `- N hallazgos adicionales…` (una por
+lente lanzada con hallazgos fuera del corte de 20, NUNCA una por hallazgo excedente) + hasta 6
+líneas `- <hoja> BLOCKED: …` (una por hoja bloqueada de la tanda) + 1 línea `- lentes: …`. Formato: reenvía las líneas
 `TAG · fichero:línea · problema → fix` de tus hojas EXACTAS, sin modificar ningún carácter (son ya
 válidas contra `hooks/validate-output.py` porque cada hoja ya las validó en su propio turno).
 
@@ -149,7 +186,9 @@ evidence: files=1 cmds=2 turns=6/20
 
 `BLOCKED objetivo vacío` si tu cabecera no trae la línea `objective:` (o viene vacía) — sin
 objetivo no sabes qué lentes elegir y no lanzas a nadie. `BLOCKED falta context-pack` si no hay pack
-ni `memory-orchestrator` lo construyó. `KO <hoja> BLOCKED: <motivo>` si alguna hoja lanzada devolvió
-`BLOCKED` — propaga su motivo literal junto a los hallazgos de las que sí respondieron (batch
-parcial, igual que discovery). `OK`/`DONE` con `files=0` se rechaza siempre: el pack leído al
-arrancar ya cuenta.
+ni `memory-orchestrator` lo construyó. `KO <hoja> BLOCKED: <motivo>` **únicamente si TODAS** las
+hojas lanzadas devolvieron `BLOCKED` — nada usable llegó de la tanda. Si SOLO ALGUNAS hojas
+lanzadas devolvieron `BLOCKED` mientras otra(s) sí respondieron con hallazgos o "sin hallazgos", el
+veredicto sigue siendo `DONE`/`OK`, con una línea `- <hoja> BLOCKED: <motivo>` por cada hoja
+bloqueada junto a los hallazgos que sí llegaron (batch parcial, igual que discovery). `OK`/`DONE`
+con `files=0` se rechaza siempre: el pack leído al arrancar ya cuenta.

@@ -19,7 +19,7 @@ assert_eq "0" "$(has "$body" 'operation: audit')" "root passes operation: audit"
 assert_eq "0" "$(has "$body" 'excluyente')" "root documents analysis is mutually exclusive with discovery in v1"
 
 # analysis no tiene AskUserQuestion propio: la raíz reenvía sus líneas directamente
-assert_eq "0" "$(has "$body" 'reenv')" "root documents it forwards analysis-orchestrator findings directly (no AskUserQuestion)"
+assert_eq "0" "$(has "$body" 'DIRECTAMENTE como tus propias líneas de salida')" "root documents it forwards analysis-orchestrator findings directly (no AskUserQuestion)"
 
 # §4 cierre: nuevas líneas de camino terminal para analysis
 assert_eq "0" "$(has "$body" 'análisis completado')" "root's close section documents the analysis terminal path"
@@ -34,6 +34,17 @@ assert_eq "0" "$(has "$body" 'implementation-orchestrator')" "root still names i
 
 # saneado ya cubre las líneas que la raíz reenvía de analysis-orchestrator (reusa §5.0, no lo duplica)
 assert_eq "0" "$(has "$body" '## 8. Análisis')" "root has a dedicated §8 Análisis section"
+
+# CRITICAL de la review final: la propagación BLOCKED/KO de analysis SÍ pasa por el saneado de §5.0
+# antes de construir el `summary --line` (§8.3) — la exención de arriba es SOLO para la salida de
+# turno, nunca para el --line del cierre.
+assert_eq "0" "$(has "$body" 'pasa por el saneado de §5.0')" "root's §8.3 states the BLOCKED/KO-propagation summary --line goes through §5.0 sanitization"
+
+# README: fase 3 (análisis) construida, no "planned"/"planeado"
+assert_eq "1" "$(grep -q 'Analysis (planned)' "$PLUGIN_ROOT/README.md" && echo 0 || echo 1)" "README.md no longer lists Analysis as planned"
+assert_eq "0" "$(grep -q 'Analysis (built)' "$PLUGIN_ROOT/README.md" && echo 0 || echo 1)" "README.md lists Analysis as built"
+assert_eq "1" "$(grep -q 'Análisis (planeado)' "$PLUGIN_ROOT/README.es.md" && echo 0 || echo 1)" "README.es.md no longer lists Análisis as planeado"
+assert_eq "0" "$(grep -q 'Análisis (construido)' "$PLUGIN_ROOT/README.es.md" && echo 0 || echo 1)" "README.es.md lists Análisis as construido"
 
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

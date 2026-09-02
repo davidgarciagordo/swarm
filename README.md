@@ -1,6 +1,6 @@
 # swarm
 
-Claude Code plugin. Single-responsibility agent swarm for the software development lifecycle — analysis, design, implementation, delivery — optimized for quality per token. Full design in `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Built so far: phases 1, 1b and 2** — memory subsystem, root orchestrator, requirements domain and discovery domain (questions batch presented to the owner via `AskUserQuestion`).
+Claude Code plugin. Single-responsibility agent swarm for the software development lifecycle — analysis, design, implementation, delivery — optimized for quality per token. Full design in `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Built so far: phases 1, 1b, 2 and 3** — memory subsystem, root orchestrator, requirements domain, discovery domain (questions batch presented to the owner via `AskUserQuestion`) and analysis domain (read-only codebase audit across 6 lenses).
 
 ## Install
 
@@ -33,6 +33,13 @@ flowchart TD
     RA["research-analyst (sonnet)"]
     OG["options-generator (opus)"]
     FS["feasibility-spiker (sonnet)"]
+    AO["analysis-orchestrator (sonnet)"]
+    OA["opportunity-analyst (opus)"]
+    AA["architecture-auditor (opus)"]
+    SA["security-auditor (opus)"]
+    VS["vulnerability-scanner (haiku)"]
+    PA["performance-analyst (sonnet)"]
+    DMA["data-model-auditor (sonnet)"]
 
     O --> MO
     MO --> MB
@@ -43,10 +50,16 @@ flowchart TD
     DO --> OG
     DO --> FS
     RO --> EC
+    O --> AO
+    AO --> OA
+    AO --> AA
+    AO --> SA
+    AO --> VS
+    AO --> PA
+    AO --> DMA
 
-    subgraph planned["planned, not built (spec §15, phases 3-6)"]
+    subgraph planned["planned, not built (spec §15, phases 4-6)"]
         direction TB
-        AO["analysis-orchestrator"]
         DGO["design-orchestrator"]
         IO["implementation-orchestrator"]
         DLO["delivery-orchestrator"]
@@ -55,11 +68,11 @@ flowchart TD
     O -.-> planned
 
     classDef planned fill:#eee,stroke:#999,color:#888,stroke-dasharray: 5 5;
-    class AO,DGO,IO,DLO planned
+    class DGO,IO,DLO planned
     class planned planned
 ```
 
-The root `orchestrator` (opus) classifies the run tier and talks to two domains today: `memory-orchestrator`, which owns `memory-builder` (builds/refreshes the context-pack) and `memory-curator` (compacts findings, GC); and `discovery-orchestrator`, which owns the four discovery leaves and returns ONE batch of questions the root presents with `AskUserQuestion`. `requirements-orchestrator` (with `env-checker`) is a third domain, invoked by `/swarm:doctor` rather than inside a run. The remaining domains — analysis, design, implementation, delivery — are spec'd but not implemented (see status below).
+The root `orchestrator` (opus) classifies the run tier and talks to three domains today: `memory-orchestrator`, which owns `memory-builder` (builds/refreshes the context-pack) and `memory-curator` (compacts findings, GC); `discovery-orchestrator`, which owns the four discovery leaves and returns ONE batch of questions the root presents with `AskUserQuestion`; and `analysis-orchestrator`, which selects a subset of its 6 read-only lenses by objective and forwards their findings directly. `requirements-orchestrator` (with `env-checker`) is a fourth domain, invoked by `/swarm:doctor` rather than inside a run. The remaining domains — design, implementation, delivery — are spec'd but not implemented (see status below).
 
 ### `/swarm:run` flow
 
@@ -138,14 +151,14 @@ Phases from spec §15:
 1. **Core (built).** `orchestrator`, memory subsystem (`memory-orchestrator` + `memory-builder` + `memory-curator`, `files`/`claude-mem` backends), `swarm-protocol` skill, hooks (evidence-contract validation + bash allowlist), `/swarm:init`, smoke tests 1-8.
 1b. **Requirements (built).** `requirements-orchestrator`, `env-checker`, `req-check.sh`, `requirements.json`, `/swarm:doctor`.
 2. **Discovery (built).** `discovery-orchestrator` + `value-critic`, `research-analyst`, `options-generator`, `feasibility-spiker`; the root presents ONE batch of questions via `AskUserQuestion` and records each answer in `.swarm/decisions.md`.
-3. **Analysis (planned).** `analysis-orchestrator` + 6 read-only lenses.
+3. **Analysis (built).** `analysis-orchestrator` + `opportunity-analyst`, `architecture-auditor`, `security-auditor`, `vulnerability-scanner`, `performance-analyst`, `data-model-auditor`; the root forwards its findings (`TAG · file:line · problem → fix`) directly, no `AskUserQuestion` involved.
 4. **Design (planned).** `design-orchestrator`, `planner`, `pattern-advisor`, `domain-modeler`, grill×3 integration.
 5. **Implementation (planned).** 7 agents + `dependency-auditor`/`dependency-installer` + the `php-ddd-symfony8` stack pack.
 6. **Delivery (planned).** 3 agents + `/swarm:status`, `/swarm:findings`.
 
 ## Naming convention
 
-Every spawned agent is launched **named after its role** — the basename of its type, no suffixes or variants (`memory-orchestrator`, and in future phases `security-auditor`, `analysis-orchestrator`, …). This is what lets peer agents `SendMessage` each other by name without discovering it first, and lets the owner address a specific agent directly — "tell `memory-builder` when it's done" — without the caller having to look up who that is. `memory-orchestrator` is the one case that's mandatory today: a single named instance per run (spec §4.5).
+Every spawned agent is launched **named after its role** — the basename of its type, no suffixes or variants (`memory-orchestrator`, `analysis-orchestrator`, and in future phases `pattern-advisor`, `dependency-installer`, …). This is what lets peer agents `SendMessage` each other by name without discovering it first, and lets the owner address a specific agent directly — "tell `memory-builder` when it's done" — without the caller having to look up who that is. `memory-orchestrator` is the one case that's mandatory today: a single named instance per run (spec §4.5).
 
 ## Tests
 

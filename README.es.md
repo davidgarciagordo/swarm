@@ -1,6 +1,6 @@
 # swarm
 
-Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Construido hasta ahora: fases 1, 1b y 2** — subsistema de memoria, orquestador raíz, dominio de requisitos y dominio discovery (batch de preguntas presentado al owner con `AskUserQuestion`).
+Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Construido hasta ahora: fases 1, 1b, 2 y 3** — subsistema de memoria, orquestador raíz, dominio de requisitos, dominio discovery (batch de preguntas presentado al owner con `AskUserQuestion`) y dominio de análisis (auditoría read-only del código en 6 lentes).
 
 ## Instalación
 
@@ -33,6 +33,13 @@ flowchart TD
     RA["research-analyst (sonnet)"]
     OG["options-generator (opus)"]
     FS["feasibility-spiker (sonnet)"]
+    AO["analysis-orchestrator (sonnet)"]
+    OA["opportunity-analyst (opus)"]
+    AA["architecture-auditor (opus)"]
+    SA["security-auditor (opus)"]
+    VS["vulnerability-scanner (haiku)"]
+    PA["performance-analyst (sonnet)"]
+    DMA["data-model-auditor (sonnet)"]
 
     O --> MO
     MO --> MB
@@ -43,10 +50,16 @@ flowchart TD
     DO --> OG
     DO --> FS
     RO --> EC
+    O --> AO
+    AO --> OA
+    AO --> AA
+    AO --> SA
+    AO --> VS
+    AO --> PA
+    AO --> DMA
 
-    subgraph planned["planeado, no construido (spec §15, fases 3-6)"]
+    subgraph planned["planeado, no construido (spec §15, fases 4-6)"]
         direction TB
-        AO["analysis-orchestrator"]
         DGO["design-orchestrator"]
         IO["implementation-orchestrator"]
         DLO["delivery-orchestrator"]
@@ -55,11 +68,11 @@ flowchart TD
     O -.-> planned
 
     classDef planned fill:#eee,stroke:#999,color:#888,stroke-dasharray: 5 5;
-    class AO,DGO,IO,DLO planned
+    class DGO,IO,DLO planned
     class planned planned
 ```
 
-El `orchestrator` raíz (opus) clasifica el tier del run y habla con dos dominios hoy: `memory-orchestrator`, que dirige a `memory-builder` (construye/refresca el context-pack) y `memory-curator` (compacta hallazgos, GC); y `discovery-orchestrator`, que dirige las cuatro hojas de discovery y devuelve UN batch de preguntas que la raíz presenta con `AskUserQuestion`. `requirements-orchestrator` (con `env-checker`) es un tercer dominio, invocado por `/swarm:doctor` y no dentro de un run. Los dominios restantes — análisis, diseño, implementación, entrega — están especificados pero no implementados (ver estado más abajo).
+El `orchestrator` raíz (opus) clasifica el tier del run y habla con tres dominios hoy: `memory-orchestrator`, que dirige a `memory-builder` (construye/refresca el context-pack) y `memory-curator` (compacta hallazgos, GC); `discovery-orchestrator`, que dirige las cuatro hojas de discovery y devuelve UN batch de preguntas que la raíz presenta con `AskUserQuestion`; y `analysis-orchestrator`, que selecciona un subconjunto de sus 6 lentes read-only según el objetivo y reenvía sus hallazgos directamente. `requirements-orchestrator` (con `env-checker`) es un cuarto dominio, invocado por `/swarm:doctor` y no dentro de un run. Los dominios restantes — diseño, implementación, entrega — están especificados pero no implementados (ver estado más abajo).
 
 ### Flujo de `/swarm:run`
 
@@ -138,14 +151,14 @@ Fases según spec §15:
 1. **Núcleo (construido).** `orchestrator`, subsistema de memoria (`memory-orchestrator` + `memory-builder` + `memory-curator`, backends `files`/`claude-mem`), skill `swarm-protocol`, hooks (validación del contrato de evidencia + allowlist de bash), `/swarm:init`, smoke tests 1-8.
 1b. **Requisitos (construido).** `requirements-orchestrator`, `env-checker`, `req-check.sh`, `requirements.json`, `/swarm:doctor`.
 2. **Discovery (construido).** `discovery-orchestrator` + `value-critic`, `research-analyst`, `options-generator`, `feasibility-spiker`; la raíz presenta UN batch de preguntas con `AskUserQuestion` y registra cada respuesta en `.swarm/decisions.md`.
-3. **Análisis (planeado).** `analysis-orchestrator` + 6 lentes read-only.
+3. **Análisis (construido).** `analysis-orchestrator` + `opportunity-analyst`, `architecture-auditor`, `security-auditor`, `vulnerability-scanner`, `performance-analyst`, `data-model-auditor`; la raíz reenvía sus hallazgos (`TAG · fichero:línea · problema → fix`) directamente, sin `AskUserQuestion` de por medio.
 4. **Diseño (planeado).** `design-orchestrator`, `planner`, `pattern-advisor`, `domain-modeler`, integración grill×3.
 5. **Implementación (planeado).** 7 agentes + `dependency-auditor`/`dependency-installer` + el stack pack `php-ddd-symfony8`.
 6. **Entrega (planeado).** 3 agentes + `/swarm:status`, `/swarm:findings`.
 
 ## Convención de nombres
 
-Todo agente lanzado va **nombrado con su rol** — el basename de su tipo, sin sufijos ni variantes (`memory-orchestrator`, y en fases futuras `security-auditor`, `analysis-orchestrator`, …). Esto es lo que permite que agentes pares se manden `SendMessage` entre sí por nombre sin tener que descubrirlo antes, y que el owner se dirija a un agente concreto directamente — "avisa a `memory-builder` cuando termine" — sin que quien lo pide tenga que averiguar quién es. `memory-orchestrator` es el único caso obligatorio hoy: una única instancia nombrada por run (spec §4.5).
+Todo agente lanzado va **nombrado con su rol** — el basename de su tipo, sin sufijos ni variantes (`memory-orchestrator`, `analysis-orchestrator`, y en fases futuras `pattern-advisor`, `dependency-installer`, …). Esto es lo que permite que agentes pares se manden `SendMessage` entre sí por nombre sin tener que descubrirlo antes, y que el owner se dirija a un agente concreto directamente — "avisa a `memory-builder` cuando termine" — sin que quien lo pide tenga que averiguar quién es. `memory-orchestrator` es el único caso obligatorio hoy: una única instancia nombrada por run (spec §4.5).
 
 ## Tests
 
