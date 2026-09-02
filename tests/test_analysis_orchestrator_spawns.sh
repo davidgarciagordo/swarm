@@ -35,7 +35,7 @@ assert_eq "0" "$(echo "$body" | grep -qF 'misma tanda' && echo 0 || echo 1)" "bo
 assert_eq "0" "$(echo "$body" | grep -qF 'model: "sonnet"' && echo 0 || echo 1)" "body: tier light overrides opus leaves to sonnet at spawn (spec §7.0)"
 assert_eq "0" "$(echo "$body" | grep -qF 'mem-manifest.sh" register' && echo 0 || echo 1)" "body registers each launched leaf in the run manifest (spec §5)"
 assert_eq "0" "$(echo "$body" | grep -qF 'sin re-consultar' && echo 0 || echo 1)" "body documents it forwards leaf output lines directly instead of re-querying mem-files.sh"
-assert_eq "0" "$(echo "$body" | grep -qF 'seguridad' && echo 0 || echo 1)" "body documents the lens-selection keyword table (security-shaped objective example)"
+assert_eq "0" "$(echo "$body" | grep -qF '`security-auditor` + `vulnerability-scanner`' && echo 0 || echo 1)" "body documents the lens-selection keyword table (security-shaped objective example)"
 
 # allowlist real
 out="$(python3 "$HOOK" <<'EOF2'

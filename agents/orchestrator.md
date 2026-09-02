@@ -534,6 +534,19 @@ Los `BLOCKED` de las guardas de invocación (§1.0: objetivo vacío, `--tier` in
 (pueden ser `files=0 cmds=0`: un `BLOCKED` sin evidencia es legítimo, lo que el hook rechaza es un
 `OK` con `files=0`).
 
+Run de análisis (§8): `analysis-orchestrator` reenvía sus líneas de hallazgo y tú las copias
+DIRECTAMENTE como tuyas (§8.3), sin `AskUserQuestion` — es el mismo vocabulario que documenta
+`agents/analysis-orchestrator.md` en su propia "## Salida", solo que aquí es la raíz quien lo emite:
+
+```
+DONE
+evidence: files=2 cmds=6 turns=11/30
+- lentes: security-auditor, vulnerability-scanner, motivo: objetivo casó con "seguridad"
+SEC · src/Controller/InvoiceController.php:14 · CRITICO: query de tenant sin filtro → añadir WHERE tenant_id
+SEC · src/Controller/InvoiceController.php:22 · endpoint mutante sin comprobación de rol → validar permiso en servidor
+VULN · config/services.php:3 · posible secreto en claro (patron api_key=) → mover a variable de entorno
+```
+
 `OK`/`DONE` con `files=0` se rechaza siempre: si solo ejecutaste comandos, lee al menos
 `.swarm/decisions.md` (ya lo haces en §5.1) y cuéntalo.
 

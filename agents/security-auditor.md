@@ -76,7 +76,6 @@ denegación por segmento (`&&`, `||`, `;`, `|`). No cierres con `; echo $?`.
 OK
 evidence: files=3 cmds=4 turns=8/15
 SEC · src/Controller/InvoiceController.php:14 · CRITICO: query de tenant sin filtro → añadir WHERE tenant_id
-SEC · src/App/Foo.php:1 · sin hallazgos de seguridad en esta clase → n/a
 ```
 
 `OK` con `files=0` se rechaza siempre. Cero hallazgos es válido: `OK` + `- sin problemas de
