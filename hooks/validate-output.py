@@ -42,7 +42,22 @@ MAX_FINDING_LINE_LEN = 120
 # no por venir con un "- " delante — cualquier otra línea "- " sigue sujeta a los 120 (ese era
 # el bug real original: narración colándose sin ningún tope).
 DISCOVERY_Q_RE = re.compile(r'^- Q\d+ \[[^\]]{1,12}\] .+ · [A-D]\) .+ · rec: [A-D]$')
-DISCOVERY_OTHER_RE = re.compile(r'^- (warn|findings): .+$')
+# DISCOVERY_OTHER_RE también cubre el vocabulario fijo de analysis-orchestrator (spec §7
+# "Análisis", agents/analysis-orchestrator.md "## Salida"): `- lentes: <n1>, <n2>, ..., motivo:
+# <objetivo casó con "...">` enumera hasta 6 lentes con nombres largos (`vulnerability-scanner`,
+# `architecture-auditor`...) y supera con normalidad los 120 chars cuando casan varias — mismo
+# bug de fondo que C1, confirmado en vivo con líneas de hasta 174 chars. `- sin hallazgos: <hoja>
+# no encontró...` (OK con cero hallazgos) es corta por construcción, pero es el mismo vocabulario
+# fijo por FORMA, no por "- " — se incluye aquí por localidad.
+DISCOVERY_OTHER_RE = re.compile(r'^- (warn|findings|lentes|sin hallazgos): .+$')
+# Las otras dos líneas fijas de analysis-orchestrator llevan un prefijo DINÁMICO (el número de
+# hallazgos truncados, el nombre de la hoja) y no caben en el `(a|b|c):` de arriba, así que van en
+# regexes aparte, cada una anclada a su forma exacta documentada en "## Espera y fusión" puntos 3
+# y 4 de agents/analysis-orchestrator.md — siguen siendo exenciones por FORMA, no por "- ":
+# `- N hallazgos adicionales en .swarm/findings/<hoja>.md` (cap de 20 líneas fusionadas) y
+# `- <hoja> BLOCKED: <motivo>` (hoja bloqueada, propagada sin descartar).
+ANALYSIS_ADDITIONAL_RE = re.compile(r'^- \d+ hallazgos adicionales en \.swarm/findings/\S+\.md$')
+ANALYSIS_LEAF_BLOCKED_RE = re.compile(r'^- [a-z][a-z0-9-]* BLOCKED: .+$')
 
 
 def _repo_root():
@@ -189,10 +204,16 @@ def main():
                     continue
                 if FINDING_RE.match(stripped):
                     continue
-                # Formato de batch de discovery-orchestrator: exento del cap de longitud por
-                # FORMA (regex estructural), nunca solo por empezar con "- " — ver comentario
-                # junto a DISCOVERY_Q_RE arriba.
-                if DISCOVERY_Q_RE.match(stripped) or DISCOVERY_OTHER_RE.match(stripped):
+                # Formato de batch de discovery-orchestrator y de analysis-orchestrator: exentos
+                # del cap de longitud por FORMA (regex estructural), nunca solo por empezar con
+                # "- " — ver comentarios junto a DISCOVERY_Q_RE / DISCOVERY_OTHER_RE /
+                # ANALYSIS_ADDITIONAL_RE / ANALYSIS_LEAF_BLOCKED_RE arriba.
+                if (
+                    DISCOVERY_Q_RE.match(stripped)
+                    or DISCOVERY_OTHER_RE.match(stripped)
+                    or ANALYSIS_ADDITIONAL_RE.match(stripped)
+                    or ANALYSIS_LEAF_BLOCKED_RE.match(stripped)
+                ):
                     continue
                 # Cualquier OTRA línea "- " (no reconocida por el formato de batch) sigue
                 # sujeta al tope: sin esto, prosa cualquiera se cuela con solo anteponerle
