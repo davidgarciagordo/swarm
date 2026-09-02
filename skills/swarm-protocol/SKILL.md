@@ -35,6 +35,7 @@ Tu prompt de lanzamiento trae, cuando te lanza un orquestador, esta cabecera lit
 run-id: <uuid>
 swarm-root: <ruta absoluta de .swarm>
 operation: <la operación concreta que debes ejecutar en tu turno 1>
+tier: <light|full>            (OPCIONAL — solo la escribe la raíz al lanzar un orquestador de dominio)
 ```
 
 - Si incluye `run-id: <uuid>`, estás dentro de un run orquestado: usa `RUN=<ese uuid>` en todos los
@@ -48,6 +49,11 @@ operation: <la operación concreta que debes ejecutar en tu turno 1>
   de escritura (`mem-files.sh write …`, `mem-manifest.sh register|summary`) ya crean por sí solos el
   árbol que necesitan (`findings/`, `run/adhoc/mailbox/`…) en la primera escritura. Sigue el
   contrato de evidencia (§4) sin excepción.
+- `tier: light|full` (fase 2, spec §7.0): línea OPCIONAL que la raíz añade al lanzar un orquestador
+  de dominio. Ausente ⇒ `full`. Un orquestador la usa para elegir el modelo de sus hojas de
+  juicio al lanzarlas (`light` ⇒ override `model: "sonnet"` en el tool `Agent` para las hojas cuyo
+  frontmatter dice `opus`); las hojas no la reciben ni la necesitan. Los orquestadores pueden añadir
+  líneas propias detrás de la cabecera (p. ej. `objective: <texto>`), siempre DESPUÉS de estas.
 - Caso particular: si eres `implementer` (fase 5, todavía no existe) y te invocan sin referencia a
   un plan concreto, tu veredicto es `BLOCKED necesita plan` — no improvises un plan.
 

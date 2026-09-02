@@ -84,5 +84,8 @@ if [ -f "$f" ]; then
   assert_eq "0" "$(has "$(body "$f")" 'BLOCKED falta swarm-root')" "spiker blocks without an absolute swarm-root"
 fi
 
+# ---------- T5: discovery-orchestrator (el contrato de spawn vive en test_discovery_orchestrator_spawns.sh) ----------
+check_common discovery-orchestrator sonnet 15
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

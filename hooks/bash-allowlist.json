@@ -35,6 +35,11 @@
       "ls", "cat", "head", "tail", "wc", "grep",
       "scripts/req-check.sh"
     ],
+    "swarm:discovery-orchestrator": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
     "swarm:value-critic": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
