@@ -128,7 +128,7 @@ evidence: files=1 cmds=1 turns=2/20
 Pack reconstruido:
 ```
 DONE
-evidence: files=N cmds=M turns=k/20
+evidence: files=6 cmds=4 turns=9/20
 ```
 `BLOCKED <motivo>` solo si falta `.swarm/` o si `mem-scan.sh`/`seal` fallan de verdad; un
 claude-mem ausente o un `CLAUDE.md` inexistente NO son motivo de bloqueo. La línea de evidencia

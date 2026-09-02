@@ -101,7 +101,7 @@ se valida por separado, así que:
 
 ```
 DONE
-evidence: files=N cmds=3 turns=k/10
+evidence: files=2 cmds=3 turns=5/10
 ```
 `cmds` cuenta los comandos deterministas reales (3 si no hubo trimming, más los del paso 4). Si un
 script falla, veredicto `KO <peor problema>` con una línea por fallo; `BLOCKED <motivo>` solo si no

@@ -203,14 +203,14 @@ Formato de evidencia del protocolo §4 (la línea de `turns` cierra la línea, s
 
 ```
 OK
-evidence: files=N cmds=M turns=k/30
+evidence: files=1 cmds=3 turns=6/30
 ```
 
 o, si el objetivo pide un dominio que aún no existe:
 
 ```
 BLOCKED dominio no implementado en fase 1 (<nombre-dominio>)
-evidence: files=N cmds=M turns=k/30
+evidence: files=1 cmds=0 turns=2/30
 ```
 
 Los `BLOCKED` de las guardas de invocación (§1.0: objetivo vacío, `--tier` inválido) y el
