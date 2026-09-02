@@ -90,6 +90,11 @@ convierte en un requisito de test explícito en la tarea correspondiente]
 Si el plan es muy largo (>4 fases), divídelo en versiones (v1 para MVP, v1.1 para extensiones, v2 para
 refactor) y escribe un plan por versión.
 
+Reglas de contenido (mismas que `writing-plans`, resumidas): sin placeholders ("TBD", "similar a
+la Task N"), pasos bite-sized con código real (no "añade validación" sin más), áreas de ficheros
+disjuntas entre tareas, riesgos nombrados explícitamente si el objetivo o los hallazgos de grill
+(si `design-orchestrator` te los resume en una segunda pasada) dejan algo abierto.
+
 ## Revisión tras grill (segunda pasada, solo si `design-orchestrator` te relanza)
 
 Si tu cabecera trae `operation: revise` en vez de `plan`, ya existe un borrador (la ruta viene en
@@ -120,12 +125,12 @@ segmento (`&&`, `||`, `;`, `|`). No cierres con `; echo $?`.
 ## Salida
 
 ```
-OK
-evidence: files=4 cmds=2 turns=8/20
-PLAN · src/App/Invoice.php:1 · fase 1: crear agregado Invoice, VO Money → invariante: total nunca negativo
-PLAN · src/App/Invoice.php:1 · fase 2: implementar export → test_invoice_export_to_pdf
+DONE
+evidence: files=4 cmds=1 turns=12/20
+PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan listo, 4 tareas → revisar antes de fase 5
 ```
 
-`OK` con `files=0` se rechaza siempre. El plan escrito = el artefacto vivo (no es un finding corto).
-`BLOCKED falta context-pack` si `.swarm/context-pack.md` no existe (pide `build` a
-`memory-orchestrator`, cierra con ese `BLOCKED` si no responde a tiempo).
+`DONE` con `files=0` se rechaza siempre — al menos el context-pack y `decisions.md` cuentan. El
+plan escrito = el artefacto vivo (no es un finding corto). `BLOCKED falta context-pack` si
+`.swarm/context-pack.md` no existe (pide `build` a `memory-orchestrator`, cierra con ese
+`BLOCKED` si no responde a tiempo). `BLOCKED objetivo vacío` si tu cabecera no trae `objective:`.
