@@ -21,7 +21,37 @@ assert_eq "0" "$(has "$body" 'tier: ')" "root passes tier: to domain orchestrato
 assert_eq "0" "$(has "$body" 'objective: ')" "root passes objective: literal"
 assert_eq "0" "$(has "$body" '(Recommended)')" "root puts the recommended option first with (Recommended)"
 assert_eq "0" "$(has "$body" 'multiSelect')" "root documents the multiSelect setting"
-assert_eq "0" "$(has "$body" 'write decision')" "root records each answer as a decision via memory-orchestrator"
+assert_eq "0" "$(has "$body" 'write decision')" "root records the answers as a decision via memory-orchestrator"
+
+# P1-a — saneado de texto ajeno antes de interpolarlo en un --text (el guard no protege dentro de comillas)
+assert_eq "0" "$(has "$body" 'sustituye cada backtick')" "root sanitizes backticks before building --text"
+assert_eq "0" "$(has "$body" 'borra cada `$`')" "root strips \$ before building --text"
+assert_eq "0" "$(has "$body" 'escapa cada comilla doble')" "root escapes double quotes before building --text"
+
+# P1-b — UNA sola escritura de decisión (memory-orchestrator tiene maxTurns: 12)
+assert_eq "0" "$(has "$body" 'UNA sola escritura, nunca una por pregunta')" "root batches all answers into ONE write decision"
+assert_eq "0" "$(has "$body" 'maxTurns: 12')" "root explains the turn-budget reason for batching"
+
+# P1-c — cancelación del diálogo definida (verdicto + decisión pendiente)
+assert_eq "0" "$(has "$body" 'KO batch sin responder')" "root defines the verdict when the owner cancels AskUserQuestion"
+assert_eq "0" "$(has "$body" '[pendiente]')" "root records a cancelled batch as a PENDING decision"
+
+# P1-d — objective: en la línea de decisión, y §5.1 matchea contra ese campo
+assert_eq "0" "$(has "$body" 'objective: <objetivo literal saneado>')" "decision line carries the literal objective"
+assert_eq "0" "$(has "$body" 'nunca** contra el texto de las preguntas')" "skip-check matches objective:, not regenerated question text"
+
+# P2-a — pre-flight del batch antes de llamar a AskUserQuestion
+assert_eq "0" "$(has "$body" 'BLOCKED batch malformado de discovery-orchestrator')" "root blocks on a malformed batch instead of losing all questions"
+
+# P2-b — objective: obligatorio al lanzar discovery
+assert_eq "0" "$(has "$body" '`objective:` — OBLIGATORIA')" "objective: is mandatory, not optional"
+assert_eq "1" "$(has "$body" 'puedes añadir `objective:')" "objective: is no longer documented as optional"
+
+# P2-d — el salto del invariante de tanda (§2.2) queda reconciliado con el espejo a buzón
+assert_eq "0" "$(has "$body" 'espejo a buzón')" "root reconciles the roster-snapshot gap with the mailbox mirror"
+
+# P2-c — ejemplo separado de skip legítimo (DONE) vs dominio inexistente (BLOCKED)
+assert_eq "0" "$(has "$body" '- discovery omitido: decisions.md ya cerró este objetivo')" "root shows a DONE example for a legitimate discovery skip"
 assert_eq "0" "$(has "$body" 'después de su `OK`/`DONE`')" "root launches discovery only AFTER memory-orchestrator finished build"
 assert_eq "1" "$(has "$body" 'fase 2, no implementado')" "root no longer says discovery is unimplemented"
 assert_eq "0" "$(has "$body" 'bugfix')" "root documents when discovery is skipped (bugfix/refactor/docs)"
@@ -38,6 +68,12 @@ assert_eq "1" "$(grep -q 'Discovery (planned)' "$PLUGIN_ROOT/README.md" && echo 
 assert_eq "0" "$(grep -q 'Discovery (built)' "$PLUGIN_ROOT/README.md" && echo 0 || echo 1)" "README.md lists Discovery as built"
 assert_eq "1" "$(grep -q 'Discovery (planeado)' "$PLUGIN_ROOT/README.es.md" && echo 0 || echo 1)" "README.es.md no longer lists Discovery as planeado"
 assert_eq "0" "$(grep -q 'Discovery (construido)' "$PLUGIN_ROOT/README.es.md" && echo 0 || echo 1)" "README.es.md lists Discovery as construido"
+
+# P2-e — el diagrama de flujo de /swarm:run ya no termina en el OK de memory-orchestrator
+for r in README.md README.es.md; do
+  assert_eq "0" "$(grep -q 'participant DO as discovery-orchestrator' "$PLUGIN_ROOT/$r" && echo 0 || echo 1)" "$r: /swarm:run diagram includes discovery-orchestrator"
+  assert_eq "0" "$(grep -q 'AskUserQuestion (UNA llamada\|AskUserQuestion (ONE call' "$PLUGIN_ROOT/$r" && echo 0 || echo 1)" "$r: /swarm:run diagram shows the questions batch"
+done
 
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

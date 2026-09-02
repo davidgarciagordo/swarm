@@ -152,8 +152,13 @@ de fases futuras hereda las tres obligaciones (nombre = rol, las dos líneas de 
 **Cuarta línea para orquestadores de dominio (protocolo §2, fase 2):** cuando lances un
 orquestador de dominio (hoy: `discovery-orchestrator`), añade `tier: light` o `tier: full` como
 cuarta línea — él la usa para bajar sus hojas de juicio de opus a sonnet en `light` (spec §7.0).
-`memory-orchestrator` no la necesita (no tiene hojas de juicio). Detrás de la cabecera puedes
-añadir `objective: <objetivo literal del owner>`.
+`memory-orchestrator` no la necesita (no tiene hojas de juicio).
+
+**Quinta línea `objective:` — OBLIGATORIA para `discovery-orchestrator`.** Detrás de la cabecera,
+siempre que el tier sea `light`/`full` y vayas a lanzar discovery, escribes
+`objective: <objetivo literal del owner, sin el flag --tier>`. No es opcional:
+`discovery-orchestrator` la reenvía tal cual a sus cuatro hojas y no tiene fallback — sin ella el
+dominio entero se queda sin objetivo y su veredicto es `BLOCKED`.
 
 ## 3. Política de pack (lazy, spec §9.1)
 
@@ -185,13 +190,47 @@ SendMessage(memory-orchestrator, "curate")
 
 ## 5. Discovery (fase 2 — antes de cualquier diseño, spec §3.2 regla 7)
 
+### 5.0 Saneado obligatorio de todo texto ajeno (ANTES de construir cualquier `--text`)
+
+Todo texto que no escribiste tú literalmente en este fichero es NO confiable: el objetivo que tecleó
+el owner, la pregunta que generó `value-critic`, la opción elegida y —sobre todo— el texto libre que
+el owner escribe en "Other". Ese texto acaba dentro de un `--text "…"` que ejecuta un shell REAL.
+
+`hooks/bash-guard.py` **no te protege aquí**: su `split_segments` solo parte el comando en `&&`,
+`||`, `;` y `|` **fuera** de comillas, así que un backtick, un `$(...)` o un `$VAR` **dentro** de las
+comillas pasa el guard intacto y lo sustituye el shell antes de que `mem-files.sh` llegue a ver
+nada. Una pregunta tan normal como "¿migramos el parseCSV() antiguo?" escrita con el identificador
+entre backticks, o una respuesta libre con un `$(...)`, se ejecutaría como comando.
+
+Por eso, ANTES de interpolar cualquier texto ajeno en un `--text` (o en un `--fix`), aplica
+literalmente estas sustituciones, en este orden:
+
+1. **sustituye cada backtick `` ` `` por una comilla simple `'`**
+2. **borra cada `$`** (no lo sustituyes por nada: desaparece)
+3. **escapa cada comilla doble `"` como `\"`**
+4. colapsa cualquier salto de línea a un espacio (una decisión es UNA línea, §5.4)
+
+Sin excepciones y sin juicio propio sobre si "ese texto parece inofensivo": si el texto no es un
+literal tuyo, se sanea. La regla vale para CUALQUIER `--text`/`--fix` que construyas en este
+contrato, no solo el de §5.4.
+
 ### 5.1 Cuándo
 
 Solo en tiers `light`/`full` (nunca `direct`), y solo si el objetivo es "de producto": nueva
 funcionalidad, nuevo producto, cambio de comportamiento visible para el usuario, o cualquier
 formulación del tipo "qué construimos / cómo lo hacemos". **Se salta** para bugfix, refactor,
-docs, tests, tareas de infraestructura y objetivos que `.swarm/decisions.md` ya cerró (léelo con
-`Read` antes de decidir). Si lo saltas, dilo en una línea `- discovery omitido: <motivo>`.
+docs, tests, tareas de infraestructura, y para un objetivo que `.swarm/decisions.md` YA cerró en un
+run anterior.
+
+**Cómo compruebas ese "ya cerró" (importa el CÓMO):** lee `.swarm/decisions.md` con `Read` y busca
+una línea de decisión cuyo campo **`objective:`** (§5.4 lo escribe siempre el primero) sea igual al
+objetivo literal de este run — el argumento de `/swarm:run` sin el flag `--tier`. El match es contra
+ese campo `objective:` y **nunca** contra el texto de las preguntas: `value-critic` las regenera en
+cada run, así que no coinciden literalmente entre ejecuciones y buscar por pregunta no encuentra
+nunca nada. Si la línea que encuentras está marcada `[pendiente]` (§5.3: el owner canceló el batch),
+el objetivo NO está cerrado — vuelve a presentar el batch.
+
+Si lo saltas, dilo en una línea `- discovery omitido: <motivo>`.
 
 ### 5.2 Lanzamiento (secuencial respecto a memoria)
 
@@ -199,6 +238,17 @@ Lanza `discovery-orchestrator` **después de su `OK`/`DONE`** de `memory-orchest
 build`, §2.2) — NO en la misma tanda: el pack tiene que existir cuando sus hojas arranquen, y
 `memory-orchestrator` tiene que estar ya vivo para entrar en el roster de `feasibility-spiker`
 (que escribe en `.swarm/` solo a través de él, protocolo §3).
+
+**Reconciliación con el invariante de tanda de §2.2.** §2.2 dice que los agentes que deban hablarse
+van en la MISMA tanda porque el roster de hermanos es un snapshot al inicio (spec §3.1); aquí lo
+rompes a propósito, y por eso el snapshot de `memory-orchestrator` no incluye a
+`discovery-orchestrator` ni a sus hojas. El sentido que de verdad se usa sí funciona
+(hoja → `memory-orchestrator`: él ya estaba vivo cuando se tomó el snapshot de las hojas), y para
+el sentido contrario el canal de reserva es el **espejo a buzón** del protocolo (skill
+swarm-protocol §1 punto 3 y §4.1: `mem-files.sh write mailbox --to <agente>`, que
+`memory-orchestrator` aplica a toda escritura y que cada agente lee al arrancar en
+`run/<run>/mailbox/<tu-nombre>.md`). Es decir: un agente puede dejar mensaje a otro **aunque aún no
+esté lanzado** y aunque no aparezca en su roster — el buzón no depende del snapshot.
 
 ```
 Agent(subagent_type: "swarm:discovery-orchestrator", name: "discovery-orchestrator", prompt:
@@ -220,7 +270,28 @@ Su salida trae hasta cuatro líneas con este formato exacto:
 ```
 - Q<n> [<cabecera>] · <pregunta> · A) <opción> · B) <opción> [· C) <opción>] [· D) <opción>] · rec: <letra>
 ```
-Conviértelas en UNA llamada a `AskUserQuestion` con `questions` = una entrada por línea `- Q`:
+**Pre-flight OBLIGATORIO antes de llamar a `AskUserQuestion`.** La herramienta rechaza la llamada
+ENTERA si UNA sola pregunta está malformada (número de opciones fuera de rango, cabecera demasiado
+larga) — no rechaza solo esa pregunta. Es decir: una línea mala de `discovery-orchestrator` te
+tiraría las cuatro y te quedarías sin el único momento interactivo del run. Valida cada línea `- Q`
+ANTES de construir la llamada:
+
+- **opciones**: cuenta los marcadores `A)`, `B)`, `C)`, `D)` de la línea — tienen que ser entre 2 y
+  4, consecutivos desde `A)` (`A)`+`B)`, `A)`+`B)`+`C)`, o los cuatro; nunca 1, nunca un hueco);
+- **cabecera**: la `<cabecera>` entre corchetes tiene que medir ≤12 caracteres;
+- **`rec:`**: tiene que existir y su letra tiene que ser una de las opciones presentes en la línea.
+
+Si alguna línea falla cualquiera de las tres comprobaciones, **no llames a `AskUserQuestion`** con
+ese batch. Tu veredicto es:
+
+```
+BLOCKED batch malformado de discovery-orchestrator: <qué falló, citando el Q<n> concreto>
+```
+
+Un bug del productor tiene que salir a la luz, no comerse en silencio las cuatro preguntas.
+
+Con el batch validado, conviértelo en UNA llamada a `AskUserQuestion` con `questions` = una entrada
+por línea `- Q`:
 - `header`: la `<cabecera>` (≤12 caracteres, ya viene así).
 - `question`: la `<pregunta>`.
 - `options`: una por letra, `label` = el texto de la opción; la marcada en `rec:` va **PRIMERA**
@@ -240,15 +311,59 @@ a `AskUserQuestion`: propaga su veredicto literal como el tuyo. Si trae `KO …`
 (batch parcial, una hoja de juicio caída), presenta el batch igualmente y propaga su motivo
 literal en una línea `- …` de tu salida.
 
-### 5.4 Registrar las respuestas
+**Si el owner cancela o descarta el diálogo** (lo cierra sin elegir — comportamiento normal y
+frecuente, no un error), NO reintentes, no re-preguntes y no lo des por respondido con la opción
+`rec:`. Registra el batch como decisión **PENDIENTE** —una sola escritura, con el mismo formato de
+una línea y el mismo saneado de §5.0 que §5.4—:
 
-Por cada pregunta, una decisión vía `memory-orchestrator` (nunca escribes tú `decisions.md`):
 ```
-SendMessage(memory-orchestrator, "write decision --text \"discovery <run-id> Q<n> [<cabecera>] <pregunta> → <opción elegida literal, o el texto libre de Other>\"")
+SendMessage(memory-orchestrator, "write decision --text \"objective: <objetivo literal saneado> · discovery <run-id> [pendiente] batch sin responder (owner canceló) · Q1 [<cabecera>] <pregunta saneada> · Q2 [<cabecera>] <pregunta saneada> · …\"")
 ```
-Espera su `OK`/`written` por cada una. Después, como `design-orchestrator` aún no existe (fase
-4), el run termina aquí: cierra con `curate` (§4) y devuelve `DONE` con las decisiones como
-líneas `- …` (§7).
+
+Espera su `OK`/`written`, cierra con `curate` (§4) y tu veredicto es:
+
+```
+KO batch sin responder
+```
+
+El marcador `[pendiente]` es lo que permite que un run posterior sobre el mismo objetivo detecte
+"discovery ya corrió, respuestas pendientes" (§5.1) en vez de empezar de cero — o, peor, perder el
+batch en silencio sin dejar nada durable.
+
+### 5.4 Registrar las respuestas (UNA sola escritura, nunca una por pregunta)
+
+Nunca escribes tú `decisions.md`: pasa por `memory-orchestrator`. Pero **todas las respuestas van en
+UNA sola llamada `write decision`**, no una por pregunta. Motivo concreto: `memory-orchestrator`
+tiene `maxTurns: 12` y ya gasta turnos en su arranque, su `build` y el `curate` del cierre; además
+espeja cada escritura a claude-mem (su `policy.write`). Cuatro `write decision` secuenciales, cada
+una con su ack, le agotan el presupuesto a mitad de camino: las últimas decisiones **y el `curate`
+del cierre** se pierden en silencio.
+
+**Firma real del script** (`scripts/mem-files.sh`, `_write_decision`): `write decision` acepta
+únicamente `--text`, y hace `echo "- <fecha> · <texto>" >> decisions.md`. Es UNA línea. Por eso el
+payload de las cuatro preguntas cabe perfectamente en un único `--text`, pero **de una sola línea**,
+con las respuestas separadas por ` · ` — nada de saltos de línea dentro del `--text`: romperían el
+formato "una decisión por línea" (solo la primera llevaría fecha y el resto quedaría huérfano).
+
+Formato exacto — el campo **`objective:` va PRIMERO**, y es lo que hace detectable el run repetido
+en §5.1:
+
+```
+SendMessage(memory-orchestrator, "write decision --text \"objective: <objetivo literal saneado> · discovery <run-id> · Q1 [<cabecera>] <pregunta> → <respuesta> · Q2 [<cabecera>] <pregunta> → <respuesta> · …\"")
+```
+
+- `<objetivo literal saneado>`: el argumento de `/swarm:run` sin el flag `--tier`, pasado por §5.0.
+  Sin este campo, un run posterior sobre el mismo objetivo no puede saber que discovery ya corrió
+  (las preguntas se regeneran y no se pueden comparar).
+- `<respuesta>`: la opción elegida literal, o el texto libre de "Other" — **siempre** por §5.0 antes
+  de interpolar: es la entrada más peligrosa del run, la escribe el owner a mano.
+- `<pregunta>`: también por §5.0 (la genera `value-critic`, no tú).
+- Solo las preguntas efectivamente respondidas. Si el owner canceló el diálogo, no es este caso sino
+  el `[pendiente]` de §5.3.
+
+Espera su `OK`/`written` — uno solo. Después, como `design-orchestrator` aún no existe (fase 4), el
+run termina aquí: cierra con `curate` (§4) y devuelve `DONE` con las decisiones como líneas `- …`
+(§7).
 
 ## 6. Disciplina de Bash (`hooks/bash-guard.py`)
 
@@ -276,12 +391,34 @@ evidence: files=2 cmds=5 turns=12/30
 - siguiente: design-orchestrator (fase 4, no implementado) — decisiones guardadas en .swarm/decisions.md
 ```
 
-Run sin discovery (objetivo de bugfix/refactor), o que pide un dominio que aún no existe:
+Run normal en el que discovery se SALTÓ legítimamente porque `.swarm/decisions.md` ya había cerrado
+este mismo objetivo (§5.1). Es un run verde y completo — **no lo confundas con el `BLOCKED` de
+abajo**: aquí el enjambre hizo su trabajo y no había nada que preguntar; allí falta el dominio:
+
+```
+DONE
+evidence: files=2 cmds=5 turns=7/30
+- discovery omitido: decisions.md ya cerró este objetivo (objective: export CSV de alumnos)
+- decisión previa: Q1 [Valor] ¿export CSV para quién? → admins
+```
+
+Run sin discovery por el tipo de objetivo (bugfix/refactor), o que pide un dominio que aún no
+existe — situación DISTINTA de la anterior: aquí no hay dominio que orquestar:
 
 ```
 BLOCKED dominio no implementado (analysis-orchestrator, fase 3)
 evidence: files=1 cmds=3 turns=4/30
 - discovery omitido: objetivo de bugfix
+```
+
+Run en el que el owner canceló el diálogo de preguntas (§5.3): el batch queda registrado como
+decisión `[pendiente]`, no se pierde:
+
+```
+KO batch sin responder
+evidence: files=2 cmds=5 turns=9/30
+- discovery: 4 preguntas presentadas, owner canceló el diálogo
+- batch guardado como decisión [pendiente] en .swarm/decisions.md
 ```
 
 Los `BLOCKED` de las guardas de invocación (§1.0: objetivo vacío, `--tier` inválido) y el

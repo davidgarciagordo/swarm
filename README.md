@@ -69,6 +69,7 @@ sequenceDiagram
     participant O as orchestrator
     participant MO as memory-orchestrator
     participant MB as memory-builder
+    participant DO as discovery-orchestrator
 
     User->>O: /swarm:run "<goal>" [--tier]
     O->>O: classify tier (direct / light / full)
@@ -85,11 +86,29 @@ sequenceDiagram
             MO-->>MO: OK (skip build)
         end
         MO-->>O: OK / DONE
-        O-->>User: OK\nevidence: files=N cmds=M turns=k/max
+        alt product goal, not already closed in decisions.md
+            O->>DO: spawn (run-id, swarm-root, operation: discover, tier, objective)
+            DO->>DO: 4 leaves in ONE batch (value, research, options, feasibility)
+            DO-->>O: DONE + up to 4 "- Q" lines (one batch)
+            O->>O: pre-flight each "- Q" (2-4 options, header <= 12 chars)
+            O->>User: AskUserQuestion (ONE call, all questions)
+            alt owner answers
+                User-->>O: chosen options / free text
+                O->>MO: write decision (ONE call: objective + all answers)
+            else owner cancels the dialog
+                O->>MO: write decision (objective + [pendiente] batch unanswered)
+            end
+        else bugfix / refactor / docs, or objective already closed
+            O->>O: skip discovery (reported as "- discovery omitido: ...")
+        end
+        O->>MO: curate (close the run)
+        O-->>User: DONE\nevidence: files=N cmds=M turns=k/max
     end
 ```
 
 `direct` never opens a run and never touches memory — the root answers itself. `light`/`full` open a run and always check the pack before doing anything else; the pack is only rebuilt when stale (tree-state hash), never unconditionally.
+
+Once the pack is ready, a **product** goal (new feature, new product, user-visible behavior change) goes through discovery before any design: the root spawns `discovery-orchestrator`, which runs its four leaves in a single batch and returns **one** batch of up to four questions. The root validates each question, presents them all in **one** `AskUserQuestion` call — so this is the one point where `/swarm:run` becomes interactive and waits for you — and records every answer as a **single** decision line in `.swarm/decisions.md`, prefixed with the literal `objective:` so a later run over the same goal detects that discovery already ran instead of asking again. If you dismiss the dialog, the batch is still recorded, marked `[pendiente]`. Discovery is skipped for bugfixes, refactors, docs, tests and infrastructure work, and for an objective `decisions.md` already closed; the skip is always reported in the output.
 
 ### Memory write / mailbox
 

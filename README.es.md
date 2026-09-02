@@ -69,6 +69,7 @@ sequenceDiagram
     participant O as orchestrator
     participant MO as memory-orchestrator
     participant MB as memory-builder
+    participant DO as discovery-orchestrator
 
     User->>O: /swarm:run "<objetivo>" [--tier]
     O->>O: clasifica tier (direct / light / full)
@@ -85,11 +86,29 @@ sequenceDiagram
             MO-->>MO: OK (salta build)
         end
         MO-->>O: OK / DONE
-        O-->>User: OK\nevidence: files=N cmds=M turns=k/max
+        alt objetivo de producto, no cerrado ya en decisions.md
+            O->>DO: spawn (run-id, swarm-root, operation: discover, tier, objective)
+            DO->>DO: 4 hojas en UNA tanda (valor, research, opciones, viabilidad)
+            DO-->>O: DONE + hasta 4 líneas "- Q" (un solo batch)
+            O->>O: pre-flight de cada "- Q" (2-4 opciones, cabecera <= 12 chars)
+            O->>User: AskUserQuestion (UNA llamada, todas las preguntas)
+            alt el owner responde
+                User-->>O: opciones elegidas / texto libre
+                O->>MO: write decision (UNA llamada: objective + todas las respuestas)
+            else el owner cancela el diálogo
+                O->>MO: write decision (objective + [pendiente] batch sin responder)
+            end
+        else bugfix / refactor / docs, u objetivo ya cerrado
+            O->>O: salta discovery (se reporta como "- discovery omitido: ...")
+        end
+        O->>MO: curate (cierre del run)
+        O-->>User: DONE\nevidence: files=N cmds=M turns=k/max
     end
 ```
 
 `direct` nunca abre run ni toca memoria — la raíz responde ella misma. `light`/`full` abren un run y siempre comprueban el pack antes de hacer nada más; el pack solo se reconstruye si está stale (tree-state hash), nunca incondicionalmente.
+
+Con el pack listo, un objetivo **de producto** (nueva funcionalidad, nuevo producto, cambio de comportamiento visible para el usuario) pasa por discovery antes de cualquier diseño: la raíz lanza `discovery-orchestrator`, que corre sus cuatro hojas en una sola tanda y devuelve **un** batch de hasta cuatro preguntas. La raíz valida cada pregunta, las presenta todas en **una** llamada a `AskUserQuestion` — es el único punto en que `/swarm:run` se vuelve interactivo y te espera — y registra todas las respuestas como **una sola** línea de decisión en `.swarm/decisions.md`, con el `objective:` literal delante para que un run posterior sobre el mismo objetivo detecte que discovery ya corrió en vez de volver a preguntar. Si cierras el diálogo sin responder, el batch se registra igualmente, marcado `[pendiente]`. Discovery se salta en bugfixes, refactors, docs, tests e infraestructura, y para un objetivo que `decisions.md` ya cerró; el salto siempre se reporta en la salida.
 
 ### Escritura de memoria / buzón
 
