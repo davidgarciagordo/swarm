@@ -214,15 +214,18 @@ Línea por camino terminal (una sola llamada, la que corresponda):
 - diseño completado (§9.4): `- run cerrado: DONE · diseño completado, plan en <ruta>`
 - `BLOCKED`/`KO` propagado de design (§9.3): `- run cerrado: <veredicto literal de
   design-orchestrator>`
-- diseño omitido (§9.1): `- run cerrado: <tu veredicto> · diseño omitido: <motivo>`
-- ninguno de los dos dominios aplica (bugfix/refactor/docs/infra, §5.1 + §8.1): usa la línea
-  COMBINADA, `- run cerrado: <tu veredicto> · discovery y analysis omitidos: <motivo compartido>`
-  — **una sola llamada**, no las dos líneas anteriores por separado. Es el camino preferido cuando
-  discovery y analysis se saltan por el MISMO motivo de fondo (el objetivo no es "de producto" ni
-  "de análisis"). Las líneas individuales `discovery omitido: …` / `analysis omitido: …` de arriba
-  quedan para el caso en que la clasificación de cada dominio difiera de verdad entre sí (objetivo
-  ambiguo que casa con uno pero no con el otro) — pero §4 sigue exigiendo UNA sola llamada de
-  `summary` por cierre, así que si ambos motivos son el mismo, usa siempre la combinada.
+- ninguno de los tres dominios aplica (bugfix/refactor/docs/infra, §5.1 + §8.1 + §9.1): usa la línea
+  COMBINADA, `- run cerrado: <tu veredicto> · discovery, analysis y diseño omitidos: <motivo
+  compartido>` — **una sola llamada**, no varias líneas por separado. Es el camino preferido cuando
+  los tres dominios se saltan por el MISMO motivo de fondo (el objetivo no es "de producto" ni "de
+  análisis" — y sin decisiones de producto, §9.1 dice que design también se salta). Las líneas
+  individuales `discovery omitido: …` / `analysis omitido: …` de arriba quedan para el caso en que
+  la clasificación de cada dominio difiera de verdad entre sí (objetivo ambiguo que casa con uno
+  pero no con el otro) — pero §4 sigue exigiendo UNA sola llamada de `summary` por cierre, así que
+  si los motivos son el mismo, usa siempre la combinada. `design` NO tiene una línea `diseño
+  omitido` propia en este camino: su omisión siempre coincide con la de discovery (§9.1: se salta
+  únicamente cuando discovery se saltó por completo) y por tanto siempre pliega en esta misma línea
+  combinada (§9.4 lo remite aquí en vez de listar un call aparte).
 
 Y solo después, el cierre de memoria:
 
@@ -302,7 +305,18 @@ cada run, así que no coinciden literalmente entre ejecuciones y buscar por preg
 nunca nada. Si la línea que encuentras está marcada `[pendiente]` (§5.3: el owner canceló el batch),
 el objetivo NO está cerrado — vuelve a presentar el batch.
 
-Si lo saltas, dilo en una línea `- discovery omitido: <motivo>`.
+**Si el "ya cerró" aplica (este caso — NO el de bugfix/refactor/docs/infra) y `tier: full`:** no te
+quedes solo con la línea `- discovery omitido: …` de abajo — encadena §9 (design) usando las
+decisiones ya cerradas como contexto, exactamente igual que §5.4 encadena tras un batch recién
+respondido (spec §9.1: en `full`, hay decisiones de producto para diseñar, vengan de este run o de
+uno anterior). Esta distinción producto-vs-análisis es la MISMA regla de exclusión de §8.1: si el
+objetivo es de producto (este caso), la decisión ya cerrada encadena a design en tier `full` —
+nunca a la vez a §8. Si en cambio el objetivo casa con "de análisis" (§8.1), ya te fuiste a §8 en el
+párrafo de arriba y este párrafo no aplica. En `tier: light` no encadenas (spec §9.1: `light` = un
+solo dominio): la línea `- discovery omitido: …` es todo lo que emites antes de cerrar (§4).
+
+Si lo saltas por el tipo de objetivo (bugfix/refactor/docs/infra) o —en tier `light`— porque ya
+cerró, dilo en una línea `- discovery omitido: <motivo>`.
 
 ### 5.2 Lanzamiento (secuencial respecto a memoria)
 
@@ -494,14 +508,16 @@ necesitas: anclas con `cd` en §2.0.
 ## 7. Salida
 
 Formato de evidencia del protocolo §4 (la línea de `turns` cierra la línea, sin texto detrás).
-Run con discovery completado:
+Run con discovery completado y encadenado a design (`tier: full`, spec §9.1 — §5.4 encadena en vez
+de cerrar cuando el tier es `full`):
 
 ```
 DONE
-evidence: files=2 cmds=5 turns=12/30
+evidence: files=4 cmds=9 turns=18/30
 - discovery Q1 [Valor] ¿export CSV para quién? → admins
 - discovery Q2 [Enfoque] ¿cómo? → endpoint sobre el listado actual
-- siguiente: design-orchestrator (fase 4, no implementado) — decisiones guardadas en .swarm/decisions.md
+PLAN · .swarm/design/plan.md:1 · endpoint GET /admins/export con streaming CSV sobre el listado actual
+- grill: 2 rondas, sin bloqueos
 ```
 
 Run normal en el que discovery se SALTÓ legítimamente porque `.swarm/decisions.md` ya había cerrado
@@ -519,7 +535,7 @@ Run sin discovery por el tipo de objetivo (bugfix/refactor), o que pide un domin
 existe — situación DISTINTA de la anterior: aquí no hay dominio que orquestar:
 
 ```
-BLOCKED dominio no implementado (design-orchestrator, fase 4)
+BLOCKED dominio no implementado (implementation-orchestrator, fase 5)
 evidence: files=1 cmds=3 turns=4/30
 - discovery omitido: objetivo de bugfix
 ```
@@ -552,6 +568,17 @@ SEC · src/Controller/InvoiceController.php:22 · endpoint mutante sin comprobac
 VULN · config/services.php:3 · posible secreto en claro (patron api_key=) → mover a variable de entorno
 ```
 
+Run de diseño (§9): `design-orchestrator` reenvía su línea `PLAN · …` y, si la trae, su línea
+`- grill: …`, y tú las copias DIRECTAMENTE como tuyas (§9.3), sin `AskUserQuestion` — mismo
+mecanismo que §8.3 para analysis, solo que aquí el productor es design:
+
+```
+DONE
+evidence: files=3 cmds=7 turns=15/30
+PLAN · .swarm/design/plan.md:1 · endpoint GET /admins/export con streaming CSV sobre el listado actual
+- grill: 2 rondas, sin bloqueos
+```
+
 `OK`/`DONE` con `files=0` se rechaza siempre: si solo ejecutaste comandos, lee al menos
 `.swarm/decisions.md` (ya lo haces en §5.1) y cuéntalo.
 
@@ -562,9 +589,7 @@ VULN · config/services.php:3 · posible secreto en claro (patron api_key=) → 
 Solo en tiers `light`/`full` (nunca `direct`), y solo si el objetivo es "de análisis" explícito:
 auditoría, revisión de seguridad/rendimiento/deuda/arquitectura, "revisa X", "audita X", "busca
 vulnerabilidades en X". Es **excluyente con discovery en v1** (decisión del owner, 2026-09-02): nunca
-lanzas los dos dominios en el mismo run — `design-orchestrator`/`implementation-orchestrator` aún no
-existen para encadenar la salida de analysis a ningún sitio, así que mezclar los dos dominios en un
-único run no aporta nada hoy y solo dobla el coste. Si el objetivo casa con la clasificación "de
+lanzas los dos dominios en el mismo run. Si el objetivo casa con la clasificación "de
 producto" de discovery (§5.1), corre discovery y NO analysis, aunque el texto también contenga una
 palabra de análisis de pasada. Si casa con "de análisis" y NO con "de producto", corre analysis y NO
 discovery. Si no casa con ninguna (bugfix, refactor puro, docs, infra), se saltan los dos.
@@ -654,15 +679,27 @@ Regístralo antes en el manifest:
 
 `design-orchestrator` nunca produce un batch de preguntas: produce una síntesis corta (tag `PLAN`)
 apuntando al fichero real del plan. Reenvía su línea `PLAN · …` y su línea `- grill: …` (si la
-trae) tal cual a tu propia salida (§7) — igual mecanismo que §8.3 para analysis (sin pasarlas por
-el saneado de §5.0, porque no construyes ningún `--text`/`--line` nuevo con ellas).
+trae) tal cual a tu propia salida (§7) — igual mecanismo que §8.3 para analysis, SIN pasarlas por
+el saneado de §5.0 — esa exención vale únicamente para las líneas que van a tu OUTPUT de turno (lo
+que lee `hooks/validate-output.py`), que nunca pasa por un shell, así que no hay nada que proteger
+ahí.
 
-Si `design-orchestrator` devuelve `BLOCKED …`/`KO …`, propaga su veredicto literal — cierra el run
-igual que cualquier otro camino terminal (§4).
+**Esa exención NO cubre el `summary --line` del cierre.** Si `design-orchestrator` devuelve
+`BLOCKED …`/`KO …`, propagas su veredicto literal como el tuyo — pero cerrar el run (§4, §9.4)
+significa construir `"${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" summary --run <run-id> --line
+"<veredicto literal de design-orchestrator>"`, y eso SÍ es un `--line` nuevo que interpolas en un
+comando de Bash real, con texto ajeno (el `<motivo>` de design-orchestrator, que puede citar código
+del repo con backticks/`$(...)`). Ese `--line` pasa por el saneado de §5.0 igual que cualquier otro
+`--line` de §4 que lleve texto ajeno — la única diferencia con discovery es de dónde sale el texto
+(design-orchestrator en vez del owner), no si se sanea. Cierra el run igual que en cualquier otro
+camino terminal (§4: `summary` saneado con la línea de este camino y después
+`SendMessage(memory-orchestrator, "curate")`, esperando su `DONE`, antes de devolver el veredicto).
 
 ### 9.4 Cierre — nueva línea de resumen (extiende §4)
 
 - diseño completado (`DONE`): `- run cerrado: DONE · diseño completado, plan en <ruta>`
 - `BLOCKED`/`KO` propagado de design: `- run cerrado: <veredicto literal de design-orchestrator>`
-- diseño omitido (discovery también se saltó): `- run cerrado: <tu veredicto> · diseño omitido:
-  <motivo>`
+- diseño omitido (discovery también se saltó, §9.1): NO es una línea de cierre propia — design
+  siempre se salta junto con discovery y analysis por el mismo motivo (bugfix/refactor/docs/infra),
+  así que pliega en la línea COMBINADA de §4 (`discovery, analysis y diseño omitidos: <motivo
+  compartido>`), nunca en una llamada `summary` aparte.
