@@ -69,9 +69,10 @@ si responde `KO escritura perdida`, repite el mismo mensaje UNA vez.
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
 Allowlist de `swarm:feasibility-spiker`: `python3`, `node`, `php`, `npm`, `npx`, `composer`,
-`pytest`, `go`, `cargo`, `make`, `mkdir`, `cp`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `find`
-(sin `-exec`/`-delete`), `git status|log|diff|show|rev-parse`. Denegados por flag: `python3 -c`,
-`node -e|-p|--eval|--print`, `php -r`. Fuera de la lista: `bash`, `sh`, `rm`, `mv`, `curl`,
+`pytest`, `go`, `cargo`, `make`, `mkdir`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `find`
+(sin `-exec`/`-delete`), `git status|log|diff|show|rev-parse`. Denegados por flag (exacto, pegado
+o en cluster — `-c`/`-cCODE`/`--eval=CODE`/`-pe`): `python3 -c`, `node -e|-p|--eval|--print`,
+`php -r`. Fuera de la lista: `bash`, `sh`, `rm`, `mv`, `cp`, `curl`,
 `git commit|push`, `scripts/mem-*.sh`. Denegación por segmento; no cierres con `; echo $?`.
 
 ## Salida

@@ -3,7 +3,8 @@
 # (python3 -c, node -e/-p, php -r) aunque el intérprete esté en el allowlist del agente. Motivo:
 # feasibility-spiker (fase 2) recibe python3/node/php para correr su spike en un worktree
 # desechable; sin esta guarda, `python3 -c 'import os; os.system("rm -rf ~")'` pasaría el
-# allowlist. Se prueba con un agente ficticio que cae al `default` + con feasibility-spiker.
+# allowlist. Se prueba contra feasibility-spiker y contra value-critic (que no tiene intérpretes
+# en su allowlist, para confirmar que sigue denegado por esa vía).
 set -u
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$DIR/lib.sh"
@@ -26,7 +27,17 @@ assert_eq "deny"  "$(guard $A 'node -p 1')" "spiker: node -p denied"
 assert_eq "deny"  "$(guard $A 'node --eval 1')" "spiker: node --eval denied"
 assert_eq "allow" "$(guard $A 'php spike.php')" "spiker: php <file> allowed"
 assert_eq "deny"  "$(guard $A 'php -r echo(1);')" "spiker: php -r denied"
-assert_eq "deny"  "$(guard $A '/usr/bin/python3 -c print(1)')" "spiker: -c denied with absolute interpreter path"
+assert_eq "deny"  "$(guard $A '/usr/bin/python3 -c print(1)')" "spiker: /usr/bin/python3 denied (not on allowlist by that path — not evidence of the -c check itself)"
+
+# Regresión (hallazgo 1/2 de la review de T4): igualdad exacta de token no basta — estas formas
+# son sintaxis válida y documentada de los propios intérpretes y ejecutan código inline igual que
+# la forma con espacio. Sin el fix, todas pasaban.
+assert_eq "deny"  "$(guard $A 'node --eval=1')" "spiker: node --eval=CODE (pegado con =) denied"
+assert_eq "deny"  "$(guard $A 'node --print=1')" "spiker: node --print=CODE (pegado con =) denied"
+assert_eq "deny"  "$(guard $A 'node -pe 1')" "spiker: node -pe (cluster de flags cortos) denied"
+assert_eq "deny"  "$(guard $A 'python3 -cprint(1)')" "spiker: python3 -cCODE (pegado sin espacio) denied"
+assert_eq "deny"  "$(guard $A "php -recho(1);")" "spiker: php -rCODE (pegado sin espacio) denied"
+assert_eq "deny"  "$(guard $A 'SWARM_ROOT=/x node -pe 1')" "spiker: interp bypass still denied after SWARM_ROOT= prefix stripping (order-of-checks regression)"
 assert_eq "deny"  "$(guard $A 'bash x.sh')" "spiker: bash not in allowlist"
 assert_eq "deny"  "$(guard $A 'sh x.sh')" "spiker: sh not in allowlist"
 assert_eq "deny"  "$(guard $A 'rm -rf spike')" "spiker: rm not in allowlist"

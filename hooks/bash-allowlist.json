@@ -53,7 +53,7 @@
     "swarm:feasibility-spiker": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep", "find",
-      "mkdir", "cp",
+      "mkdir",
       "python3", "python", "node", "php", "npm", "npx", "composer", "pytest", "go", "cargo", "make"
     ]
   }

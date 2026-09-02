@@ -137,8 +137,19 @@ def segment_allowed(segment, allowlist):
     denied_flags = INTERP_DENIED_FLAGS.get(command_word)
     if denied_flags:
         for word in words[1:]:
+            # Igualdad exacta no basta: `--eval=CODE`, `-cCODE`/`-rCODE` pegados, y clusters de
+            # flags cortos (`-pe`) son sintaxis válida de estos intérpretes y ejecutan código
+            # inline igual que la forma con espacio — hallazgo de la review de T4 (fase 2).
             if word in denied_flags:
                 return False
+            if word.split('=', 1)[0] in denied_flags:  # --eval=CODE
+                return False
+            for flag in denied_flags:
+                if len(flag) == 2 and word.startswith(flag) and word != flag:
+                    return False  # -cCODE, -rCODE pegados
+            if re.match(r'^-[A-Za-z]+$', word) and not word.startswith('--'):
+                if any(len(f) == 2 and f[1] in word[1:] for f in denied_flags):
+                    return False  # cluster -pe / -ep
     for prefix in allowlist:
         if ' ' in prefix:
             if first_two == prefix or first_two.startswith(prefix + ' '):
