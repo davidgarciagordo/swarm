@@ -10,7 +10,9 @@ Comportamiento:
   - línea 2 debe ser `evidence: files=N cmds=M turns=k/max` (tolerante a espacios).
   - OK con files=0 se rechaza (verdicto verde sin evidencia real).
   - narración (prosa larga en vez del formato de hallazgo) se rechaza.
-  - si turns == max: NO es un bloqueo; se emite un systemMessage y se sale con 0.
+  - si turns >= max: NO es un bloqueo; se emite un systemMessage y se sale con 0.
+  - stop_hook_active=true (la plataforma ya está reintentando este mismo Stop) -> exit 0, no
+    volvemos a evaluar nada (evita amplificar el propio bloqueo del hook en un bucle).
   - un rechazo se reintenta como máximo una vez (contador en
     run/<run>/retries/<agente>-<hash(motivo)>, es decir por agente + motivo concreto de
     fallo -- dos motivos distintos del mismo agente son cada uno una "primera falta"); al
@@ -96,9 +98,15 @@ def _bump_retry(swarm_root, path, retries_dir, count):
     # antes que sembrar un `.swarm/` fantasma en un directorio equivocado.
     if not os.path.isdir(swarm_root):
         return
-    os.makedirs(retries_dir, exist_ok=True)
-    with open(path, 'w') as f:
-        f.write(str(count + 1))
+    # El contador es best-effort: si el directorio de retries no es escribible (permisos,
+    # carrera con otro proceso), el rechazo se emite igual — un fallo aquí no debe tumbar
+    # el hook entero (que la plataforma trataría como fail-open, dejando pasar cualquier cosa).
+    try:
+        os.makedirs(retries_dir, exist_ok=True)
+        with open(path, 'w') as f:
+            f.write(str(count + 1))
+    except OSError:
+        pass
 
 
 def _block(reason):
@@ -118,14 +126,23 @@ def main():
     except (json.JSONDecodeError, ValueError):
         sys.exit(0)
 
-    agent_type = data.get('agent_type', '') or ''
-    if not agent_type.startswith('swarm:'):
+    # La plataforma reinvoca este hook cuando SU PROPIO bloqueo anterior ya disparó un
+    # reintento (campo estándar de los hooks Stop/SubagentStop) — si no lo respetamos podemos
+    # amplificar el propio bloqueo del hook en un bucle, por encima del contador de reintentos
+    # que llevamos nosotros mismos más abajo.
+    if data.get('stop_hook_active') is True:
+        sys.exit(0)
+
+    agent_type = data.get('agent_type', '')
+    if not isinstance(agent_type, str) or not agent_type.startswith('swarm:'):
         sys.exit(0)
 
     # Real SubagentStop payload field is `last_assistant_message`, not `output`
     # (verified against code.claude.com/docs/en/hooks.md and empirically via a
     # live PreToolUse capture confirming the sibling schema matches the docs).
-    output = data.get('last_assistant_message', '') or ''
+    output = data.get('last_assistant_message', '')
+    if not isinstance(output, str):
+        sys.exit(0)
     lines = output.split('\n')
 
     swarm_root = _swarm_root()
@@ -159,16 +176,20 @@ def main():
                 stripped = line.strip()
                 if not stripped:
                     continue
-                if stripped.startswith('- '):
-                    continue
                 if FINDING_RE.match(stripped):
+                    continue
+                # Las líneas `- Q…`/`- warn:`/`- findings:` (formato propio de
+                # discovery-orchestrator, no un hallazgo TAG·file:línea·…) se aceptan sin exigir
+                # FINDING_RE — pero SIGUEN sujetas al tope de longitud: sin él, cualquier prosa
+                # se cuela con solo anteponerle "- " (bug real, sin tope alguno).
+                if stripped.startswith('- ') and len(stripped) <= MAX_FINDING_LINE_LEN:
                     continue
                 if len(stripped) > MAX_FINDING_LINE_LEN:
                     reason = 'narración detectada fuera del formato TAG · file:línea · problema → fix'
                     break
 
     if reason is None:
-        if turns_k is not None and turns_k == turns_max:
+        if turns_k is not None and turns_max and turns_k >= turns_max:
             _system_message(
                 'swarm: %s alcanzó maxTurns → tratar como BLOCKED maxTurns' % agent_type
             )
