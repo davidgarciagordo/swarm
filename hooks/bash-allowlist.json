@@ -61,6 +61,41 @@
       "ls", "cat", "head", "tail", "wc", "grep", "find",
       "mkdir",
       "python3", "python", "node", "php", "npm", "npx", "composer", "pytest", "go", "cargo", "make"
+    ],
+    "swarm:opportunity-analyst": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:architecture-auditor": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:security-auditor": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:vulnerability-scanner": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:performance-analyst": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:data-model-auditor": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:analysis-orchestrator": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
     ]
   }
 }
