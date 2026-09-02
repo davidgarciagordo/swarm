@@ -81,10 +81,27 @@ def segment_words(segment):
         return segment.split()
 
 
+def _plugin_root_abs():
+    # hooks/bash-guard.py vive en <plugin-root>/hooks/ — un nivel arriba.
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 def strip_plugin_root(word):
-    prefix = '${CLAUDE_PLUGIN_ROOT}/'
-    if word.startswith(prefix):
-        return word[len(prefix):]
+    """Recorta el prefijo de la raíz del plugin, en cualquiera de sus dos formas.
+
+    Un agente puede invocar un script con la variable literal (`${CLAUDE_PLUGIN_ROOT}/...`)
+    o con la ruta absoluta ya resuelta (`/abs/path/al/plugin/...`) — ambas deben normalizar
+    igual antes de comparar contra el allowlist. Antes de este fix solo se recortaba la forma
+    de variable, así que cualquier script nuevo fuera de la familia `mem-*.sh` (que tenía su
+    propio fallback especial) quedaba denegado en cuanto se invocaba con ruta absoluta —
+    encontrado en vivo con `scripts/req-check.sh` (fase 1b, smoke test).
+    """
+    var_prefix = '${CLAUDE_PLUGIN_ROOT}/'
+    if word.startswith(var_prefix):
+        return word[len(var_prefix):]
+    abs_prefix = _plugin_root_abs() + '/'
+    if word.startswith(abs_prefix):
+        return word[len(abs_prefix):]
     return word
 
 

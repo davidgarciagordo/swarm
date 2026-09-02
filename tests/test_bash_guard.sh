@@ -156,6 +156,23 @@ EOF
 )"
 assert_eq "0" "$(echo "$out" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" "SWARM_ROOT= value with backtick substitution is denied"
 
+# 8c. bypass/gap regression (fase 1b smoke test): un script NO-mem invocado con ruta absoluta ya
+#     resuelta (no la variable literal ${CLAUDE_PLUGIN_ROOT}/) debía normalizar igual y no denegarse
+#     — antes de este fix, `strip_plugin_root` solo recortaba la forma de variable, así que
+#     scripts/req-check.sh (fuera de la familia mem-*.sh, que tenía su propio fallback) quedaba
+#     denegado en cuanto se invocaba con ruta absoluta real.
+out="$(_run_hook <<EOF
+{"agent_type": "swarm:env-checker", "tool_name": "Bash", "tool_input": {"command": "$PLUGIN_ROOT/scripts/req-check.sh --file $PLUGIN_ROOT/requirements.json"}}
+EOF
+)"
+assert_eq "" "$out" "req-check.sh via resolved absolute plugin-root path is allowed (not just via \${CLAUDE_PLUGIN_ROOT}/)"
+
+out="$(_run_hook <<EOF
+{"agent_type": "swarm:env-checker", "tool_name": "Bash", "tool_input": {"command": "/usr/bin/rm -rf /"}}
+EOF
+)"
+assert_eq "0" "$(echo "$out" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" "absolute path outside the plugin root is still denied (fix didn't over-widen matching)"
+
 # 9. limite de palabra: la primera palabra se compara EXACTA, no por startswith (M1)
 out="$(_run_hook <<'EOF'
 {"agent_type": "swarm:memory-orchestrator", "tool_name": "Bash", "tool_input": {"command": "lsof -i"}}
