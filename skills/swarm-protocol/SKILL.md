@@ -29,11 +29,24 @@ mismo para raíz, orquestadores de dominio y hojas — spec
 
 ## 2. Modo run vs modo adhoc (§9.2)
 
-- Si tu prompt de lanzamiento incluye una línea `run-id: <uuid>`, estás dentro de un run
-  orquestado: usa `RUN=<ese uuid>` en todos los comandos de memoria.
+Tu prompt de lanzamiento trae, cuando te lanza un orquestador, esta cabecera literal:
+
+```
+run-id: <uuid>
+swarm-root: <ruta absoluta de .swarm>
+operation: <la operación concreta que debes ejecutar en tu turno 1>
+```
+
+- Si incluye `run-id: <uuid>`, estás dentro de un run orquestado: usa `RUN=<ese uuid>` en todos los
+  comandos de memoria. `swarm-root:` es la ruta absoluta del `.swarm/` canónico (úsala como se
+  explica en §3 si tu cwd no es la raíz del repo). `operation:` dice qué tienes que hacer nada más
+  arrancar, con el vocabulario de tu propio contrato (para `memory-orchestrator`:
+  `query|write|build|curate`) — no lo deduzcas del resto del prompt.
 - Si tu prompt NO incluye `run-id:`, te invocaron suelto (adhoc, fuera de un run orquestado): usa
   `RUN=adhoc` fijo. **No** llames a `mem-manifest.sh open` — ese comando es exclusivo de la raíz
-  al abrir un run real. Crea los subdirectorios de `run/adhoc/` si faltan (`mkdir -p`) y sigue el
+  al abrir un run real. Tus escrituras van bajo `run/adhoc/`. **No crees directorios**: los scripts
+  de escritura (`mem-files.sh write …`, `mem-manifest.sh register|summary`) ya crean por sí solos el
+  árbol que necesitan (`findings/`, `run/adhoc/mailbox/`…) en la primera escritura. Sigue el
   contrato de evidencia (§4) sin excepción.
 - Caso particular: si eres `implementer` (fase 5, todavía no existe) y te invocan sin referencia a
   un plan concreto, tu veredicto es `BLOCKED necesita plan` — no improvises un plan.
@@ -64,7 +77,11 @@ Si tu frontmatter tiene `isolation: worktree`, tu prompt de lanzamiento te da la
 
 Nota operativa (comportamiento real de los scripts): todos leen `SWARM_ROOT` del entorno y, si no
 está definida, caen a `$PWD/.swarm` — que en un worktree es la ruta EQUIVOCADA. Por eso, en modo
-worktree, pasa siempre la ruta absoluta explícitamente en cada lectura:
+worktree, pasa siempre la ruta absoluta explícitamente en cada lectura, como prefijo del comando.
+`hooks/bash-guard.py` reconoce UN prefijo `SWARM_ROOT=<valor>` como transparente: lo recorta y
+valida el resto del segmento con las reglas normales (así que
+`SWARM_ROOT=/abs/.swarm scripts/mem-files.sh health` pasa, y `SWARM_ROOT=/abs/.swarm rm -rf /`
+se sigue denegando). `export SWARM_ROOT=…` como comando suelto NO está permitido — usa el prefijo:
 
 ```bash
 SWARM_ROOT=/ruta/absoluta/al/repo/.swarm \
@@ -135,8 +152,9 @@ escribiendo un script nuevo que toque `.swarm/` fuera de estos dos.
 
 ### 4.2 Firmas exactas y salidas (verificado contra los scripts commiteados)
 
-`SWARM_ROOT` por defecto es `$PWD/.swarm` en los tres scripts; expórtala si tu cwd no es la raíz
-del repo (§3).
+`SWARM_ROOT` por defecto es `$PWD/.swarm` en los tres scripts; si tu cwd no es la raíz del repo,
+pásala como prefijo del comando (`SWARM_ROOT=/ruta/absoluta/.swarm "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" …`),
+que es la única forma que el guard admite — `export` como comando suelto se deniega (§3).
 
 | comando | firma exacta | salida / exit |
 |---|---|---|

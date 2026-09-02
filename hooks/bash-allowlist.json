@@ -2,28 +2,28 @@
   "default": [
     "git status", "git log", "git diff", "git show", "git rev-parse",
     "ls", "cat", "head", "tail", "wc", "grep", "find",
-    "uuidgen", "python3", "scripts/mem-", "scripts/mem-lock.sh"
+    "scripts/mem-", "scripts/mem-lock.sh"
   ],
   "agents": {
     "swarm:memory-orchestrator": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
-      "ls", "cat", "head", "tail", "wc", "grep", "find",
-      "uuidgen", "python3", "scripts/mem-", "scripts/mem-lock.sh"
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:memory-builder": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
-      "ls", "cat", "head", "tail", "wc", "grep", "find",
-      "python3", "scripts/mem-", "scripts/mem-lock.sh"
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:memory-curator": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep", "find",
-      "python3", "scripts/mem-", "scripts/mem-lock.sh"
+      "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:orchestrator": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
-      "cd", "ls", "cat", "head", "tail", "wc", "grep", "find",
-      "uuidgen", "python3", "scripts/mem-", "scripts/mem-lock.sh"
+      "cd", "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
     ]
   }
 }

@@ -21,6 +21,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 
 VERDICT_RE = re.compile(r'^(OK|KO .+|DONE|BLOCKED .+)$')
@@ -31,8 +32,31 @@ FINDING_RE = re.compile(r'^[A-Z0-9_-]+\s*·\s*\S+:\d+\s*·\s.+→.+$')
 MAX_FINDING_LINE_LEN = 120
 
 
+def _repo_root():
+    """Raíz real del repo, NO el cwd del hook.
+
+    El hook corre en el cwd de la SESIÓN: si el usuario abrió Claude Code desde un
+    subdirectorio (`packages/api` en un monorepo), `os.getcwd()` apunta al sitio equivocado —
+    y el `cd "$(git rev-parse --show-toplevel)"` que hace el orquestador dentro de SUS llamadas
+    a Bash no cambia el cwd de ESTE proceso. Misma técnica que el orquestador (agents/
+    orchestrator.md §2.0). Si no es un repo git, se cae al cwd como antes.
+    """
+    try:
+        out = subprocess.check_output(
+            ['git', 'rev-parse', '--show-toplevel'],
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, ValueError, subprocess.CalledProcessError):
+        return os.getcwd()
+    root = out.decode('utf-8', 'replace').strip()
+    return root or os.getcwd()
+
+
 def _swarm_root():
-    return os.environ.get('SWARM_ROOT', os.path.join(os.getcwd(), '.swarm'))
+    from_env = os.environ.get('SWARM_ROOT')
+    if from_env:
+        return from_env
+    return os.path.join(_repo_root(), '.swarm')
 
 
 def _current_run(swarm_root):
@@ -66,7 +90,12 @@ def _retry_count(swarm_root, run_id, retry_key):
         return 0, path, retries_dir
 
 
-def _bump_retry(path, retries_dir, count):
+def _bump_retry(swarm_root, path, retries_dir, count):
+    # Un hook NUNCA origina un `.swarm/`: solo `/swarm:init` crea ese árbol. Si la raíz
+    # resuelta no existe, el contador de reintentos se pierde (el rechazo se emite igual)
+    # antes que sembrar un `.swarm/` fantasma en un directorio equivocado.
+    if not os.path.isdir(swarm_root):
+        return
     os.makedirs(retries_dir, exist_ok=True)
     with open(path, 'w') as f:
         f.write(str(count + 1))
@@ -153,7 +182,7 @@ def main():
             'swarm: %s falló la validación dos veces (%s) → aceptado como BLOCKED' % (agent_type, reason)
         )
 
-    _bump_retry(retry_path, retries_dir, retry_count)
+    _bump_retry(swarm_root, retry_path, retries_dir, retry_count)
     _block(reason)
 
 

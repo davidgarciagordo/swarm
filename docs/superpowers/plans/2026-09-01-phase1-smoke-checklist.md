@@ -78,6 +78,24 @@ similar, y que el orquestador/usuario puede `SendMessage` a `memory-orchestrator
 exacto sin tener que descubrirlo.
 Evidencia:
 
+## 10. Registro de agentes y hooks del plugin (sin verificar en runtime)
+
+`.claude-plugin/plugin.json` declara `skills` y `commands` explícitamente, pero NO `agents` ni
+`hooks`: se confía en el autodescubrimiento documentado de `agents/` y `hooks/hooks.json`. Eso es
+lo esperado según la documentación, pero es exactamente la clase de supuesto no verificado que
+produjo C1 — así que se comprueba aquí, en sesión real, en vez de tocar el manifiesto a ciegas.
+
+Comprobar, con el plugin cargado:
+- Los cuatro agentes aparecen como `swarm:orchestrator`, `swarm:memory-orchestrator`,
+  `swarm:memory-builder`, `swarm:memory-curator` (p. ej. en `/agents` o equivalente).
+- El `PreToolUse` de `hooks/bash-guard.py` dispara de verdad (un `rm -rf /x` desde un agente
+  `swarm:*` sale denegado) y el `SubagentStop` de `hooks/validate-output.py` también (una salida
+  sin línea `evidence:` se rechaza).
+
+Si alguno NO aparece, la corrección es añadir la clave que falte a `plugin.json` y re-verificar —
+nunca añadirla especulativamente antes de esta comprobación.
+Evidencia:
+
 ## Firma
 
 - [ ] Owner: ________________  Fecha: ________________

@@ -89,7 +89,7 @@ orchestrator (raíz · opus)
   context-pack.md           mapa repo fichero:línea, stack detectado, convenciones, entrypoints (gitignored)
   index.md                  inventario + sello tree-hash de validez por artefacto (gitignored)
   findings/<agente>.md      hallazgos completos por agente (gitignored)
-  .lock                     flock de escritura, una por repo (gitignored)
+  .lock.d/                  lock de escritura, DIRECTORIO creado con `mkdir` atómico, uno por repo (gitignored)
   run/<run-id>/
     agents/<agente>.json    manifest per-agente, append-only (gitignored)
     mailbox/<agente>.md     buzón persistido por agente (gitignored)
@@ -102,8 +102,15 @@ orchestrator (raíz · opus)
 | agente | modelo | tools | responsabilidad |
 |---|---|---|---|
 | `memory-orchestrator` | haiku | Read, Grep, Bash (restringido por hook), SendMessage, mcp__plugin_claude-mem_mcp-search__* | única puerta: `query|write|build|curate`; lee `memory.json`, despacha a backends por política, fusiona y devuelve ≤5 líneas con fuente; dedup en escritura; **instancia única por run** |
-| `memory-builder` | sonnet | Read, Grep, Glob, Bash (restringido por hook), Write(.swarm/) | construye/refresca `context-pack.md` + `index.md`; detecta stack; consulta backend histórico al construir |
+| `memory-builder` | sonnet | Read, Grep, Glob, Bash (restringido por hook), Write¹ | construye/refresca `context-pack.md` + `index.md`; detecta stack; consulta backend histórico al construir |
 | `memory-curator` | haiku | Read, Edit, Bash (restringido por hook) | compacta findings, poda decisions, controla tamaños (MEMORY.md ≤25KB), marca staleness, ciclo de vida de findings (§10), GC de `run/` |
+
+¹ `Write` va SIN acotar en el frontmatter, y su alcance (`.swarm/context-pack.md` y
+`.swarm/index.md`) se impone por CONTRATO en prosa dentro de `agents/memory-builder.md`. No es una
+carencia de implementación: la plataforma no admite sintaxis `Write(<ruta>)` para las `tools` de un
+subagente — la misma limitación que §3.1 ya documenta para `Bash`, que por eso se restringe con el
+hook `hooks/bash-guard.py` y no con el frontmatter. Si la plataforma llegara a soportar `tools`
+con alcance por ruta, este es el sitio donde aplicarlo.
 
 ### 4.3 Backends (adaptadores, no agentes)
 Contrato: `query <texto>` · `write <tipo> <payload>` · `health`. Implementación = script o MCP.
@@ -142,13 +149,17 @@ nunca bloquea una escritura.
 4. Solo si el pack no responde → `SendMessage(memory-orchestrator, "query: …")` a la instancia viva
    (nunca se lanza una segunda instancia).
 5. Toda escritura de hallazgo/decisión pasa por `memory-orchestrator write`; `scripts/mem-files.sh`
-   adquiere `flock` sobre `.swarm/.lock` en cada escritura.
+   adquiere el lock `.swarm/.lock.d` (vía `scripts/mem-lock.sh`) en cada escritura.
 6. Cierre de run → `curate` + `observation_add` en histórico.
 
 ### 4.5 Concurrencia
 - `run-id` = `uuidgen`, generado una vez por la raíz al abrir el run.
-- `scripts/mem-files.sh` adquiere `flock` sobre `.swarm/.lock` en CADA escritura (findings, decisions,
-  manifest).
+- `scripts/mem-files.sh` adquiere el lock `.swarm/.lock.d` en CADA escritura (findings, decisions,
+  manifest), vía `scripts/mem-lock.sh`. El mecanismo es un **`mkdir` de un directorio**, no `flock`:
+  `mkdir` sobre un nombre existente falla atómicamente en cualquier POSIX, así que sirve de
+  test-and-set sin depender de `flock`, que macOS no trae (§18.2). El poseedor libera con `rmdir`;
+  un lock más viejo de 30s se considera huérfano y se reclama; la espera se rinde a los 10s y la
+  escritura falla ruidosamente en vez de perderse en silencio.
 - Manifest = un fichero por agente: `run/<id>/agents/<nombre>.json`, append-only. Nunca un manifest
   global sobrescribible.
 - Exactamente UNA instancia de `memory-orchestrator` por run: la raíz la lanza NOMBRADA al abrir el
@@ -157,7 +168,7 @@ nunca bloquea una escritura.
 
 ### 4.6 Bootstrap
 - Comando `/swarm:init`: crea `.swarm/`, `memory.json` por defecto, entradas de `.gitignore`
-  (`context-pack.md`, `index.md`, `findings/`, `run/`, `.lock`), esqueleto de `decisions.md`.
+  (`context-pack.md`, `index.md`, `findings/`, `run/`, `.lock.d`), esqueleto de `decisions.md`.
 - Backends health-gated: `files` es REQUERIDO (health falla → init aborta). El resto es best-effort
   (§4.3).
 
@@ -391,8 +402,8 @@ Smoke tests en `tests/` (repo fixture mínimo):
 2. `query` con pack presente responde sin invocar builder.
 3. Dos hojas nombradas en la misma tanda se mensajean (`SendMessage`) — visibilidad de hermanos.
 4. `write` duplicado → una sola entrada en `findings/`.
-5. Escrituras concurrentes a `.swarm/` (dos hojas escribiendo a la vez) → `flock` serializa, sin
-   corrupción ni pérdida de entradas.
+5. Escrituras concurrentes a `.swarm/` (dos hojas escribiendo a la vez) → el lock `.lock.d`
+   (`mkdir` atómico) serializa, sin corrupción ni pérdida de entradas.
 6. Mensaje a un agente aún no lanzado → llega al buzón (`run/<id>/mailbox/<agente>.md`); el agente lo
    lee al arrancar más tarde.
 7. Cambio sin commitear en el árbol → tree-state hash cambia → pack marcado stale y reconstruido.

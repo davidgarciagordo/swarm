@@ -107,13 +107,15 @@ final.
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
 Allowlist de este agente: `scripts/mem-*.sh`, `git status|log|diff|show|rev-parse`, `ls`, `cat`,
-`head`, `tail`, `wc`, `grep`, `find`, `python3`. Todo lo demás se deniega, segmento a segmento.
-- Nada de `mkdir`, `mv`, `cp`, `rm`, `echo`, `export`. Para escribir usas redirección desde un
-  comando permitido (`scripts/mem-scan.sh … > …`, `cat >> … <<EOF`) o la herramienta `Write`.
+`head`, `tail`, `wc`, `grep`. Todo lo demás se deniega, segmento a segmento.
+- Nada de `mkdir`, `mv`, `cp`, `rm`, `echo`, `export`, `python3`, `find`. Para escribir usas
+  redirección desde un comando permitido (`scripts/mem-scan.sh … > …`, `cat >> … <<EOF`) o la
+  herramienta `Write`; para explorar el árbol usas `Glob`/`Grep`, que son tools, no Bash.
 - No cierres comandos con `; echo $?` — ese segundo segmento se deniega y tumba el comando entero;
   el exit code ya te llega en el resultado del Bash.
-- No uses prefijos de entorno (`SWARM_ROOT=… scripts/…`): se deniegan. Corres en la raíz del repo,
-  donde el default `$PWD/.swarm` de los scripts ya es el correcto.
+- El único prefijo de entorno admitido es `SWARM_ROOT=<ruta>` delante de un comando ya permitido
+  (el guard lo recorta y valida el resto); no lo necesitas: corres en la raíz del repo, donde el
+  default `$PWD/.swarm` de los scripts ya es el correcto.
 
 ## Salida
 

@@ -6,10 +6,25 @@ Contrato de stdin (JSON):
 """
 import json
 import os
+import re
 import shlex
 import sys
 
 ALLOWLIST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bash-allowlist.json')
+
+# Un ÚNICO prefijo de entorno transparente: `SWARM_ROOT=<valor> <resto>`. Es el mecanismo
+# documentado en skills/swarm-protocol/SKILL.md §3 para que un agente en worktree (o con el
+# cwd fuera de la raíz) apunte al `.swarm/` canónico. Se recorta ANTES de validar, así que el
+# resto del segmento se juzga con las reglas normales: `SWARM_ROOT=/x rm -rf /` sigue denegado.
+ENV_PREFIX_RE = re.compile(r'^SWARM_ROOT=\S+$')
+
+# `find` sin restricción es un escape hatch (ejecuta/borra arbitrariamente). Solo se permite
+# como buscador de solo lectura.
+FIND_DENIED_FLAGS = ('-exec', '-execdir', '-ok', '-okdir', '-delete')
+
+# `scripts/mem-*` debe casar solo con los scripts reales del plugin, no con cualquier binario
+# cuyo basename empiece por `mem-`.
+MEM_SCRIPT_RE = re.compile(r'^mem-[A-Za-z0-9_.-]+\.sh$')
 
 
 def load_allowlist():
@@ -67,21 +82,35 @@ def strip_plugin_root(word):
     return word
 
 
+def is_mem_script(word):
+    """`<algo>/scripts/mem-<nombre>.sh` — el basename por sí solo no basta."""
+    head, tail = os.path.split(word)
+    return bool(MEM_SCRIPT_RE.match(tail)) and os.path.basename(head) == 'scripts'
+
+
 def segment_allowed(segment, allowlist):
     words = segment_words(segment)
+    if words and ENV_PREFIX_RE.match(words[0]):
+        words = words[1:]
     if not words:
         return False
     first_raw = strip_plugin_root(words[0])
     first_two = ' '.join(words[:2])
-    basename = os.path.basename(first_raw)
+    command_word = os.path.basename(first_raw)
+    if command_word == 'find':
+        for word in words[1:]:
+            if word in FIND_DENIED_FLAGS:
+                return False
     for prefix in allowlist:
         if ' ' in prefix:
             if first_two == prefix or first_two.startswith(prefix + ' '):
                 return True
             continue
-        if first_raw.startswith(prefix):
+        # Coincidencia EXACTA de la primera palabra (no `startswith`): `ls` no casa `lsof`,
+        # `cd` no casa `cdrecord`, `cat` no casa `catfoo`.
+        if first_raw == prefix:
             return True
-        if prefix.startswith('scripts/mem') and basename.startswith('mem-'):
+        if prefix.startswith('scripts/mem') and is_mem_script(first_raw):
             return True
     return False
 

@@ -71,9 +71,8 @@ cd "$(git rev-parse --show-toplevel)"
 
 El cwd sí persiste entre llamadas a `Bash`, así que a partir de ahí todos los comandos siguientes
 resuelven `$PWD/.swarm` correctamente sin tocar nada más. (`cd` está en el allowlist de
-`swarm:orchestrator`; no uses prefijos de entorno tipo `SWARM_ROOT=… scripts/...`, esos sí se
-deniegan — §6.) Esta misma ruta absoluta es la que pasas como `swarm-root:` a los agentes que
-lances (§2.2).
+`swarm:orchestrator`; `export` no, así que anclar con `cd` es la vía — §6.) Esta misma ruta
+absoluta es la que pasas como `swarm-root:` a los agentes que lances (§2.2).
 
 ### 2.1 Health-gate
 
@@ -124,28 +123,45 @@ sabiendo el nombre de antemano y que el owner se dirija a un agente concreto por
 `memory-builder` cuando termines") sin que tú tengas que descubrir ningún nombre.
 
 **Convención de run (única productora de esta señal, spec §9.2 / skill swarm-protocol §2):** las
-DOS PRIMERAS líneas del prompt de lanzamiento de CUALQUIER agente que lances deben ser
+TRES PRIMERAS líneas del prompt de lanzamiento de CUALQUIER agente que lances deben ser
 literalmente:
 
 ```
 run-id: <run-id>
 swarm-root: <ruta absoluta de .swarm>
+operation: <la operación que debe ejecutar en su turno 1>
 ```
 
-Es la única forma en que un agente lanzado distingue "estoy dentro de un run" de "modo adhoc" — si
-omites esas líneas, el agente se clasifica adhoc y escribe en `run/adhoc/` en vez del run real, y
-en modo worktree además leería el `.swarm/` equivocado (protocolo §3). Todo orquestador de dominio
-de fases futuras hereda estas dos obligaciones (nombre = rol, y las dos líneas de cabecera) al
-lanzar sus propias hojas.
+Las dos primeras son la única forma en que un agente lanzado distingue "estoy dentro de un run" de
+"modo adhoc" — si las omites, el agente se clasifica adhoc y escribe en `run/adhoc/` en vez del run
+real, y en modo worktree además leería el `.swarm/` equivocado (protocolo §3).
+
+La tercera dice QUÉ tiene que hacer nada más arrancar, con el vocabulario exacto del contrato del
+receptor — sin ella el agente se queda esperando una operación que nadie le dio. Para
+`memory-orchestrator` el vocabulario es `query|write|build|curate` (agents/memory-orchestrator.md,
+"Operaciones"), y al abrir un run la operación es siempre:
+
+```
+operation: build
+```
+
+(comprueba staleness del pack y reconstruye solo si hace falta — §3). Todo orquestador de dominio
+de fases futuras hereda las tres obligaciones (nombre = rol, las dos líneas de cabecera y la línea
+`operation:`) al lanzar sus propias hojas.
 
 ## 3. Política de pack (lazy, spec §9.1)
 
 Nunca construyas el pack antes de clasificar el tier. `direct` nunca construye pack. Para
-`light`/`full`, tras abrir el run, pide a `memory-orchestrator` que compruebe staleness:
+`light`/`full`, la comprobación de staleness es la `operation: build` de su prompt de lanzamiento
+(§2.2) — no hace falta pedirla otra vez. Si más adelante en el run necesitas que la repita:
 
 ```
-SendMessage(memory-orchestrator, "build run:<run-id>")
+SendMessage(memory-orchestrator, "build")
 ```
+
+El `run-id` NO se repite en el mensaje: ya lo tiene ligado de su propio prompt de lanzamiento, y el
+contrato solo define la cabecera `run-id: <uuid>` y el flag `--run <uuid>` de los scripts — no hay
+sintaxis `run:<id>` en línea.
 
 `memory-orchestrator` decide internamente si hace falta reconstruir (comprueba `mem-stale.sh check`
 y delega en `memory-builder` solo si está stale) — tú no llamas a `mem-stale.sh` directamente.
@@ -156,7 +172,7 @@ Su `OK` (pack fresco) y su `DONE` (pack reconstruido) valen igual: en ambos caso
 Al terminar el trabajo del run:
 
 ```
-SendMessage(memory-orchestrator, "curate run:<run-id>")
+SendMessage(memory-orchestrator, "curate")
 ```
 
 Él propaga el `DONE` del curator y sella el histórico. No lances tú `memory-curator`.
@@ -171,13 +187,15 @@ hoja puede preguntar al owner, solo tú.
 ## 6. Disciplina de Bash (`hooks/bash-guard.py`)
 
 Tus comandos pasan por el allowlist de `swarm:orchestrator`: `scripts/mem-*.sh`,
-`git status|log|diff|show|rev-parse`, `cd`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `find`,
-`uuidgen`, `python3`. Todo lo demás se DENIEGA, y la denegación aplica a CADA segmento separado por `&&`,
-`||`, `;` o `|`. En la práctica: nada de `echo`, `mkdir`, `mv`, `cp`, `rm`, `export`; nada de
-asignaciones sueltas (`TIER=light`) ni de prefijos de entorno (`SWARM_ROOT=/x/.swarm scripts/...`);
+`git status|log|diff|show|rev-parse`, `cd`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`. Todo lo demás
+se DENIEGA, y la denegación aplica a CADA segmento separado por `&&`,
+`||`, `;` o `|`. En la práctica: nada de `echo`, `mkdir`, `mv`, `cp`, `rm`, `export`, `python3`,
+`uuidgen`, `find`; nada de asignaciones sueltas (`TIER=light`);
 no cierres un comando con `; echo $?` (el segmento `echo $?` se deniega y pierdes el comando
 entero — el resultado del Bash ya te trae el exit code).
-`${CLAUDE_PLUGIN_ROOT}/scripts/...` sí está permitido.
+`${CLAUDE_PLUGIN_ROOT}/scripts/...` sí está permitido, y también UN prefijo `SWARM_ROOT=<ruta>`
+delante de un comando ya permitido (el guard lo recorta y valida el resto) — aunque tú no lo
+necesitas: anclas con `cd` en §2.0.
 
 ## 7. Salida
 

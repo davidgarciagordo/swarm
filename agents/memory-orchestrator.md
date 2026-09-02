@@ -19,6 +19,9 @@ dicen.
 
 1. `RUN`: si tu prompt trae `run-id: <uuid>`, ese es tu `RUN`; si no lo trae, `RUN=adhoc`
    (protocolo §2). Nunca llames a `mem-manifest.sh open` — eso es exclusivo de la raíz.
+   La cabecera trae además `swarm-root: <ruta absoluta de .swarm>` (úsala como prefijo
+   `SWARM_ROOT=<esa ruta>` si tu cwd no fuera la raíz del repo) y `operation: <verbo>`, que es la
+   operación que ejecutas en tu turno 1.
 2. Salud del backend obligatorio:
    ```bash
    "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" health
@@ -33,7 +36,14 @@ dicen.
 
 ## Operaciones (`query | write | build | curate`)
 
-Recibes en el prompt UNA de estas cuatro, con su payload.
+Recibes UNA de estas cuatro, con su payload, por dos vías equivalentes:
+- al lanzarte, en la línea `operation: <verbo>` de la cabecera del prompt (protocolo §2);
+- mientras estás vivo, como `SendMessage` cuyo texto empieza por el verbo (`build`, `curate`,
+  `query <texto>`, `write finding …`).
+
+El `run-id` NO viaja en el texto de la operación: lo tienes ligado de tu cabecera de lanzamiento.
+No existe una sintaxis `run:<id>` en línea — si te llega algo así, ignora ese fragmento y usa tu
+`RUN`.
 
 ### `query <texto>`
 
@@ -154,15 +164,16 @@ turnos; jamás respondas "lanza otro memory-orchestrator".
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
 Tus comandos pasan por un allowlist por agente. Puedes usar `scripts/mem-*.sh`, `git status|log|
-diff|show|rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `find`, `uuidgen`, `python3`.
+diff|show|rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`.
 Todo lo demás se DENIEGA, y la denegación aplica a CADA segmento separado por `&&`, `||`, `;` o
 `|`. Consecuencias prácticas:
-- Nada de `echo`, `mkdir`, `mv`, `cp`, `rm`, `export`. En particular **no cierres un comando con
-  `; echo $?`**: el segmento `echo $?` se deniega y pierdes el comando entero. El resultado del
-  Bash ya te trae el exit code.
-- Nada de asignaciones de entorno como prefijo (`SWARM_ROOT=/x/.swarm scripts/...`): la primera
-  palabra no está en el allowlist y se deniega. Trabajas en la raíz del repo, donde el default
-  `$PWD/.swarm` de los scripts ya es correcto.
+- Nada de `echo`, `mkdir`, `mv`, `cp`, `rm`, `export`, `python3`, `uuidgen`, `find`. En particular
+  **no cierres un comando con `; echo $?`**: el segmento `echo $?` se deniega y pierdes el comando
+  entero. El resultado del Bash ya te trae el exit code.
+- La ÚNICA asignación de entorno admitida como prefijo es `SWARM_ROOT=<ruta>` delante de un comando
+  ya permitido (el guard la recorta y valida el resto): úsala solo si tu cwd no fuera la raíz del
+  repo. En el caso normal trabajas en la raíz, donde el default `$PWD/.swarm` de los scripts ya es
+  correcto.
 - `${CLAUDE_PLUGIN_ROOT}/scripts/...` sí está permitido (el guard reconoce el prefijo).
 
 ## Salida

@@ -64,7 +64,7 @@ sequenceDiagram
         O-->>User: OK (sin abrir run)
     else tier = light o full
         O->>O: abre run (run-id, .swarm/run/<id>/)
-        O->>MO: SendMessage(build run:<run-id>)
+        O->>MO: spawn (run-id, swarm-root, operation: build)
         MO->>MO: comprueba staleness (tree-hash)
         alt pack stale o ausente
             MO->>MB: construye/refresca context-pack.md + index.md

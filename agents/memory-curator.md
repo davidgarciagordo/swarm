@@ -85,12 +85,15 @@ memoria de un agente es peor que dejarla grande un run más.
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
 Allowlist de este agente: `scripts/mem-*.sh`, `git status|log|diff|show|rev-parse`, `ls`, `cat`,
-`head`, `tail`, `wc`, `grep`, `find`, `python3`. Cada segmento separado por `&&`, `||`, `;` o `|`
+`head`, `tail`, `wc`, `grep`, `find`. Cada segmento separado por `&&`, `||`, `;` o `|`
 se valida por separado, así que:
-- Nada de `mkdir`, `mv`, `cp`, `rm`, `echo`, `export`: para escribir usas redirección desde un
-  comando permitido (`head … >> …`) o la herramienta `Edit`.
+- Nada de `mkdir`, `mv`, `cp`, `rm`, `echo`, `export`, `python3`: para escribir usas redirección
+  desde un comando permitido (`head … >> …`) o la herramienta `Edit`.
+- Tu `find` es solo de búsqueda: el guard deniega el segmento si lleva `-exec`, `-execdir`, `-ok`,
+  `-okdir` o `-delete` (el paso 4 no los necesita).
 - Nada de `; echo $?` al final de un comando: el segmento se deniega y tumba el comando entero.
-- Nada de prefijos de entorno (`SWARM_ROOT=… scripts/…`): se deniegan.
+- El único prefijo de entorno admitido es `SWARM_ROOT=<ruta>` delante de un comando ya permitido
+  (el guard lo recorta y valida el resto); no lo necesitas, corres en la raíz del repo.
 - Puedes encadenar los tres pasos deterministas en una sola llamada
   (`… resolve && … prune --days 30 && … gc`): los tres segmentos empiezan por un script permitido.
 
