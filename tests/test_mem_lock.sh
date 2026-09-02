@@ -48,8 +48,14 @@ assert_eq "0" "$(echo "$warn_output" | grep -qi "stale" && echo 0 || echo 1)" "w
 # --- 4. a killed holder releases via trap; next acquire is fast (<2s), not 10s ---
 cat > "$fixture/holder.sh" <<HOLDEREOF
 #!/usr/bin/env bash
-"$LOCK_SCRIPT" acquire
+# El trap se instala ANTES de acquire, no después: si el kill de este test llegaba en la
+# ventana entre "acquire termina" y "trap se registra", el holder moría sin trap instalado y
+# el lock quedaba huérfano hasta el timeout de 10s — flaky preexistente, confirmado con 6
+# ejecuciones sobre un checkout limpio (4/6 fallos), root cause de esta clase exacta de
+# carrera. Instalar el trap primero lo cierra: incluso un kill a mitad de "acquire" dispara
+# un release que, si el lock nunca llegó a tomarse, es un no-op seguro.
 trap '"$LOCK_SCRIPT" release' EXIT INT TERM
+"$LOCK_SCRIPT" acquire
 sleep 5
 HOLDEREOF
 chmod +x "$fixture/holder.sh"
