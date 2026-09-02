@@ -21,7 +21,13 @@ for agent in opportunity-analyst architecture-auditor security-auditor vulnerabi
   assert_eq "deny" "$(guard "swarm:$agent" 'python3 x.py')" "$agent cannot run python3 (except vulnerability-scanner degraded mode has no exception either — mechanical scan is grep-only)"
   assert_eq "deny" "$(guard "swarm:$agent" 'rm -rf .swarm')" "$agent cannot rm"
   assert_eq "deny" "$(guard "swarm:$agent" 'echo hi')" "$agent cannot echo (not in allowlist)"
+  assert_eq "deny" "$(guard "swarm:$agent" 'find . -name x')" "$agent cannot find (differentiates from the 'default' fallback, which DOES allow find — Important finding from task review)"
 done
+
+# Regression guard: confirm these 7 agents are NOT silently relying on the "default" fallback
+# (which lacks a real per-agent allowlist and would mask a deleted entry) — default allows
+# `find`, the 7 real entries deliberately don't, so this is the one command that tells them apart.
+assert_eq "allow" "$(guard 'swarm:totally-unknown-agent' 'find . -name x')" "sanity: an agent with NO allowlist entry at all falls back to default, which DOES allow find (confirms the differentiator is real, not a guard bug)"
 
 # analysis-orchestrator additionally needs mem-manifest.sh register/summary (launches leaves, mirrors merged findings)
 assert_eq "allow" "$(guard "swarm:analysis-orchestrator" '${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh register --run adhoc --agent architecture-auditor --domain analysis --area . --owner analysis-orchestrator')" "analysis-orchestrator can register leaves in the manifest"
