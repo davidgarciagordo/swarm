@@ -4,9 +4,13 @@ argument-hint: <objetivo> [--tier=direct|light|full]
 allowed-tools: Agent, Read, Bash, SendMessage, AskUserQuestion
 ---
 
-Invoca al agente `swarm:orchestrator` con el objetivo tal cual lo escribió el usuario:
+SIEMPRE invoca el tool `Agent` con `subagent_type: swarm:orchestrator` y `prompt` igual a lo que
+escribió el usuario, EXACTAMENTE así, sin excepción — incluso si `$ARGUMENTS` está vacío o es solo
+espacios. Nunca respondas tú mismo, nunca pidas aclaración antes de invocar: el propio
+`orchestrator` decide si el objetivo es válido (incluida la guarda de objetivo vacío) y devuelve su
+propio veredicto. Pásale el argumento completo sin reinterpretarlo — el propio `orchestrator`
+extrae el flag `--tier=` si está presente y clasifica el resto como el objetivo.
+
+Argumento del usuario:
 
 $ARGUMENTS
-
-Pásale el argumento completo sin reinterpretarlo — el propio `orchestrator` extrae el flag
-`--tier=` si está presente y clasifica el resto como el objetivo.

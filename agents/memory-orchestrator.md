@@ -2,7 +2,7 @@
 name: memory-orchestrator
 description: Use when any swarm agent needs to read, write, build or curate .swarm/ memory — single gate to the memory subsystem (files backend required + claude-mem best-effort). Exactly one live instance per run; resume it via SendMessage instead of spawning another.
 model: haiku
-tools: Read, Grep, Bash, SendMessage, mcp__plugin_claude-mem_mcp-search__*
+tools: Read, Grep, Bash, Agent(memory-builder,memory-curator), SendMessage, mcp__plugin_claude-mem_mcp-search__*
 maxTurns: 12
 memory: project
 skills: [swarm-protocol]
@@ -118,17 +118,25 @@ Comprueba primero si hace falta reconstruir:
 ```
 - exit 0 (`fresh: …`) → **no reconstruyas y no lances a nadie**: responde `OK` con evidencia y
   termina. Una query con el pack fresco no debe invocar al builder (spec §4.4, smoke test 2).
-- exit 1 (`stale: …`) o exit 2 (`no pack-index: …`) → `SendMessage(memory-builder, ...)` con, en
-  líneas separadas: `build`, `run-id: <RUN>` (omítelo si `RUN=adhoc`) y, si `policy.read` incluye
-  `claude-mem` y la tool respondió, hasta 5 líneas `hint: <observación histórica>` sacadas de
-  `mcp__plugin_claude-mem_mcp-search__get_observations` / `memory_search`. Esas hints son el único
-  camino del builder al backend histórico (él no tiene tools MCP) y son opcionales: si la tool
-  falla, mandas el `build` sin hints.
+- exit 1 (`stale: …`) o exit 2 (`no pack-index: …`) → `memory-builder` NO preexiste todavía: LÁNZALO
+  con el tool `Agent` (`subagent_type: swarm:memory-builder`, `name: "memory-builder"` — convención
+  de nombre estable, spec §2bis), no `SendMessage` (que solo alcanza agentes ya vivos; esta es la
+  causa de un `BLOCKED memory-builder no disponible` real que rompía todo run no-`direct` en el
+  smoke test de fase 1). Prompt del spawn, en líneas separadas: `build`, `run-id: <RUN>` (omítelo si
+  `RUN=adhoc`) y, si `policy.read` incluye `claude-mem` y la tool respondió, hasta 5 líneas
+  `hint: <observación histórica>` sacadas de `mcp__plugin_claude-mem_mcp-search__get_observations` /
+  `memory_search`. Esas hints son el único camino del builder al backend histórico (él no tiene
+  tools MCP) y son opcionales: si la tool falla, lanzas el `build` sin hints.
 - Espera su `DONE` (o `OK` si él también lo vio fresco) y propágalo. Su `BLOCKED` es tu `BLOCKED`.
+  Si tu turno actual ya lanzó a `memory-builder` antes en el mismo run (poco común — `build` solo
+  se invoca cuando hace falta), reanúdalo con `SendMessage` en vez de lanzar una segunda copia.
 
 ### `curate`
 
-`SendMessage(memory-curator, ...)` con `curate` y `run-id: <RUN>`; espera su `DONE` y propágalo.
+`memory-curator` NO preexiste todavía: LÁNZALO con el tool `Agent` (`subagent_type:
+swarm:memory-curator`, `name: "memory-curator"`, mismo motivo que `memory-builder` arriba — nunca
+`SendMessage` a un agente que nunca se lanzó), con `curate` y `run-id: <RUN>` en el prompt; espera
+su `DONE` y propágalo.
 
 **Sello en histórico (obligatorio, spec §4.4 punto 6).** El cierre de run es `curate` **+**
 `observation_add`: en cuanto tienes el `DONE` del curator, escribes TÚ la observación histórica —

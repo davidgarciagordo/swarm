@@ -101,7 +101,7 @@ orchestrator (raíz · opus)
 ### 4.2 Agentes
 | agente | modelo | tools | responsabilidad |
 |---|---|---|---|
-| `memory-orchestrator` | haiku | Read, Grep, Bash (restringido por hook), SendMessage, mcp__plugin_claude-mem_mcp-search__* | única puerta: `query|write|build|curate`; lee `memory.json`, despacha a backends por política, fusiona y devuelve ≤5 líneas con fuente; dedup en escritura; **instancia única por run** |
+| `memory-orchestrator` | haiku | Read, Grep, Bash (restringido por hook), Agent(memory-builder,memory-curator), SendMessage, mcp__plugin_claude-mem_mcp-search__* | única puerta: `query|write|build|curate`; lee `memory.json`, despacha a backends por política, fusiona y devuelve ≤5 líneas con fuente; dedup en escritura; **instancia única por run**. `memory-builder`/`memory-curator` no preexisten — los LANZA con `Agent` la primera vez que hacen falta (no `SendMessage`, que solo alcanza agentes ya vivos); bug real encontrado en smoke test fase 1: la tools list original omitía `Agent`, dejando `build`/`curate` estructuralmente rotos |
 | `memory-builder` | sonnet | Read, Grep, Glob, Bash (restringido por hook), Write¹ | construye/refresca `context-pack.md` + `index.md`; detecta stack; consulta backend histórico al construir |
 | `memory-curator` | haiku | Read, Edit, Bash (restringido por hook) | compacta findings, poda decisions, controla tamaños (MEMORY.md ≤25KB), marca staleness, ciclo de vida de findings (§10), GC de `run/` |
 
