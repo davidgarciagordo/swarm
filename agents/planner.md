@@ -42,7 +42,9 @@ guiones, ≤5 palabras del objetivo — p. ej. objetivo "añadir export CSV de f
 un sufijo numérico (`-2`, `-3`…) — nunca sobrescribas un plan existente sin que te lo pidan.
 
 Estructura del plan (mismo header que usa el skill `writing-plans` de este propio repo, MÁS una
-línea nueva obligatoria):
+línea nueva obligatoria): esta línea literal es fundamental para la idempotencia, ya que
+`design-orchestrator` busca exactamente este formato en `docs/superpowers/plans/*.md` para detectar si
+un objetivo ya tiene plan, evitando re-ejecuciones innecesarias de las hojas de juicio.
 
 ```markdown
 # <Nombre de la feature> Implementation Plan
