@@ -33,6 +33,17 @@ EVIDENCE_RE = re.compile(
 FINDING_RE = re.compile(r'^[A-Z0-9_-]+\s*·\s*\S+:\d+\s*·\s.+→.+$')
 MAX_FINDING_LINE_LEN = 120
 
+# Formato de batch de discovery-orchestrator (spec §7, agents/discovery-orchestrator.md
+# "## Salida"): una pregunta con hasta 4 opciones (≤8 palabras cada una) más recomendación
+# supera con normalidad los 120 chars del cap de narración — confirmado en vivo con líneas
+# reales de 184-212 chars, que el cap uniforme rechazaba como "narración detectada" (C1 de la
+# review final de fase 2, 2026-09-02). Estructuralmente NO es prosa suelta: es un formato fijo
+# y parseable (cabecera + pregunta + opciones A-D + rec), así que se exime del cap por FORMA,
+# no por venir con un "- " delante — cualquier otra línea "- " sigue sujeta a los 120 (ese era
+# el bug real original: narración colándose sin ningún tope).
+DISCOVERY_Q_RE = re.compile(r'^- Q\d+ \[[^\]]{1,12}\] .+ · [A-D]\) .+ · rec: [A-D]$')
+DISCOVERY_OTHER_RE = re.compile(r'^- (warn|findings): .+$')
+
 
 def _repo_root():
     """Raíz real del repo, NO el cwd del hook.
@@ -178,10 +189,14 @@ def main():
                     continue
                 if FINDING_RE.match(stripped):
                     continue
-                # Las líneas `- Q…`/`- warn:`/`- findings:` (formato propio de
-                # discovery-orchestrator, no un hallazgo TAG·file:línea·…) se aceptan sin exigir
-                # FINDING_RE — pero SIGUEN sujetas al tope de longitud: sin él, cualquier prosa
-                # se cuela con solo anteponerle "- " (bug real, sin tope alguno).
+                # Formato de batch de discovery-orchestrator: exento del cap de longitud por
+                # FORMA (regex estructural), nunca solo por empezar con "- " — ver comentario
+                # junto a DISCOVERY_Q_RE arriba.
+                if DISCOVERY_Q_RE.match(stripped) or DISCOVERY_OTHER_RE.match(stripped):
+                    continue
+                # Cualquier OTRA línea "- " (no reconocida por el formato de batch) sigue
+                # sujeta al tope: sin esto, prosa cualquiera se cuela con solo anteponerle
+                # "- " (bug real, sin tope alguno, ya arreglado antes — no reabrirlo).
                 if stripped.startswith('- ') and len(stripped) <= MAX_FINDING_LINE_LEN:
                     continue
                 if len(stripped) > MAX_FINDING_LINE_LEN:
