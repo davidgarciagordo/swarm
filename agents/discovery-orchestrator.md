@@ -116,11 +116,37 @@ frontmatter.
 `research-analyst` y `feasibility-spiker` son `background: true`: su resultado te llega como
 notificación en un turno posterior; `value-critic` y `options-generator` responden en foreground.
 
+**Anota el `agentId` del spiker en cuanto lo lances.** El resultado del tool `Agent` del lanzamiento
+asíncrono trae una línea `agentId: <id>`. `feasibility-spiker` es el único con
+`isolation: worktree`, así que la plataforma le crea un worktree de git en
+`.claude/worktrees/agent-<ese agentId>` (observado en vivo: `.claude/worktrees/agent-ae25ffb99d186c453`).
+Guarda esa ruta: es tuya la limpieza (paso 1bis de la fusión) y sin el `agentId` no sabrás qué
+borrar. No la deduzcas de otro sitio ni la inventes — sale del resultado del spawn.
+
 ## Espera y fusión
 
 1. Espera a las cuatro (o tres). Regla de corte: cuando tengas las dos foreground, concede DOS
    turnos más a las background; si una no ha llegado, sigue sin ella y anota
    `- warn: <hoja> sin respuesta`. No relances a nadie.
+1bis. **Borra el worktree del spiker en cuanto reporte `DONE` o `BLOCKED`** (con cualquiera de los
+   dos su trabajo ha terminado). Es TU responsabilidad, no la suya: él no tiene `git worktree` en su
+   allowlist y no podría borrar el worktree en el que está corriendo. Tampoco se limpia solo: la
+   plataforma solo auto-limpia el worktree de un subagente que **no cambió nada**, y un spike
+   siempre escribe su `spike/` — sin este paso queda un worktree huérfano en `git worktree list`
+   por cada run de discovery con pregunta de viabilidad (fuga real observada en el smoke de fase 2).
+   Puedes borrarlo sin miedo a perder nada: el spiker solo devuelve `DONE` después de que
+   `memory-orchestrator` le haya confirmado por escrito su finding (agents/feasibility-spiker.md,
+   "Persistencia del detalle"), así que cuando lees su reporte el detalle YA está en `.swarm/`; el
+   `spike/` es desechable por diseño.
+   ```bash
+   git worktree remove .claude/worktrees/agent-<agentId del spawn> --force
+   ```
+   `--force` es obligatorio: el worktree tiene el `spike/` sin commitear y sin él `git` se niega
+   (`contains modified or untracked files`). **Fallo blando**: si el borrado falla por lo que sea
+   (ya no existe, carrera, worktree bloqueado), NO reintentes, NO cambies tu veredicto y NO
+   bloquees la fusión — anota una sola línea `- warn: worktree del spiker no borrado: <motivo en
+   ≤8 palabras>` en tu evidencia y sigue. Si no lanzaste al spiker (paso 4 del arranque) o nunca
+   te llegó su `agentId`, no hay nada que borrar: sáltate el paso sin warn.
 2. Lee el detalle de cada hoja (es un `Bash`, cuenta para `cmds=`, no para `files=`):
    ```bash
    "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" query "discovery-${RUN:-adhoc}:" --scope findings
@@ -163,9 +189,12 @@ notificación en un turno posterior; `value-critic` y `options-generator` respon
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
 Allowlist de `swarm:discovery-orchestrator`: `scripts/mem-*.sh`, `git status|log|diff|show|
-rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`. Nada de `python3`, `echo`, `mkdir`, `rm`,
+rev-parse`, **`git worktree`** (solo tú lo tienes, y solo para el `remove --force` del paso 1bis),
+`ls`, `cat`, `head`, `tail`, `wc`, `grep`. Nada de `python3`, `echo`, `mkdir`, `rm`,
 `export`; denegación por segmento (`&&`, `||`, `;`, `|`); no cierres con `; echo $?`. Casi no
-usas Bash: `register` ×4, `query` ×1, `summary` ×N.
+usas Bash: `register` ×4, `query` ×1, `worktree remove` ×1, `summary` ×N. Ojo: el borrado del
+worktree va en su PROPIA llamada, nunca encadenado con `&&` a otro comando — el guard evalúa
+segmento a segmento y un fallo blando no debe arrastrar a nadie.
 
 ## Salida
 

@@ -45,7 +45,14 @@ worktree se tira. **Nunca preguntas al owner** — no tienes `AskUserQuestion` (
   inline (`python3 -c`, `node -e`, `php -r`) está DENEGADA por el guard — no la intentes.
 - Tope: 15 turnos. Si a mitad ves que la respuesta es "no viable", para y repórtalo — un spike que
   falla rápido es un spike exitoso.
-- Nunca `git commit`, `git push`, `rm`: no están en tu allowlist y el worktree se descarta solo.
+- Nunca `git commit`, `git push`, `rm`: no están en tu allowlist. Tampoco borras tu propio worktree
+  (no tienes `git worktree` y no podrías: corres DENTRO de él). Quien lo borra es
+  `discovery-orchestrator`, el padre que te lanzó: cuando reportas `DONE`/`BLOCKED` él hace
+  `git worktree remove .claude/worktrees/agent-<tu agentId> --force`. **No es automático**: la
+  plataforma solo auto-limpia el worktree de un subagente que NO cambió nada, y un spike siempre
+  escribe `spike/` — por eso el borrado es del padre, y por eso tu finding tiene que estar
+  confirmado por `memory-orchestrator` ANTES de que devuelvas `DONE` (abajo): tras el `DONE` tu
+  worktree desaparece y con él todo lo que no persististe.
 - Si la respuesta invalida un enfoque, avisa a `options-generator` en cuanto lo sepas:
   `SendMessage(to: "options-generator", "SPIKE · discovery:1 · <pregunta> → no viable: <motivo>")`.
   El espejo a su buzón NO lo escribes tú (no puedes escribir en `.swarm/` desde un worktree):
