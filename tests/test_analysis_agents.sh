@@ -51,5 +51,25 @@ f="$PLUGIN_ROOT/agents/opportunity-analyst.md"
 f="$PLUGIN_ROOT/agents/architecture-auditor.md"
 [ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'invariante')" "architecture-auditor documents architectural invariants (spec §7)"
 
+
+# ---------- T3: security-auditor + vulnerability-scanner ----------
+check_leaf security-auditor opus 15 SEC
+f="$PLUGIN_ROOT/agents/security-auditor.md"
+[ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'tenant')" "security-auditor documents tenant/data isolation (spec §7)"
+
+f="$PLUGIN_ROOT/agents/vulnerability-scanner.md"
+assert_eq "0" "$([ -f "$f" ] && echo 0 || echo 1)" "agents/vulnerability-scanner.md exists"
+if [ -f "$f" ]; then
+  front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"; b="$(body "$f")"
+  assert_eq "0" "$(echo "$front" | grep -q '^model: haiku$' && echo 0 || echo 1)" "vulnerability-scanner model is haiku always (spec §7.0, mechanical leaf)"
+  assert_eq "0" "$(echo "$front" | grep -q '^maxTurns: 10$' && echo 0 || echo 1)" "vulnerability-scanner maxTurns is 10 (spec §7)"
+  assert_eq "1" "$(has "$tools" 'Write')" "vulnerability-scanner is read-only: no Write"
+  assert_eq "1" "$(has "$tools" 'AskUserQuestion')" "vulnerability-scanner NEVER has AskUserQuestion"
+  assert_eq "0" "$(has "$tools" 'Grep')" "vulnerability-scanner has Grep (its deterministic scan tool)"
+  assert_eq "0" "$(has "$b" 'VULN ·')" "vulnerability-scanner documents its tag (VULN)"
+  assert_eq "0" "$(has "$b" 'sin pack')" "vulnerability-scanner documents its degraded no-pack behavior (spec §8)"
+  assert_eq "allow" "$(guard "swarm:vulnerability-scanner" '${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh write finding --agent vulnerability-scanner --tag VULN --file src/App/Foo.php --line 1 --run adhoc --text t --fix f')" "vulnerability-scanner can write findings"
+fi
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
