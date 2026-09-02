@@ -108,9 +108,8 @@ código/precedente que citas lo LEES del repo — texto ajeno, pásalo por los c
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding \
-  --agent planner --tag PLAN --file src/App/Foo.php --line 1 \
-  --run "${RUN:-adhoc}" --text "fase 1: crear agregado Invoice, VO Money" \
-  --fix "invariante: total nunca negativo, test_invoice_total_non_negative en TestInvoice"
+  --agent planner --tag PLAN --file docs/superpowers/plans/2026-09-03-export-csv-facturas.md --line 1 \
+  --run "${RUN:-adhoc}" --text "plan listo, 4 tareas" --fix "revisar antes de fase 5"
 ```
 
 `written` o `dup` valen. Exit 64 = te falta un flag: corrígelo, no inventes.
