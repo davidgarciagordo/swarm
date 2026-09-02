@@ -24,6 +24,16 @@
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "cd", "ls", "cat", "head", "tail", "wc", "grep",
       "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:requirements-orchestrator": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/req-check.sh"
+    ],
+    "swarm:env-checker": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/req-check.sh"
     ]
   }
 }
