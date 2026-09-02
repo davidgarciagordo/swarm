@@ -36,7 +36,7 @@ run-id: <uuid>
 swarm-root: <ruta absoluta de .swarm>
 operation: <la operación concreta que debes ejecutar en tu turno 1>
 tier: <light|full>            (OPCIONAL — solo la escribe la raíz al lanzar un orquestador de dominio)
-objective: <objetivo literal del owner>   (OBLIGATORIA para un orquestador de dominio; ausente en las hojas de memoria)
+objective: <objetivo literal del owner>   (solo para el orquestador de dominio cuyo propio contrato la declare obligatoria — hoy `discovery-orchestrator`; el resto, incluidos otros orquestadores de dominio como `requirements-orchestrator`, nunca la recibe)
 ```
 
 - Si incluye `run-id: <uuid>`, estás dentro de un run orquestado: usa `RUN=<ese uuid>` en todos los
@@ -56,11 +56,12 @@ objective: <objetivo literal del owner>   (OBLIGATORIA para un orquestador de do
   frontmatter dice `opus`); las hojas no la reciben ni la necesitan. Los orquestadores pueden añadir
   líneas propias detrás de la cabecera, siempre DESPUÉS de estas.
 - `objective: <texto>` (fase 2, spec §7): el objetivo literal del owner, sin el flag `--tier`. La
-  raíz la escribe SIEMPRE al lanzar un orquestador de dominio y el orquestador la reenvía tal cual a
-  sus hojas; no es opcional para quien la necesita — un orquestador de dominio que la reciba vacía o
-  ausente no improvisa objetivo: su veredicto es `BLOCKED objetivo vacío` (ver
-  `agents/discovery-orchestrator.md`). Los agentes que no la necesitan (p. ej.
-  `memory-orchestrator`) no la reciben.
+  raíz SOLO la escribe al lanzar el orquestador de dominio cuyo propio contrato la declare
+  obligatoria (hoy `discovery-orchestrator`, que la reenvía tal cual a sus hojas y cuyo veredicto es
+  `BLOCKED objetivo vacío` si le llega vacía o ausente — ver `agents/discovery-orchestrator.md`).
+  NO es una obligación genérica de "todo orquestador de dominio": otros dominios (`memory-
+  orchestrator`, `requirements-orchestrator` — este último lanzado por `/swarm:doctor`, que no
+  toma objetivo alguno) nunca la reciben ni la necesitan.
 - Caso particular: si eres `implementer` (fase 5, todavía no existe) y te invocan sin referencia a
   un plan concreto, tu veredicto es `BLOCKED necesita plan` — no improvises un plan.
 

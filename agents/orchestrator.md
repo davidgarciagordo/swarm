@@ -338,9 +338,13 @@ Las otras líneas de su salida (`- findings: …`, `- warn: …`) NO son pregunt
 en entradas del batch.
 
 Si la salida de `discovery-orchestrator` es `BLOCKED …`/`KO …` sin ninguna línea `- Q`, no llames
-a `AskUserQuestion`: propaga su veredicto literal como el tuyo. Si trae `KO …` CON líneas `- Q`
-(batch parcial, una hoja de juicio caída), presenta el batch igualmente y propaga su motivo
-literal en una línea `- …` de tu salida.
+a `AskUserQuestion`: propaga su veredicto literal como el tuyo, pero **cierra el run igual que en
+cualquier otro veredicto terminal** — `SendMessage(memory-orchestrator, "curate")`, espera su
+`DONE` — antes de devolver el `BLOCKED`/`KO`. Un run que se cae abierto (sin `curate`) dificulta
+que un reintento detecte que ya hubo un intento fallido; no dejes el manifest a medias solo porque
+el veredicto es negativo. Si trae `KO …` CON líneas `- Q` (batch parcial, una hoja de juicio
+caída), presenta el batch igualmente y propaga su motivo literal en una línea `- …` de tu salida
+(el cierre con `curate` llega después de que el owner responda, como en el camino normal — §5.4).
 
 **Si el owner cancela o descarta el diálogo** (lo cierra sin elegir — comportamiento normal y
 frecuente, no un error), NO reintentes, no re-preguntes y no lo des por respondido con la opción
