@@ -71,5 +71,18 @@ if [ -f "$f" ]; then
   assert_eq "deny" "$(guard swarm:research-analyst 'python3 x.py')" "research-analyst cannot run python3"
 fi
 
+# ---------- T4: feasibility-spiker ----------
+check_common feasibility-spiker sonnet 15
+f="$PLUGIN_ROOT/agents/feasibility-spiker.md"
+if [ -f "$f" ]; then
+  front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"
+  assert_eq "0" "$(echo "$front" | grep -q '^background: true$' && echo 0 || echo 1)" "spiker is background: true (spec §7)"
+  assert_eq "0" "$(echo "$front" | grep -q '^isolation: worktree$' && echo 0 || echo 1)" "spiker runs in isolation: worktree (spec §9.3)"
+  assert_eq "0" "$(has "$tools" 'Write')" "spiker can Write (its spike)"
+  assert_eq "1" "$(has "$tools" 'Agent')" "spiker spawns nobody"
+  assert_eq "0" "$(has "$(body "$f")" 'memory-orchestrator')" "spiker body routes every .swarm write through memory-orchestrator (protocol §3)"
+  assert_eq "0" "$(has "$(body "$f")" 'BLOCKED falta swarm-root')" "spiker blocks without an absolute swarm-root"
+fi
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

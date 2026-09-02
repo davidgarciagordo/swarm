@@ -32,6 +32,16 @@ FIND_DENIED_FLAGS = ('-exec', '-execdir', '-ok', '-okdir', '-delete')
 # cuyo basename empiece por `mem-`.
 MEM_SCRIPT_RE = re.compile(r'^mem-[A-Za-z0-9_.-]+\.sh$')
 
+# Intérpretes con evaluación inline: `python3 -c`, `node -e`, `php -r` ejecutan código arbitrario
+# sin fichero y convierten un allowlist de "puedes correr tu spike" en "puedes correr cualquier
+# cosa". Se deniegan por flag aunque el intérprete esté permitido (feasibility-spiker, fase 2).
+INTERP_DENIED_FLAGS = {
+    'python3': ('-c',),
+    'python': ('-c',),
+    'node': ('-e', '--eval', '-p', '--print'),
+    'php': ('-r',),
+}
+
 
 def load_allowlist():
     with open(ALLOWLIST_PATH) as f:
@@ -123,6 +133,11 @@ def segment_allowed(segment, allowlist):
     if command_word == 'find':
         for word in words[1:]:
             if word in FIND_DENIED_FLAGS:
+                return False
+    denied_flags = INTERP_DENIED_FLAGS.get(command_word)
+    if denied_flags:
+        for word in words[1:]:
+            if word in denied_flags:
                 return False
     for prefix in allowlist:
         if ' ' in prefix:
