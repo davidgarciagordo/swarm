@@ -112,6 +112,17 @@ evidence: files=N cmds=M turns=k/max
 <líneas siguientes: hallazgos, opcional>
 ```
 
+**Tu ÚLTIMO mensaje del turno (el que lee `hooks/validate-output.py`) empieza LITERALMENTE en el
+veredicto — cero preámbulo.** Evidencia real de un smoke test en vivo (fase 2, 2026-09-02): los
+SEIS agentes de un mismo run fallaron su primer intento — cuatro por escribir una frase antes del
+veredicto ("línea 1 debe ser un veredicto"), dos por dejar prosa suelta tras un hallazgo
+("narración detectada"); el reintento del hook los salvó, pero cada agente pagó un turno entero de
+más, sistemáticamente, sin excepción. No es un caso raro: es el hábito por defecto de escribir un
+mensaje final — "Listo, ", "He terminado y ", "El resultado es " — antes de la palabra clave. Este
+turno NO es una explicación a un humano: es un valor que parsea un script. Nada de frase previa,
+nada de cierre después del último hallazgo. Si necesitas razonar en voz alta, hazlo en turnos
+anteriores — el turno que termina el agente es solo estas líneas.
+
 - **Línea 1 — veredicto**, una de: `OK` · `KO <peor problema>` · `DONE` · `BLOCKED <motivo>`.
 - **Línea 2 — evidencia, MANDATORIA**: `evidence: files=N cmds=M turns=k/max` donde `N` = ficheros
   leídos, `M` = comandos deterministas ejecutados, `k/max` = turno actual sobre el `maxTurns` del
