@@ -11,7 +11,16 @@ mismo para raíz, orquestadores de dominio y hojas — spec
 
 ## 1. Antes de actuar
 
-1. **Lee la memoria antes de buscar.** `cat "$SWARM_ROOT/context-pack.md"` (o pide el pack a
+**`$SWARM_ROOT` y `$RUN` en los ejemplos de este skill son PLACEHOLDERS, nunca variables de
+shell reales.** Cada llamada a `Bash` abre un proceso nuevo: nada exportado en una sobrevive a la
+siguiente (`export` tampoco está en tu allowlist — §6/§4.3). No hay ningún hook que las inyecte al
+entorno. **Sustituye LITERALMENTE** la ruta absoluta de `.swarm/` y el `run-id` (o `adhoc`) de tu
+cabecera de lanzamiento (§2) en cada comando, como texto — nunca `"$SWARM_ROOT/..."` ni
+`"${RUN:-adhoc}"` tal cual, eso expande a vacío o a `$PWD/.swarm` (ruta equivocada fuera de la raíz
+del repo) y el script falla con `exit 64` o lee/escribe donde no toca, casi siempre en silencio
+(`2>/dev/null` se traga el error). Misma regla que ya sigue `agents/orchestrator.md` §2.1.
+
+1. **Lee la memoria antes de buscar.** `cat "<ruta-swarm>/context-pack.md"` (o pide el pack a
    `memory-orchestrator` si no existe) ANTES de cualquier `Grep`/`Read` exploratorio. Abre solo el
    excerpt alrededor de la línea citada — nunca releas el fichero completo si el pack ya te dio
    `fichero:línea`.
@@ -19,13 +28,13 @@ mismo para raíz, orquestadores de dominio y hojas — spec
    `SHARED-FOUND` del pack, no lo repitas — cítalo o amplíalo, no lo dupliques.
 3. **Lee tu buzón al arrancar.** Antes de actuar, comprueba si alguien te dejó contexto:
    ```bash
-   cat "$SWARM_ROOT/run/${RUN:-adhoc}/mailbox/<tu-nombre>.md" 2>/dev/null
+   cat "<ruta-swarm>/run/<tu-run-id-o-adhoc>/mailbox/<tu-nombre>.md" 2>/dev/null
    ```
    Si el fichero no existe, no hay mensajes pendientes — continúa normalmente.
-   **Ojo con `$SWARM_ROOT`**: si tu frontmatter tiene `isolation: worktree`, usa la ruta ABSOLUTA
-   que te dieron en el prompt de lanzamiento (ver §3) — NO el `$SWARM_ROOT` por defecto, que en un
-   worktree resuelve a `$PWD/.swarm` (ruta equivocada). El `2>/dev/null` de arriba se traga el
-   fallo: con la ruta mal leerías un buzón vacío creyendo que no tienes mensajes.
+   **Ojo con la ruta de `.swarm/`**: si tu frontmatter tiene `isolation: worktree`, usa la ruta
+   ABSOLUTA que te dieron en el prompt de lanzamiento (ver §3) — NO una ruta relativa a tu cwd, que
+   en un worktree resuelve al sitio equivocado. El `2>/dev/null` de arriba se traga el fallo: con
+   la ruta mal leerías un buzón vacío creyendo que no tienes mensajes.
 
 ## 2. Modo run vs modo adhoc (§9.2)
 
@@ -39,17 +48,18 @@ tier: <light|full>            (OPCIONAL — solo la escribe la raíz al lanzar u
 objective: <objetivo literal del owner>   (solo para el orquestador de dominio cuyo propio contrato la declare obligatoria — hoy `discovery-orchestrator`; el resto, incluidos otros orquestadores de dominio como `requirements-orchestrator`, nunca la recibe)
 ```
 
-- Si incluye `run-id: <uuid>`, estás dentro de un run orquestado: usa `RUN=<ese uuid>` en todos los
-  comandos de memoria. `swarm-root:` es la ruta absoluta del `.swarm/` canónico (úsala como se
-  explica en §3 si tu cwd no es la raíz del repo). `operation:` dice qué tienes que hacer nada más
-  arrancar, con el vocabulario de tu propio contrato (para `memory-orchestrator`:
+- Si incluye `run-id: <uuid>`, estás dentro de un run orquestado: sustituye ese uuid LITERALMENTE
+  (como texto, nunca como variable de shell — §1) en todos los `--run` de tus comandos de memoria.
+  `swarm-root:` es la ruta absoluta del `.swarm/` canónico (sustitúyela igual, LITERAL — úsala como
+  se explica en §3 si tu cwd no es la raíz del repo). `operation:` dice qué tienes que hacer nada
+  más arrancar, con el vocabulario de tu propio contrato (para `memory-orchestrator`:
   `query|write|build|curate`) — no lo deduzcas del resto del prompt.
 - Si tu prompt NO incluye `run-id:`, te invocaron suelto (adhoc, fuera de un run orquestado): usa
-  `RUN=adhoc` fijo. **No** llames a `mem-manifest.sh open` — ese comando es exclusivo de la raíz
-  al abrir un run real. Tus escrituras van bajo `run/adhoc/`. **No crees directorios**: los scripts
-  de escritura (`mem-files.sh write …`, `mem-manifest.sh register|summary`) ya crean por sí solos el
-  árbol que necesitan (`findings/`, `run/adhoc/mailbox/`…) en la primera escritura. Sigue el
-  contrato de evidencia (§4) sin excepción.
+  el texto literal `adhoc` en cada `--run`. **No** llames a `mem-manifest.sh open` — ese comando es
+  exclusivo de la raíz al abrir un run real. Tus escrituras van bajo `run/adhoc/`. **No crees
+  directorios**: los scripts de escritura (`mem-files.sh write …`, `mem-manifest.sh
+  register|summary`) ya crean por sí solos el árbol que necesitan (`findings/`, `run/adhoc/
+  mailbox/`…) en la primera escritura. Sigue el contrato de evidencia (§4) sin excepción.
 - `tier: light|full` (fase 2, spec §7.0): línea OPCIONAL que la raíz añade al lanzar un orquestador
   de dominio. Ausente ⇒ `full`. Un orquestador la usa para elegir el modelo de sus hojas de
   juicio al lanzarlas (`light` ⇒ override `model: "sonnet"` en el tool `Agent` para las hojas cuyo
@@ -95,11 +105,13 @@ worktree, pasa siempre la ruta absoluta explícitamente en cada lectura, como pr
 `hooks/bash-guard.py` reconoce UN prefijo `SWARM_ROOT=<valor>` como transparente: lo recorta y
 valida el resto del segmento con las reglas normales (así que
 `SWARM_ROOT=/abs/.swarm scripts/mem-files.sh health` pasa, y `SWARM_ROOT=/abs/.swarm rm -rf /`
-se sigue denegando). `export SWARM_ROOT=…` como comando suelto NO está permitido — usa el prefijo:
+se sigue denegando). `export SWARM_ROOT=…` como comando suelto NO está permitido — usa el prefijo,
+y **en UNA sola línea, sin continuación `\`**: `bash-guard` parte el comando en tokens con `shlex`
+antes de mirar el allowlist, y una continuación de línea se convierte en un token `\n` suelto que
+no está en ningún allowlist — el comando se deniega ENTERO, incluido el prefijo válido:
 
 ```bash
-SWARM_ROOT=/ruta/absoluta/al/repo/.swarm \
-  "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" query "tenant" --scope findings
+SWARM_ROOT=/ruta/absoluta/al/repo/.swarm "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" query "tenant" --scope findings
 ```
 
 ## 4. Contrato de evidencia (obligatorio, spec §6)
@@ -143,6 +155,11 @@ anteriores — el turno que termina el agente es solo estas líneas.
 > Estas invocaciones directas son para agentes SIN `isolation: worktree`; si tu frontmatter la
 > tiene, ver §3 — nunca escribas directo, todo pasa por `memory-orchestrator`.
 
+`<tu-run-id-o-adhoc>` es el uuid de tu cabecera (o el texto `adhoc`), sustituido LITERAL — nunca
+`$RUN` (§1). Los `\` de continuación de línea SÍ funcionan aquí (verificado contra
+`bash-guard.py`) — es SOLO el prefijo `SWARM_ROOT=<valor>` del modo worktree (§3) el que rompe con
+continuación; sin ese prefijo, una llamada multilínea normal pasa el guard sin problema.
+
 ```bash
 # salud del backend files (antes de cualquier escritura, si tienes dudas)
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" health
@@ -150,14 +167,14 @@ anteriores — el turno que termina el agente es solo estas líneas.
 # escribir un hallazgo (dedup automático por [key:agente|tag|fichero:línea])
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding \
   --agent architecture-auditor --tag ARCH --file src/App/Foo.php --line 42 \
-  --run "${RUN:-adhoc}" --text "clase sin interfaz" --fix "extraer interfaz"
+  --run "<tu-run-id-o-adhoc>" --text "clase sin interfaz" --fix "extraer interfaz"
 
 # escribir una decisión (append a decisions.md)
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write decision --text "usar sonnet para ejecución"
 
 # dejar un mensaje en el buzón de otro agente (aunque aún no esté lanzado)
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write mailbox \
-  --to security-auditor --from architecture-auditor --run "${RUN:-adhoc}" \
+  --to security-auditor --from architecture-auditor --run "<tu-run-id-o-adhoc>" \
   --text "revisa src/App/Foo.php:42 — sin interfaz, puede afectar aislamiento de tenant"
 
 # consultar findings/decisiones/pack (cap 20 resultados)
@@ -168,7 +185,7 @@ anteriores — el turno que termina el agente es solo estas líneas.
 
 # manifest del run (solo raíz / memory-orchestrator)
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register \
-  --run "$RUN" --agent architecture-auditor --domain analysis --area "src/App" --owner orchestrator
+  --run "<run-id>" --agent architecture-auditor --domain analysis --area "src/App" --owner orchestrator
 ```
 
 Cada llamada a `mem-files.sh write ...` y a `mem-manifest.sh register|summary|gc` ya adquiere y
