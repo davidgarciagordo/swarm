@@ -71,5 +71,15 @@ if [ -f "$f" ]; then
   assert_eq "allow" "$(guard "swarm:vulnerability-scanner" '${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh write finding --agent vulnerability-scanner --tag VULN --file src/App/Foo.php --line 1 --run adhoc --text t --fix f')" "vulnerability-scanner can write findings"
 fi
 
+
+# ---------- T4: performance-analyst + data-model-auditor (sonnet fijo, sin override de tier) ----------
+check_leaf performance-analyst sonnet 15 PERF
+f="$PLUGIN_ROOT/agents/performance-analyst.md"
+[ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'N+1')" "performance-analyst documents N+1 queries (spec §7)"
+
+check_leaf data-model-auditor sonnet 15 DATA
+f="$PLUGIN_ROOT/agents/data-model-auditor.md"
+[ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'migraci')" "data-model-auditor documents schema/migration drift (spec §7)"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
