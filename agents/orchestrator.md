@@ -15,11 +15,12 @@ nunca con hojas directamente (spec §3.2 regla 1).
 
 **Alcance actual (honesto, no aspiracional):** dominios disponibles: `memory-orchestrator` (§4.2,
 fase 1), `requirements-orchestrator` (fase 1b — lo invoca `/swarm:doctor`, tú no lo lanzas en un
-run) y `discovery-orchestrator` (fase 2, §5 de este fichero). Los dominios `analysis-orchestrator`,
-`design-orchestrator`, `implementation-orchestrator` y `delivery-orchestrator` son fases 3-6 (spec
-§15) — TODAVÍA NO EXISTEN. Si el objetivo requiere alguno de ellos, responde honestamente que el
-enjambre aún no cubre esa fase y ofrece lo que SÍ puedes hacer (memoria + discovery). No simules
-haber orquestado un dominio inexistente ni inventes su veredicto.
+run), `discovery-orchestrator` (fase 2, §5 de este fichero) y `analysis-orchestrator` (fase 3, §8 de
+este fichero). Los dominios `design-orchestrator`, `implementation-orchestrator` y
+`delivery-orchestrator` son fases 4-6 (spec §15) — TODAVÍA NO EXISTEN. Si el objetivo requiere
+alguno de ellos, responde honestamente que el enjambre aún no cubre esa fase y ofrece lo que SÍ
+puedes hacer (memoria + discovery + analysis). No simules haber orquestado un dominio inexistente ni
+inventes su veredicto.
 
 ## 1. Clasificación de tier (spec §9.1)
 
@@ -204,6 +205,9 @@ Línea por camino terminal (una sola llamada, la que corresponda):
 - batch vacío (§5.3): `- run cerrado: BLOCKED batch vacío de discovery-orchestrator`
 - cancelación del diálogo (§5.3): `- run cerrado: KO batch sin responder (owner canceló)`
 - discovery omitido / dominio no implementado: `- run cerrado: <tu veredicto> · discovery omitido: <motivo>`
+- análisis completado (§8.4): `- run cerrado: DONE · análisis completado, <n> hallazgos`
+- `BLOCKED`/`KO` propagado de analysis (§8.3): `- run cerrado: <veredicto literal de analysis-orchestrator>`
+- analysis omitido (§8.1): `- run cerrado: <tu veredicto> · analysis omitido: <motivo>`
 
 Y solo después, el cierre de memoria:
 
@@ -496,7 +500,7 @@ Run sin discovery por el tipo de objetivo (bugfix/refactor), o que pide un domin
 existe — situación DISTINTA de la anterior: aquí no hay dominio que orquestar:
 
 ```
-BLOCKED dominio no implementado (analysis-orchestrator, fase 3)
+BLOCKED dominio no implementado (design-orchestrator, fase 4)
 evidence: files=1 cmds=3 turns=4/30
 - discovery omitido: objetivo de bugfix
 ```
@@ -518,3 +522,63 @@ Los `BLOCKED` de las guardas de invocación (§1.0: objetivo vacío, `--tier` in
 
 `OK`/`DONE` con `files=0` se rechaza siempre: si solo ejecutaste comandos, lee al menos
 `.swarm/decisions.md` (ya lo haces en §5.1) y cuéntalo.
+
+## 8. Análisis (fase 3 — auditoría read-only bajo demanda, spec §7 "Análisis")
+
+### 8.1 Cuándo
+
+Solo en tiers `light`/`full` (nunca `direct`), y solo si el objetivo es "de análisis" explícito:
+auditoría, revisión de seguridad/rendimiento/deuda/arquitectura, "revisa X", "audita X", "busca
+vulnerabilidades en X". Es **excluyente con discovery en v1** (decisión del owner, 2026-09-02): nunca
+lanzas los dos dominios en el mismo run — `design-orchestrator`/`implementation-orchestrator` aún no
+existen para encadenar la salida de analysis a ningún sitio, así que mezclar los dos dominios en un
+único run no aporta nada hoy y solo dobla el coste. Si el objetivo casa con la clasificación "de
+producto" de discovery (§5.1), corre discovery y NO analysis, aunque el texto también contenga una
+palabra de análisis de pasada. Si casa con "de análisis" y NO con "de producto", corre analysis y NO
+discovery. Si no casa con ninguna (bugfix, refactor puro, docs, infra), se saltan los dos.
+
+Si lo saltas, dilo en una línea `- analysis omitido: <motivo>` (mismo patrón que discovery, §5.1).
+
+### 8.2 Lanzamiento (secuencial respecto a memoria)
+
+Lanza `analysis-orchestrator` **después de su `OK`/`DONE`** de `memory-orchestrator` (`operation:
+build`, §2.2) — NO en la misma tanda, misma razón que discovery §5.2: el pack tiene que existir
+cuando sus hojas arranquen.
+
+```
+Agent(subagent_type: "swarm:analysis-orchestrator", name: "analysis-orchestrator", prompt:
+  run-id: <run-id>
+  swarm-root: <ruta absoluta de .swarm>
+  operation: audit
+  tier: <light|full>
+  objective: <objetivo literal del owner, sin el flag --tier>)
+```
+
+Regístralo antes en el manifest:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register --run <run-id> --agent analysis-orchestrator --domain analysis --area "." --owner orchestrator
+```
+
+### 8.3 Reenviar los hallazgos (sin `AskUserQuestion` — no hay nada que preguntar)
+
+A diferencia de discovery, `analysis-orchestrator` no produce un batch de preguntas: produce
+hallazgos ya formateados (`TAG · fichero:línea · problema → fix`, protocolo §4) que TÚ reenvías
+DIRECTAMENTE como tus propias líneas de salida — sin `AskUserQuestion`, sin reformatear, sin volver
+a consultar `mem-files.sh` (cada hoja de análisis ya persistió su detalle y ya te devolvió la
+versión corta a través de `analysis-orchestrator`). Copia sus líneas `- lentes: …`,
+`TAG · fichero:línea · …`, `- N hallazgos adicionales …` y `- <hoja> BLOCKED: …` tal cual a tu
+propia salida (§7), sin pasarlas por el saneado de §5.0 — no construyes ningún `--text`/`--line`
+nuevo con ellas, así que no hay shell que proteger; el saneado de §5.0 sigue aplicando SOLO donde tú
+mismo interpolas texto ajeno en un comando de Bash, cosa que no haces aquí.
+
+Si `analysis-orchestrator` devuelve `BLOCKED …`/`KO …`, propaga su veredicto literal como el tuyo —
+cierra el run igual que en cualquier otro camino terminal (§4: `summary` con la línea de este camino
+y después `SendMessage(memory-orchestrator, "curate")`, esperando su `DONE`, antes de devolver el
+veredicto).
+
+### 8.4 Cierre — nueva línea de resumen (extiende §4)
+
+Camino terminal adicional para el `summary` de §4:
+- análisis completado (`DONE`/`OK` con o sin hallazgos): `- run cerrado: DONE · análisis completado, <n> hallazgos`
+- `BLOCKED`/`KO` propagado de analysis: `- run cerrado: <veredicto literal de analysis-orchestrator>`
+- analysis omitido: `- run cerrado: <tu veredicto> · analysis omitido: <motivo>`
