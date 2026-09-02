@@ -38,6 +38,20 @@ mismo para raíz, orquestadores de dominio y hojas — spec
 - Caso particular: si eres `implementer` (fase 5, todavía no existe) y te invocan sin referencia a
   un plan concreto, tu veredicto es `BLOCKED necesita plan` — no improvises un plan.
 
+## 2bis. Convención de nombre estable (decisión del owner, 2026-09-02)
+
+Todo agente se lanza (`Agent(...)`) NOMBRADO — nunca anónimo — y su nombre es exactamente su rol,
+sin sufijos ni variantes: el basename de su tipo (`memory-orchestrator`, `security-auditor`,
+`analysis-orchestrator`…), igual en cada run. Esto es lo que permite:
+- que agentes pares se manden `SendMessage(to: "<rol>", ...)` entre sí en cualquier momento (§5 del
+  spec) sabiendo el nombre de antemano, sin tener que descubrirlo;
+- que el owner (usuario humano) se dirija a un agente concreto por su rol — "avisa a
+  security-auditor cuando termines", "pregúntale a memory-builder si ya tiene el pack" — y el
+  orquestador que lo lanzó sepa exactamente a quién reenviar el mensaje.
+`memory-orchestrator` es el caso ya obligatorio por spec (§4.5, instancia única por run, siempre
+nombrada así). El mismo criterio se aplica a CUALQUIER otro agente que un orquestador lance, en
+cualquier fase — quien lanza fija el nombre = rol, no delega el nombrado al azar.
+
 ## 3. Modo worktree (§9.3)
 
 Si tu frontmatter tiene `isolation: worktree`, tu prompt de lanzamiento te da la ruta ABSOLUTA del
