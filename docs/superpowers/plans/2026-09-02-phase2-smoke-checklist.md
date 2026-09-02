@@ -50,7 +50,12 @@ prueba real, no solo con el guard).
 `/swarm:run "añadir export CSV del listado de facturas" --tier=light`. En el transcript,
 `discovery-orchestrator` lanza `value-critic` y `options-generator` con `model: "sonnet"` en la
 llamada a `Agent`; `research-analyst`/`feasibility-spiker` sin override.
-Evidencia:
+Evidencia: parcial — NO ejecutado en vivo (el ítem 1 ya se corrió en `full`, y repetirlo en
+`light` se dejó pendiente al priorizar los bugs reales encontrados en 2 y 7). Verificado a nivel
+de código en la review adversarial de T5 (trazado a mano contra la tabla de spawn de
+`discovery-orchestrator.md`: `model: "sonnet"` presente solo para `value-critic`/
+`options-generator`, ausente para `research-analyst`/`feasibility-spiker`, condicionado a
+`tier: light`). Pendiente confirmación en vivo.
 
 ## 4. `direct` y objetivos no-producto no lanzan discovery
 
@@ -58,7 +63,14 @@ Evidencia:
 `/swarm:run "refactor: extraer InvoiceExporter a servicio" --tier=light` → run abierto, `build`,
 y la raíz cierra con `- discovery omitido: objetivo de refactor` — `discovery-orchestrator` NO
 aparece en `run/<id>/agents/`.
-Evidencia:
+Evidencia: primera mitad ✅ PASS — ejecutado real vía `claude -p` contra fixture limpio:
+`--tier=direct` respondió directo (`BLOCKED`, no había README en el fixture — comportamiento
+correcto de fixture, no del sistema), CERO directorio nuevo bajo `.swarm/run/`. Segunda mitad
+(`--tier=light` + refactor → discovery omitido) inconclusa: `claude -p` cortó la cadena async
+antes de llegar a la decisión de omitir discovery — mismo límite de método que los ítems 1/2/3/5/7
+(headless no espera cadenas multi-salto), no un fallo del sistema. La lógica de omisión SÍ se
+verificó a nivel de código en la review de T6 (P2-c, ejemplo `DONE`/`OK` separado del `BLOCKED
+dominio no implementado`). Pendiente confirmación en vivo de la segunda mitad.
 
 ## 5. Ninguna hoja pregunta al owner
 
