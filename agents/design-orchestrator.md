@@ -36,23 +36,29 @@ regla 4): no diseñas tú mismo, delegas siempre.
 ## Chequeo de idempotencia (ANTES de lanzar a nadie)
 
 Un plan ya escrito para este mismo objetivo no se re-escribe. `planner` escribe `**Objective:**
-<objetivo literal del owner, tal cual, sin resumir>` — SIN sanear (§4.4 no aplica ahí porque
-`Write` nunca pasa por una shell). Por eso el chequeo aquí usa la herramienta `Grep` (tool
-nativo, ya en tu `tools:`) con el objetivo LITERAL, sin sanear — nunca `Bash grep`: una llamada a
-herramienta estructurada no pasa por `bash-guard.py` ni por una shell real, así que no hay riesgo
-de inyección que sanear, y buscar el texto exacto que escribió `planner` es lo único correcto
-(sanear aquí produciría un falso negativo silencioso si el objetivo trae backtick/`$`/comilla/
-barra invertida, porque el patrón saneado ya no coincidiría con lo que `planner` realmente
-escribió):
-```
-Grep(pattern: "**Objective:** <objetivo literal del owner>", path: "docs/superpowers/plans/")
-```
+<objetivo literal del owner, tal cual, sin resumir>`. **Nunca metas el objetivo actual dentro de
+un patrón de `Grep` ni de un comando** — solo lo comparas como texto tras leer cada candidato. El
+tool `Grep` es una REGEX, no un modo de texto fijo: no hay forma segura de embeber un objetivo de
+contenido arbitrario (paréntesis, `+`, `?`, `.`, `[`, `*`…) dentro de un patrón sin arriesgar un
+error de parseo de regex o, peor, un falso negativo silencioso que dispare un plan duplicado y un
+re-run completo de las hojas de juicio. El chequeo va en 3 pasos:
+
+- **Paso A** — patrón FIJO (nunca contenido variable), localiza candidatos:
+  ```
+  Grep(pattern: "\*\*Objective:\*\*", path: "docs/superpowers/plans/", output_mode: "files_with_matches")
+  ```
+- **Paso B** — para cada fichero candidato (recientes primero, o todos si son pocos), `Read` (al
+  menos las primeras ~10 líneas) y extrae su línea `**Objective:**`.
+- **Paso C** — compara esa línea, en tu propio razonamiento, contra el objetivo ACTUAL como texto
+  plano (coincidencia exacta, o paráfrasis cercana si `planner` alguna vez normaliza espacios) —
+  nunca vuelvas a embeber el objetivo en un `pattern` de tool ni en un comando.
+
 Si encuentras un match, tu veredicto es `DONE` con una línea `PLAN · <ruta del fichero>:1 · plan
 ya existe → revisar directamente` (NUNCA `DONE · plan ya existe: <ruta>` — `hooks/
 validate-output.py`'s `VERDICT_RE` es `^(OK|KO .+|DONE|BLOCKED .+)$`, así que un `DONE` con
 sufijo `·` en la línea 1 se rechaza como narración; usa siempre el formato de tu propia sección
-"## Salida" abajo) sin lanzar a nadie — evidencia mínima (el `Grep` cuenta para `cmds=`, lee al
-menos un fichero para `files=`).
+"## Salida" abajo) sin lanzar a nadie — evidencia mínima (el `Grep` del Paso A cuenta para
+`cmds=`, el `Read` del Paso B cuenta para `files=`).
 
 ## Lanzamiento de pattern-advisor + domain-modeler (UNA sola tanda)
 
@@ -134,10 +140,10 @@ objective: <objetivo literal del owner>
 context: edita (Edit) el fichero YA EXISTENTE en <ruta absoluta del plan>, no escribas uno nuevo.
 Incorpora estos P1 de grill: <resumen literal tuyo>
 ```
-Si el hallazgo es
-genuinamente ambiguo y solo el owner puede resolverlo (nunca inventes una respuesta): tu veredicto
-final es `BLOCKED <la pregunta concreta, en ≤20 palabras>` — no relances a `planner` con una
-suposición.
+
+Si el hallazgo es genuinamente ambiguo y solo el owner puede resolverlo (nunca inventes una
+respuesta): tu veredicto final es `BLOCKED <la pregunta concreta, en ≤20 palabras>` — no relances
+a `planner` con una suposición.
 
 Hallazgos `P2`/`P3` (significativos/menores): decide tú si merecen una revisión de `planner` o si
 quedan anotados como riesgo conocido dentro del propio plan (más barato, igual de honesto) — tu

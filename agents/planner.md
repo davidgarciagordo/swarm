@@ -19,10 +19,13 @@ preguntes.
 
 ## Arranque
 
-1. `RUN`: de tu cabecera (`run-id:` o `adhoc`, protocolo §2). `operation: plan` y
-   `objective: <objetivo literal del owner>` en tu cabecera, más `context:` con las decisiones de
-   discovery y los hallazgos de `pattern-advisor`/`domain-modeler` que `design-orchestrator` te
-   resuma (o te diga dónde leerlos: `findings/pattern-advisor.md`, `findings/domain-modeler.md`).
+1. `RUN`: de tu cabecera (`run-id:` o `adhoc`, protocolo §2). `operation:` trae uno de DOS valores
+   válidos: `plan` (borrador fresco) o `revise` (segunda pasada tras grill — ver "## Revisión tras
+   grill" más abajo), junto con `objective: <objetivo literal del owner>` en tu cabecera, más
+   `context:` con las decisiones de discovery y los hallazgos de `pattern-advisor`/`domain-modeler`
+   que `design-orchestrator` te resuma (o te diga dónde leerlos: `findings/pattern-advisor.md`,
+   `findings/domain-modeler.md`) — o, en `revise`, la ruta del plan existente y el resumen de los
+   `P1` de grill a incorporar.
 2. Lee tu buzón:
    ```bash
    cat "$SWARM_ROOT/run/${RUN:-adhoc}/mailbox/planner.md" 2>/dev/null
@@ -86,6 +89,12 @@ convierte en un requisito de test explícito en la tarea correspondiente]
 
 Si el plan es muy largo (>4 fases), divídelo en versiones (v1 para MVP, v1.1 para extensiones, v2 para
 refactor) y escribe un plan por versión.
+
+## Revisión tras grill (segunda pasada, solo si `design-orchestrator` te relanza)
+
+Si tu cabecera trae `operation: revise` en vez de `plan`, ya existe un borrador (la ruta viene en
+tu prompt) y `design-orchestrator` te resume qué hallazgos de grill son load-bearing. Usa `Edit`
+sobre ESE mismo fichero — nunca crees uno nuevo para una revisión. Cierra con la misma disciplina.
 
 ## Persistencia del detalle
 
