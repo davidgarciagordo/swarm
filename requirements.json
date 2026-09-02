@@ -1,0 +1,12 @@
+{
+  "os": [
+    { "tool": "git", "required": true, "install": { "brew": "git", "apt": "git" } },
+    { "tool": "python3", "required": true, "install": { "brew": "python3", "apt": "python3" } },
+    { "tool": "uuidgen", "required": true, "install": { "apt": "uuid-runtime" } },
+    { "tool": "jq", "required": false, "install": { "brew": "jq", "apt": "jq" } },
+    { "tool": "gh", "required": false, "install": { "brew": "gh", "apt": "gh" } },
+    { "tool": "docker", "required": false, "install": { "brew": "docker", "apt": "docker.io" } }
+  ],
+  "project": [],
+  "libs": []
+}
