@@ -54,6 +54,12 @@ Un finding por enfoque (`--line 1..3`) y uno para la recomendación (`--line 9`,
 que el orquestador lo localice). Clave `--file "discovery-${RUN:-adhoc}" --line <ordinal>` (ordinal, NO línea de
 código):
 
+**Antes de interpolar nada, saneado obligatorio** (`skills/swarm-protocol/SKILL.md` §4.4): el
+enfoque y su trade-off los redactas tú, pero salen del `objective:` del owner y de lo que te
+mandaron `research-analyst` (web pública) y `feasibility-spiker` (salida de un spike) — texto que
+puede traer backticks, `$`, comillas o `\`. Pásalo por los cinco pasos del skill antes de meterlo en
+el `--text`/`--fix` de abajo o en el `--text` del espejo a buzón de arriba.
+
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding \
   --agent options-generator --tag OPTION --file "discovery-${RUN:-adhoc}" --line 1 --run "${RUN:-adhoc}" \

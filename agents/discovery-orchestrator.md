@@ -52,7 +52,9 @@ las comillas pasa el guard intacto y lo sustituye el shell antes de que `mem-man
 
 Por eso, ANTES de interpolar texto que no escribiste tú literalmente en este fichero dentro de un
 `--line` (o de un `--text`/`--fix`, si alguna vez construyes uno), aplica estas sustituciones, en
-este orden — es la MISMA regla que la raíz aplica en agents/orchestrator.md §5.0:
+este orden — es la MISMA regla compartida del protocolo (`skills/swarm-protocol/SKILL.md` §4.4), la
+que la raíz aplica en agents/orchestrator.md §5.0 y la que aplican tus cuatro hojas; está repetida
+aquí por localidad:
 
 1. **sustituye cada backtick `` ` `` por una comilla simple `'`**
 2. **borra cada `$`** (desaparece)
@@ -128,6 +130,17 @@ borrar. No la deduzcas de otro sitio ni la inventes — sale del resultado del s
 1. Espera a las cuatro (o tres). Regla de corte: cuando tengas las dos foreground, concede DOS
    turnos más a las background; si una no ha llegado, sigue sin ella y anota
    `- warn: <hoja> sin respuesta`. No relances a nadie.
+   **Si la que se quedó sin responder es `feasibility-spiker` y tienes su `agentId`**, su worktree
+   sigue ahí: lanzado bien y sin reportar es exactamente el mismo huérfano que el paso 1bis existe
+   para evitar (la plataforma no auto-limpia un worktree con `spike/` dentro), solo que por otro
+   camino. Así que, junto a `- warn: feasibility-spiker sin respuesta`, intenta igualmente el
+   borrado, con el mismo comando y el mismo fallo blando del paso 1bis (una sola línea
+   `- warn: worktree del spiker no borrado: <motivo>` si falla, nunca un cambio de veredicto):
+   ```bash
+   git worktree remove .claude/worktrees/agent-<agentId del spawn> --force
+   ```
+   Si nunca te llegó su `agentId` (el lanzamiento falló), no hay ruta que borrar: sáltatelo sin warn,
+   igual que en 1bis.
 1bis. **Borra el worktree del spiker en cuanto reporte `DONE` o `BLOCKED`** (con cualquiera de los
    dos su trabajo ha terminado). Es TU responsabilidad, no la suya: él no tiene `git worktree` en su
    allowlist y no podría borrar el worktree en el que está corriendo. Tampoco se limpia solo: la

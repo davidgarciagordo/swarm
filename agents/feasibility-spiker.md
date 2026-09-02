@@ -73,6 +73,13 @@ SendMessage(to: "memory-orchestrator",
 `--line 1` es un ordinal (la pregunta nº 1), NO una línea de código. Espera su `OK`/`written`;
 si responde `KO escritura perdida`, repite el mismo mensaje UNA vez.
 
+**Saneado obligatorio ANTES de mandar el mensaje** (`skills/swarm-protocol/SKILL.md` §4.4): la
+`evidencia: <comando y salida>` es salida LITERAL de tu spike y puede traer cualquier cosa
+(backticks, `$`, comillas, `\`, saltos de línea), y `memory-orchestrator` la interpola tal cual en un
+`--text` que ejecuta un shell REAL. Pasa por los cinco pasos del skill la evidencia, la pregunta y
+el mensaje que mandes a `options-generator` (y su espejo a buzón) ANTES de meterlos en el
+`SendMessage` — quien recibe el mensaje no puede sanear por ti.
+
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
 Allowlist de `swarm:feasibility-spiker`: `python3`, `node`, `php`, `npm`, `npx`, `composer`,

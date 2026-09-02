@@ -56,6 +56,12 @@ Cada pregunta es UN finding en `findings/value-critic.md`. Como no citas código
 `--file "discovery-${RUN:-adhoc}" --line <ordinal>` (1, 2, 3 — el ordinal de la pregunta, NO una línea de
 fichero; misma convención que `requirements.json:0` en fase 1b):
 
+**Antes de interpolar nada, saneado obligatorio** (`skills/swarm-protocol/SKILL.md` §4.4): la
+pregunta y las opciones las redactas tú, pero salen del `objective:` del owner y de tu buzón, y un
+objetivo perfectamente normal ("migramos el `parseCSV()` antiguo") trae backticks, `$` o comillas.
+Pásalas por los cinco pasos del skill antes de meterlas en el `--text`/`--fix` de abajo o en el
+`--text` del espejo a buzón de arriba.
+
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding \
   --agent value-critic --tag VALUE --file "discovery-${RUN:-adhoc}" --line 1 --run "${RUN:-adhoc}" \
