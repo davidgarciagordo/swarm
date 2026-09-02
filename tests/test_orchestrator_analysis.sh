@@ -28,8 +28,9 @@ assert_eq "0" "$(has "$body" 'análisis completado')" "root's close section docu
 n_pending="$(echo "$body" | grep -cF 'analysis-orchestrator, fase 3')"
 assert_eq "0" "$([ "$n_pending" -eq 0 ] && echo 0 || echo 1)" "root no longer lists analysis-orchestrator as unimplemented (fase 3 done)"
 
-# design/implementation/delivery siguen honestamente no implementados
-assert_eq "0" "$(has "$body" 'design-orchestrator')" "root still names design-orchestrator among not-yet-built domains"
+# implementation/delivery siguen honestamente no implementados (design ya se construyó en fase 4,
+# ver tests/test_orchestrator_design.sh — este fichero ya no afirma lo contrario sobre design)
+assert_eq "0" "$(has "$body" 'delivery-orchestrator')" "root still names delivery-orchestrator among not-yet-built domains"
 assert_eq "0" "$(has "$body" 'implementation-orchestrator')" "root still names implementation-orchestrator among not-yet-built domains"
 
 # saneado ya cubre las líneas que la raíz reenvía de analysis-orchestrator (reusa §5.0, no lo duplica)
