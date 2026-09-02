@@ -16,7 +16,8 @@
 
 - Repo: `/Users/davidgarciagordo/projects/multiagents` (plugin Claude Code `swarm`, sin remoto aún,
   rama `master`, sin ramas de trabajo abiertas — **excepto** `worktree-phase2-discovery`, ver nota
-  de limpieza pendiente abajo).
+  de limpieza pendiente abajo). `worktree-phase3-analysis` ya se mergeó y se limpió (worktree
+  borrado, rama borrada) — no queda pendiente.
 - Spec: `docs/superpowers/specs/2026-09-01-swarm-design.md` (v2.1) — fuente de verdad del diseño.
 - **Fase 1 (núcleo) — completa y mergeada.** 13 tareas + review final + smoke en vivo. 2 bugs
   Critical: payload real de `SubagentStop` es `last_assistant_message` (no `output`);
@@ -52,31 +53,35 @@
      tratado como `BLOCKED` explícito) — verificados limpios por una review acotada independiente
      antes de mergear (sin bugs nuevos, primera vez en toda la rama que una ronda de fix de
      `orchestrator.md` no regresa nada).
-- **Fase 3 (dominio analysis) — completa en la rama `worktree-phase3-analysis`, pendiente de
-  merge a `master`.** `analysis-orchestrator` + 6 hojas de juicio (`opportunity-analyst`,
-  `architecture-auditor`, `security-auditor`, `vulnerability-scanner`, `performance-analyst`,
-  `data-model-auditor`) integradas en la raíz (§8 de `agents/orchestrator.md`), excluyente con
-  discovery en v1 (decisión del owner, 2026-09-02: nunca se lanzan los dos dominios en el mismo
-  run). Checklist de smoke ejecutado EN VIVO (headless), confirmado en
-  `docs/superpowers/plans/2026-09-02-phase3-smoke-checklist.md`. Review final de rama encontró 6
-  hallazgos Important + 4 Minor (contradicción DONE/KO en el batch parcial de hojas bloqueadas,
-  saneado §4.4 no restatado localmente, README desactualizado, falta de test sobre el fix Critical
-  de Task 6, sin ejemplo de salida analysis en §7 de la raíz, finding falso de "sin hallazgos" en
-  `security-auditor`, más 4 menores) — arreglados en una sola tanda de fix, con
-  `bash tests/run.sh` en verde después. Falta el merge fast-forward a `master` (mismo patrón que
-  fase 2) antes de empezar fase 4.
-- Todo en `master`: **22 archivos de test, 22/22 en verde** (`bash tests/run.sh`), confirmado en
-  `PATH` normal y en `PATH=/usr/bin:/bin:$PATH` (entorno grep mínimo) — a fecha de la fase 2; la
-  rama de fase 3 añade más tests, ver su propio `bash tests/run.sh` antes de mergear.
+- **Fase 3 (dominio analysis) — completa y mergeada (2026-09-02→03, fast-forward `e870c54..dfad121`).**
+  `analysis-orchestrator` + 6 hojas de juicio (`opportunity-analyst`, `architecture-auditor`,
+  `security-auditor`, `vulnerability-scanner`, `performance-analyst`, `data-model-auditor`)
+  integradas en la raíz (§8 de `agents/orchestrator.md`), excluyente con discovery en v1 (decisión
+  del owner, 2026-09-02: nunca se lanzan los dos dominios en el mismo run). Checklist de smoke
+  ejecutado EN VIVO y headless (a diferencia de discovery, analysis no usa `AskUserQuestion`, así
+  que `claude -p` SÍ completó la cadena entera sin cortarse) — 5 runs reales contra un fixture,
+  confirmados en `docs/superpowers/plans/2026-09-02-phase3-smoke-checklist.md`: selección de
+  lentes por objetivo verificada (seguridad → security-auditor+vulnerability-scanner; genérico+light
+  → architecture-auditor+security-auditor), exclusividad con discovery verificada en las dos
+  direcciones, dedup real entre runs repetidos (§10) verificado, modo adhoc verificado. Review final
+  de rama (Opus) encontró 6 hallazgos Important + 4 Minor (contradicción DONE/KO en el batch parcial
+  de hojas bloqueadas, saneado §4.4 no restatado localmente, README desactualizado, falta de test
+  sobre el fix Critical de Task 6, sin ejemplo de salida analysis en §7 de la raíz, finding falso de
+  "sin hallazgos" en `security-auditor` — este último reproducido de verdad en el smoke — más 4
+  menores) — arreglados en una sola tanda de fix (`dfad121`), verificados limpios por re-review
+  acotada (Opus): 10/10 direccionados, sin roturas Critical/Important, 4 Minors nuevos y cosméticos
+  aparcados con ruling (sin efecto funcional, documentados en el ledger de la fase, ya borrado —
+  ver git log de la rama si hace falta el detalle).
+- Todo en `master`: **26 archivos de test, 26/26 en verde** (`bash tests/run.sh`).
 - Agentes vivos: `swarm:orchestrator` (raíz), `swarm:memory-orchestrator`/`memory-builder`/
   `memory-curator` (dominio memory), `swarm:requirements-orchestrator`/`env-checker` (dominio
   requirements), `swarm:discovery-orchestrator`/`value-critic`/`options-generator`/
   `research-analyst`/`feasibility-spiker` (dominio discovery), `swarm:analysis-orchestrator`/
   `opportunity-analyst`/`architecture-auditor`/`security-auditor`/`vulnerability-scanner`/
-  `performance-analyst`/`data-model-auditor` (dominio analysis, en rama sin mergear). Comandos:
-  `/swarm:init`, `/swarm:run`, `/swarm:doctor`.
+  `performance-analyst`/`data-model-auditor` (dominio analysis). Comandos: `/swarm:init`,
+  `/swarm:run`, `/swarm:doctor`.
 
-## Limpieza pendiente (no urgente, no bloquea fase 3)
+## Limpieza pendiente (no urgente, no bloquea fase 4)
 
 El worktree `.claude/worktrees/phase2-discovery` (rama `worktree-phase2-discovery`, ya mergeada
 fast-forward a `master`) sigue registrado porque estaba **bloqueado por una sesión Claude viva
@@ -125,12 +130,10 @@ el área correspondiente)
   se priorizó el tiempo del owner en los bugs reales de los ítems 2 y 7. Repetir si se toca esa
   lógica en una fase futura.
 
-## Siguiente paso: mergear fase 3, luego fase 4 — design (spec §15)
+## Siguiente paso: fase 4 — design (spec §15)
 
-Primero: mergear `worktree-phase3-analysis` a `master` (fast-forward, mismo patrón que fase 2) una
-vez confirmado `bash tests/run.sh` en verde en la rama. Después, fase 4 (dominio design —
-`design-orchestrator`, `planner`, `pattern-advisor`, `domain-modeler`, integración grill×3) aún sin
-brainstorming/spec detallado más allá de lo que ya recoge
+Fase 4 (dominio design — `design-orchestrator`, `planner`, `pattern-advisor`, `domain-modeler`,
+integración grill×3) aún sin brainstorming/spec detallado más allá de lo que ya recoge
 `docs/superpowers/specs/2026-09-01-swarm-design.md` §15. Empezar confirmando con el owner el
 alcance exacto de `design-orchestrator` y sus hojas antes de `writing-plans` — mismo patrón que 1b,
 2 y 3: (brainstorming corto si hace falta) → plan → Subagent-Driven Development → smoke checklist
