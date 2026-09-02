@@ -223,9 +223,11 @@ Línea por camino terminal (una sola llamada, la que corresponda):
   la clasificación de cada dominio difiera de verdad entre sí (objetivo ambiguo que casa con uno
   pero no con el otro) — pero §4 sigue exigiendo UNA sola llamada de `summary` por cierre, así que
   si los motivos son el mismo, usa siempre la combinada. `design` NO tiene una línea `diseño
-  omitido` propia en este camino: su omisión siempre coincide con la de discovery (§9.1: se salta
-  únicamente cuando discovery se saltó por completo) y por tanto siempre pliega en esta misma línea
-  combinada (§9.4 lo remite aquí en vez de listar un call aparte).
+  omitido` propia en ESTE camino (bugfix/refactor/docs/infra): su omisión pliega aquí porque
+  discovery y analysis TAMBIÉN se saltaron por el mismo motivo. Cuando discovery se salta por un
+  motivo distinto — porque analysis corre en su lugar (§8.1) — design se omite igual (§9.1) pero
+  esa omisión ya queda cubierta por el veredicto de analysis (§8.4) y no necesita ninguna línea ni
+  llamada propia (§9.4 detalla ambos casos).
 
 Y solo después, el cierre de memoria:
 
@@ -516,13 +518,15 @@ DONE
 evidence: files=4 cmds=9 turns=18/30
 - discovery Q1 [Valor] ¿export CSV para quién? → admins
 - discovery Q2 [Enfoque] ¿cómo? → endpoint sobre el listado actual
-PLAN · .swarm/design/plan.md:1 · endpoint GET /admins/export con streaming CSV sobre el listado actual
-- grill: 2 rondas, sin bloqueos
+PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan listo, 4 tareas → revisar antes de fase 5
+- grill: 1 P1 incorporado (idempotencia del export), 2 P2 anotados como riesgo
 ```
 
-Run normal en el que discovery se SALTÓ legítimamente porque `.swarm/decisions.md` ya había cerrado
-este mismo objetivo (§5.1). Es un run verde y completo — **no lo confundas con el `BLOCKED` de
-abajo**: aquí el enjambre hizo su trabajo y no había nada que preguntar; allí falta el dominio:
+Run normal (`tier: light`) en el que discovery se SALTÓ legítimamente porque `.swarm/decisions.md`
+ya había cerrado este mismo objetivo (§5.1). Es un run verde y completo — **no lo confundas con el
+`BLOCKED` de abajo**: aquí el enjambre hizo su trabajo y no había nada que preguntar; allí falta el
+dominio. (En `tier: full` este mismo "ya cerró" no termina aquí: §5.1 lo encadena a §9 — ver el
+primer ejemplo de esta sección.)
 
 ```
 DONE
@@ -575,8 +579,8 @@ mecanismo que §8.3 para analysis, solo que aquí el productor es design:
 ```
 DONE
 evidence: files=3 cmds=7 turns=15/30
-PLAN · .swarm/design/plan.md:1 · endpoint GET /admins/export con streaming CSV sobre el listado actual
-- grill: 2 rondas, sin bloqueos
+PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan listo, 4 tareas → revisar antes de fase 5
+- grill: 1 P1 incorporado (idempotencia del export), 2 P2 anotados como riesgo
 ```
 
 `OK`/`DONE` con `files=0` se rechaza siempre: si solo ejecutaste comandos, lee al menos
@@ -699,7 +703,9 @@ camino terminal (§4: `summary` saneado con la línea de este camino y después
 
 - diseño completado (`DONE`): `- run cerrado: DONE · diseño completado, plan en <ruta>`
 - `BLOCKED`/`KO` propagado de design: `- run cerrado: <veredicto literal de design-orchestrator>`
-- diseño omitido (discovery también se saltó, §9.1): NO es una línea de cierre propia — design
-  siempre se salta junto con discovery y analysis por el mismo motivo (bugfix/refactor/docs/infra),
-  así que pliega en la línea COMBINADA de §4 (`discovery, analysis y diseño omitidos: <motivo
-  compartido>`), nunca en una llamada `summary` aparte.
+- diseño omitido (discovery también se saltó, §9.1): NO es una línea de cierre propia — depende de
+  POR QUÉ se saltó discovery. En el camino de bugfix/refactor/docs/infra, pliega en la línea
+  COMBINADA de §4 (`discovery, analysis y diseño omitidos: <motivo compartido>`). Si discovery se
+  saltó porque analysis corre en su lugar (§8.1, objetivo "de análisis"), tu omisión no necesita
+  línea propia — el cierre ya lo cubre el veredicto de análisis (§8.4: `análisis completado` o su
+  `BLOCKED`/`KO`). En ningún caso design abre una llamada `summary` aparte.
