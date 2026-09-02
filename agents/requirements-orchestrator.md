@@ -63,7 +63,7 @@ fusión ahora, no hay segundo fichero que leer ni pack activo que detectar.
    Prompt del spawn, tres líneas literales (protocolo §2bis / `agents/orchestrator.md` §2.2):
    ```
    run-id: <tu RUN, o literal "adhoc" si tú mismo estás en adhoc>
-   swarm-root: <tu swarm-root>
+   swarm-root: <tu swarm-root, si lo tienes — si estás en adhoc y no te dieron uno, omite esta línea>
    operation: check --file ${CLAUDE_PLUGIN_ROOT}/requirements.json
    ```
 2. Espera su salida (`OK` o `BLOCKED <tool>`). NO reinterpretes su JSON ni repitas el chequeo tú
@@ -103,7 +103,7 @@ Formato de evidencia del protocolo §4 (la línea de `turns` cierra la línea, s
 
 ```
 OK
-evidence: files=1 cmds=0 turns=3/10
+evidence: files=1 cmds=1 turns=3/10
 ```
 o
 ```

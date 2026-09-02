@@ -105,11 +105,11 @@ Ningún agente escanea el repo o `.swarm/` dos veces, y ningún agente escribe `
 Fases según spec §15:
 
 1. **Núcleo (construido).** `orchestrator`, subsistema de memoria (`memory-orchestrator` + `memory-builder` + `memory-curator`, backends `files`/`claude-mem`), skill `swarm-protocol`, hooks (validación del contrato de evidencia + allowlist de bash), `/swarm:init`, smoke tests 1-8.
-1b. **Requisitos (planeado).** `requirements-orchestrator`, `env-checker`, `dependency-auditor`/`dependency-installer`, `/swarm:doctor`.
+1b. **Requisitos (construido).** `requirements-orchestrator`, `env-checker`, `req-check.sh`, `requirements.json`, `/swarm:doctor`.
 2. **Discovery (planeado).** `discovery-orchestrator` + 4 hojas, integración `AskUserQuestion` en la raíz.
 3. **Análisis (planeado).** `analysis-orchestrator` + 6 lentes read-only.
 4. **Diseño (planeado).** `design-orchestrator`, `planner`, `pattern-advisor`, `domain-modeler`, integración grill×3.
-5. **Implementación (planeado).** 7 agentes + el stack pack `php-ddd-symfony8`.
+5. **Implementación (planeado).** 7 agentes + `dependency-auditor`/`dependency-installer` + el stack pack `php-ddd-symfony8`.
 6. **Entrega (planeado).** 3 agentes + `/swarm:status`, `/swarm:findings`.
 
 ## Convención de nombres
