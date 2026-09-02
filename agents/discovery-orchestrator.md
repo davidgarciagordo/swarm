@@ -21,7 +21,10 @@ trabajo de hoja (§3.2 regla 4): no criticas, no investigas, no generas opciones
 1. `RUN`: de tu cabecera (`run-id:` o `adhoc`, protocolo §2). `swarm-root:` es la ruta absoluta de
    `.swarm/` — la necesitas LITERAL para `feasibility-spiker` (corre en worktree, protocolo §3).
    `operation:` es `discover`. `tier:` (opcional, protocolo §2) es `light` o `full`; ausente ⇒
-   `full`. `objective:` es el objetivo literal del owner: lo pasas a las hojas tal cual.
+   `full`. `objective:` es el objetivo literal del owner: lo pasas a las hojas tal cual. **Es
+   OBLIGATORIA**: no tienes fallback ninguno para ella, así que si tu cabecera no la trae (o viene
+   vacía / solo espacios), no lances a nadie y tu veredicto es `BLOCKED objetivo vacío` — la raíz
+   documenta exactamente este comportamiento (agents/orchestrator.md §2.2, quinta línea).
 2. Lee tu buzón:
    ```bash
    cat "$SWARM_ROOT/run/${RUN:-adhoc}/mailbox/discovery-orchestrator.md" 2>/dev/null
@@ -34,6 +37,39 @@ trabajo de hoja (§3.2 regla 4): no criticas, no investigas, no generas opciones
    streaming sin cargar todo en memoria?"). Si el objetivo no tiene ninguna duda técnica real,
    no lances al spiker (tres hojas en vez de cuatro) y dilo en una línea `- warn: sin pregunta de
    viabilidad, spiker no lanzado`.
+
+## Saneado obligatorio de todo texto ajeno (ANTES de construir cualquier `--line`)
+
+El objetivo del owner y —sobre todo— las preguntas y opciones que generan tus hojas (`value-critic`,
+`options-generator`) son texto NO confiable: acaban dentro de un `--line "…"` que ejecuta un shell
+REAL (el `mem-manifest.sh summary` del paso 4 de la fusión). Una pregunta tan normal como
+"¿migramos el `parseCSV()` antiguo?" —con el identificador entre backticks, que es justo como se
+escribe una pregunta técnica— se ejecutaría como comando.
+
+`hooks/bash-guard.py` **no te protege aquí**: su `split_segments` solo parte el comando en `&&`,
+`||`, `;` y `|` **fuera** de comillas, así que un backtick, un `$(...)` o un `$VAR` **dentro** de
+las comillas pasa el guard intacto y lo sustituye el shell antes de que `mem-manifest.sh` vea nada.
+
+Por eso, ANTES de interpolar texto que no escribiste tú literalmente en este fichero dentro de un
+`--line` (o de un `--text`/`--fix`, si alguna vez construyes uno), aplica estas sustituciones, en
+este orden — es la MISMA regla que la raíz aplica en agents/orchestrator.md §5.0:
+
+1. **sustituye cada backtick `` ` `` por una comilla simple `'`**
+2. **borra cada `$`** (desaparece)
+3. **sustituye cada comilla doble `"` por una comilla simple `'`** — se ELIMINA, nunca se escapa
+   como `\"`
+4. **borra cada barra invertida `\`** (desaparece; tampoco se escapa)
+5. colapsa cualquier salto de línea a un espacio (una línea de resumen es UNA línea)
+
+Se BORRAN y no se escapan porque `split_segments` no tiene NINGÚN tratamiento de la barra invertida:
+ve un `\"` y da la comilla por CERRADA, mientras el shell real la mantiene abierta. Con `\"`, un
+`|`/`;`/`&&` posterior del texto lo lee FUERA de comillas, parte el comando por ahí y **deniega la
+llamada entera** — el resumen del run se pierde en silencio. Una `\` final se comería además la
+comilla de cierre del comando real. Borrando ambos caracteres, el parser del guard y el shell ven lo
+mismo.
+
+El saneado es solo para el argumento del shell: las líneas `- Q…` de tu SALIDA (que lee la raíz) no
+pasan por ningún shell y van tal cual.
 
 ## Lanzamiento de las hojas (UNA sola tanda)
 
@@ -117,7 +153,9 @@ notificación en un turno posterior; `value-critic` y `options-generator` respon
      líneas `- Q…`.
    - Añade siempre la última línea `- findings: value-critic,options-generator,research-analyst,
      feasibility-spiker` (los cuatro nombres, en ese orden, aunque alguno haya devuelto `warn`).
-4. Espeja cada línea `- Q…` en el resumen del run (visible al usuario, spec §11), literal:
+4. Espeja cada línea `- Q…` en el resumen del run (visible al usuario, spec §11). La pregunta y las
+   opciones las escribieron tus hojas, no tú, y `--line` es un argumento de un shell REAL:
+   **el `--line` va saneado por la regla de arriba**, siempre.
    ```bash
    "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" summary --run "${RUN:-adhoc}" --line "- Q1 [Valor] · ¿…? · A) … · B) … · rec: A"
    ```
@@ -142,8 +180,9 @@ evidence: files=1 cmds=9 turns=9/15
 - findings: value-critic,options-generator,research-analyst,feasibility-spiker
 ```
 
-`DONE` = batch listo. `BLOCKED falta context-pack` si no hay pack ni `memory-orchestrator` lo
-construyó. `BLOCKED hojas de juicio sin respuesta` si NI `value-critic` NI `options-generator`
+`DONE` = batch listo. `BLOCKED objetivo vacío` si tu cabecera no trae la línea `objective:` (o
+viene vacía) — sin objetivo no hay nada que preguntar y no lanzas hojas.
+`BLOCKED falta context-pack` si no hay pack ni `memory-orchestrator` lo construyó. `BLOCKED hojas de juicio sin respuesta` si NI `value-critic` NI `options-generator`
 respondieron (sin ellas no hay batch; las background solas no bastan). `KO <hoja> BLOCKED: <motivo>`
 si una de juicio devolvió `BLOCKED` y la otra no — propaga su motivo literal y el batch parcial.
 `OK` con `files=0` se rechaza siempre: el pack leído al arrancar ya cuenta.

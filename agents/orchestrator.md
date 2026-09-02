@@ -190,7 +190,7 @@ SendMessage(memory-orchestrator, "curate")
 
 ## 5. Discovery (fase 2 — antes de cualquier diseño, spec §3.2 regla 7)
 
-### 5.0 Saneado obligatorio de todo texto ajeno (ANTES de construir cualquier `--text`)
+### 5.0 Saneado obligatorio de todo texto ajeno (ANTES de construir cualquier `--text`/`--line`)
 
 Todo texto que no escribiste tú literalmente en este fichero es NO confiable: el objetivo que tecleó
 el owner, la pregunta que generó `value-critic`, la opción elegida y —sobre todo— el texto libre que
@@ -202,17 +202,29 @@ comillas pasa el guard intacto y lo sustituye el shell antes de que `mem-files.s
 nada. Una pregunta tan normal como "¿migramos el parseCSV() antiguo?" escrita con el identificador
 entre backticks, o una respuesta libre con un `$(...)`, se ejecutaría como comando.
 
-Por eso, ANTES de interpolar cualquier texto ajeno en un `--text` (o en un `--fix`), aplica
-literalmente estas sustituciones, en este orden:
+Por eso, ANTES de interpolar cualquier texto ajeno en un `--text` (o en un `--fix`, o en un
+`--line`), aplica literalmente estas sustituciones, en este orden:
 
 1. **sustituye cada backtick `` ` `` por una comilla simple `'`**
 2. **borra cada `$`** (no lo sustituyes por nada: desaparece)
-3. **escapa cada comilla doble `"` como `\"`**
-4. colapsa cualquier salto de línea a un espacio (una decisión es UNA línea, §5.4)
+3. **sustituye cada comilla doble `"` por una comilla simple `'`** — se ELIMINA, nunca se escapa
+   como `\"`
+4. **borra cada barra invertida `\`** (desaparece; tampoco se escapa)
+5. colapsa cualquier salto de línea a un espacio (una decisión es UNA línea, §5.4)
+
+**Por qué se BORRAN y no se escapan (los pasos 3 y 4 son el mismo bug):** el `split_segments` de
+`hooks/bash-guard.py` no tiene NINGÚN tratamiento de la barra invertida — su máquina de estados de
+comillas ve un `\"` y da la comilla por CERRADA, mientras que el shell real la mantiene abierta.
+Con un `"` escapado como `\"`, cualquier `|`, `;` o `&&` posterior del texto (para el shell, dentro
+de la cadena) el guard lo lee FUERA de comillas: parte el comando por ahí, no reconoce el segmento
+que le queda y **DENIEGA la llamada entera**. La decisión se pierde en silencio — falla cerrado,
+sí, pero sin dejar nada durable, que es justo lo que §5.3 y §5.4 existen para evitar. Y una `\`
+final del texto se comería la comilla de cierre del comando real. Borrando los dos caracteres, lo
+que ve el parser del guard y lo que ve el shell son exactamente lo mismo.
 
 Sin excepciones y sin juicio propio sobre si "ese texto parece inofensivo": si el texto no es un
-literal tuyo, se sanea. La regla vale para CUALQUIER `--text`/`--fix` que construyas en este
-contrato, no solo el de §5.4.
+literal tuyo, se sanea. La regla vale para CUALQUIER `--text`/`--fix`/`--line` que construyas en
+este contrato, no solo el de §5.4.
 
 ### 5.1 Cuándo
 
@@ -222,10 +234,17 @@ formulación del tipo "qué construimos / cómo lo hacemos". **Se salta** para b
 docs, tests, tareas de infraestructura, y para un objetivo que `.swarm/decisions.md` YA cerró en un
 run anterior.
 
-**Cómo compruebas ese "ya cerró" (importa el CÓMO):** lee `.swarm/decisions.md` con `Read` y busca
-una línea de decisión cuyo campo **`objective:`** (§5.4 lo escribe siempre el primero) sea igual al
-objetivo literal de este run — el argumento de `/swarm:run` sin el flag `--tier`. El match es contra
-ese campo `objective:` y **nunca** contra el texto de las preguntas: `value-critic` las regenera en
+**Cómo compruebas ese "ya cerró" (importa el CÓMO):** primero pasa el objetivo de ESTE run —el
+argumento de `/swarm:run` sin el flag `--tier`— por el **saneado de §5.0**, el mismo que aplicó §5.4
+al guardarlo. Los DOS lados de la comparación tienen que estar saneados: §5.4 escribe el campo
+`objective:` ya saneado, así que comparar el objetivo crudo contra el guardado no casaría NUNCA en
+cuanto el objetivo lleve un backtick, un `$`, una comilla doble o una `\` — y "migramos el
+`parseCSV()` antiguo" es un objetivo perfectamente normal. Sin este paso, el run repetido no
+reconoce nunca su propio objetivo y vuelve a preguntar lo mismo para siempre, que es exactamente lo
+que este chequeo existe para impedir. Con el objetivo actual ya saneado, lee `.swarm/decisions.md`
+con `Read` y busca una línea de decisión cuyo campo **`objective:`** (§5.4 lo escribe siempre el
+primero) sea igual a él. El match es contra ese campo `objective:` y
+**nunca** contra el texto de las preguntas: `value-critic` las regenera en
 cada run, así que no coinciden literalmente entre ejecuciones y buscar por pregunta no encuentra
 nunca nada. Si la línea que encuentras está marcada `[pendiente]` (§5.3: el owner canceló el batch),
 el objetivo NO está cerrado — vuelve a presentar el batch.
@@ -246,8 +265,9 @@ rompes a propósito, y por eso el snapshot de `memory-orchestrator` no incluye a
 (hoja → `memory-orchestrator`: él ya estaba vivo cuando se tomó el snapshot de las hojas), y para
 el sentido contrario el canal de reserva es el **espejo a buzón** del protocolo (skill
 swarm-protocol §1 punto 3 y §4.1: `mem-files.sh write mailbox --to <agente>`, que
-`memory-orchestrator` aplica a toda escritura y que cada agente lee al arrancar en
-`run/<run>/mailbox/<tu-nombre>.md`). Es decir: un agente puede dejar mensaje a otro **aunque aún no
+`memory-orchestrator` espeja en los `SendMessage` peer-to-peer que reenvía —ese es el alcance real
+del espejo obligatorio (agents/memory-orchestrator.md, "Espejo de mailbox"), no toda escritura— y
+que cada agente lee al arrancar en `run/<run>/mailbox/<tu-nombre>.md`). Es decir: un agente puede dejar mensaje a otro **aunque aún no
 esté lanzado** y aunque no aparezca en su roster — el buzón no depende del snapshot.
 
 ```
@@ -289,6 +309,17 @@ BLOCKED batch malformado de discovery-orchestrator: <qué falló, citando el Q<n
 ```
 
 Un bug del productor tiene que salir a la luz, no comerse en silencio las cuatro preguntas.
+
+**Antes de devolver ese `BLOCKED`, cierra el run** igual que en la cancelación del diálogo (más
+abajo en este mismo §5.3) y en el cierre normal (§4):
+
+```
+SendMessage(memory-orchestrator, "curate")
+```
+
+Espera su `DONE` y ya devuelves el veredicto. Un `BLOCKED` que se marcha sin `curate` deja el
+manifest del run abierto y no sella nada durable sobre el batch roto: el histórico del run se
+pierde igual que si nadie hubiera corrido discovery.
 
 Con el batch validado, conviértelo en UNA llamada a `AskUserQuestion` con `questions` = una entrada
 por línea `- Q`:

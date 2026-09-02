@@ -36,6 +36,7 @@ run-id: <uuid>
 swarm-root: <ruta absoluta de .swarm>
 operation: <la operación concreta que debes ejecutar en tu turno 1>
 tier: <light|full>            (OPCIONAL — solo la escribe la raíz al lanzar un orquestador de dominio)
+objective: <objetivo literal del owner>   (OBLIGATORIA para un orquestador de dominio; ausente en las hojas de memoria)
 ```
 
 - Si incluye `run-id: <uuid>`, estás dentro de un run orquestado: usa `RUN=<ese uuid>` en todos los
@@ -53,7 +54,13 @@ tier: <light|full>            (OPCIONAL — solo la escribe la raíz al lanzar u
   de dominio. Ausente ⇒ `full`. Un orquestador la usa para elegir el modelo de sus hojas de
   juicio al lanzarlas (`light` ⇒ override `model: "sonnet"` en el tool `Agent` para las hojas cuyo
   frontmatter dice `opus`); las hojas no la reciben ni la necesitan. Los orquestadores pueden añadir
-  líneas propias detrás de la cabecera (p. ej. `objective: <texto>`), siempre DESPUÉS de estas.
+  líneas propias detrás de la cabecera, siempre DESPUÉS de estas.
+- `objective: <texto>` (fase 2, spec §7): el objetivo literal del owner, sin el flag `--tier`. La
+  raíz la escribe SIEMPRE al lanzar un orquestador de dominio y el orquestador la reenvía tal cual a
+  sus hojas; no es opcional para quien la necesita — un orquestador de dominio que la reciba vacía o
+  ausente no improvisa objetivo: su veredicto es `BLOCKED objetivo vacío` (ver
+  `agents/discovery-orchestrator.md`). Los agentes que no la necesitan (p. ej.
+  `memory-orchestrator`) no la reciben.
 - Caso particular: si eres `implementer` (fase 5, todavía no existe) y te invocan sin referencia a
   un plan concreto, tu veredicto es `BLOCKED necesita plan` — no improvises un plan.
 

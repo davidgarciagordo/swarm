@@ -26,7 +26,20 @@ assert_eq "0" "$(has "$body" 'write decision')" "root records the answers as a d
 # P1-a — saneado de texto ajeno antes de interpolarlo en un --text (el guard no protege dentro de comillas)
 assert_eq "0" "$(has "$body" 'sustituye cada backtick')" "root sanitizes backticks before building --text"
 assert_eq "0" "$(has "$body" 'borra cada `$`')" "root strips \$ before building --text"
-assert_eq "0" "$(has "$body" 'escapa cada comilla doble')" "root escapes double quotes before building --text"
+assert_eq "0" "$(has "$body" 'sustituye cada comilla doble')" "root REMOVES double quotes before building --text (never escapes them)"
+assert_eq "1" "$(has "$body" 'escapa cada comilla doble')" "root no longer escapes double quotes as \\\" (bash-guard has no backslash handling)"
+assert_eq "0" "$(has "$body" 'borra cada barra invertida')" "root strips literal backslashes before building --text"
+
+# N2 — el saneado se aplica también a --line, y se explica por qué se borra en vez de escapar
+assert_eq "0" "$(has "$body" '`--text`/`--fix`/`--line`')" "sanitization rule covers --line too"
+assert_eq "0" "$(has "$body" 'no tiene NINGÚN tratamiento de la barra invertida')" "root explains the bash-guard quote-state mismatch"
+
+# N1 — §5.1 compara objetivo SANEADO contra objetivo SANEADO
+assert_eq "0" "$(has "$body" 'por el **saneado de §5.0**, el mismo que aplicó §5.4')" "skip-check sanitizes the CURRENT objective before comparing"
+
+# N6 — el espejo a buzón es de los SendMessage reenviados, no de toda escritura
+assert_eq "1" "$(has "$body" 'aplica a toda escritura')" "root no longer overstates the mailbox mirror scope"
+assert_eq "0" "$(has "$body" 'los `SendMessage` peer-to-peer que reenvía')" "root states the real mailbox-mirror scope"
 
 # P1-b — UNA sola escritura de decisión (memory-orchestrator tiene maxTurns: 12)
 assert_eq "0" "$(has "$body" 'UNA sola escritura, nunca una por pregunta')" "root batches all answers into ONE write decision"
@@ -43,6 +56,9 @@ assert_eq "0" "$(has "$body" 'nunca** contra el texto de las preguntas')" "skip-
 # P2-a — pre-flight del batch antes de llamar a AskUserQuestion
 assert_eq "0" "$(has "$body" 'BLOCKED batch malformado de discovery-orchestrator')" "root blocks on a malformed batch instead of losing all questions"
 
+# N3 — el BLOCKED de batch malformado cierra el run (curate), como la cancelación
+assert_eq "0" "$(has "$body" 'Antes de devolver ese `BLOCKED`, cierra el run')" "malformed-batch BLOCKED closes the run with curate"
+
 # P2-b — objective: obligatorio al lanzar discovery
 assert_eq "0" "$(has "$body" '`objective:` — OBLIGATORIA')" "objective: is mandatory, not optional"
 assert_eq "1" "$(has "$body" 'puedes añadir `objective:')" "objective: is no longer documented as optional"
@@ -55,6 +71,16 @@ assert_eq "0" "$(has "$body" '- discovery omitido: decisions.md ya cerró este o
 assert_eq "0" "$(has "$body" 'después de su `OK`/`DONE`')" "root launches discovery only AFTER memory-orchestrator finished build"
 assert_eq "1" "$(has "$body" 'fase 2, no implementado')" "root no longer says discovery is unimplemented"
 assert_eq "0" "$(has "$body" 'bugfix')" "root documents when discovery is skipped (bugfix/refactor/docs)"
+
+# N7 — discovery-orchestrator sanea el texto de sus hojas antes del summary --line
+dbody="$(awk '/^---$/{n++; next} n>=2{print}' "$PLUGIN_ROOT/agents/discovery-orchestrator.md")"
+assert_eq "0" "$(has "$dbody" 'sustituye cada backtick')" "discovery-orchestrator sanitizes backticks before --line"
+assert_eq "0" "$(has "$dbody" 'sustituye cada comilla doble')" "discovery-orchestrator removes double quotes before --line"
+assert_eq "0" "$(has "$dbody" 'borra cada barra invertida')" "discovery-orchestrator strips backslashes before --line"
+assert_eq "0" "$(has "$dbody" 'el `--line` va saneado por la regla de arriba')" "the summary --line site points at the sanitization rule"
+
+# N5 — falta objective: ⇒ BLOCKED objetivo vacío (lo que la raíz ya prometía)
+assert_eq "0" "$(has "$dbody" 'BLOCKED objetivo vacío')" "discovery-orchestrator defines the missing-objective verdict"
 
 # Solo la raíz tiene AskUserQuestion en todo agents/
 for f in "$PLUGIN_ROOT"/agents/*.md; do
