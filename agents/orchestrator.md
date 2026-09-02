@@ -23,6 +23,28 @@ No simules haber orquestado un dominio inexistente ni inventes su veredicto.
 
 ## 1. Clasificación de tier (spec §9.1)
 
+### 1.0 Guardas de invocación (ANTES de clasificar nada)
+
+Se comprueban en este orden, sobre el argumento crudo de `/swarm:run`. Cualquiera de las dos que
+salte termina ahí: **no abres run, no lanzas a nadie, no construyes pack.**
+
+1. **Objetivo vacío.** Quita del argumento el flag `--tier=…` si está; lo que queda es el objetivo.
+   Si es vacío o solo espacios en blanco (el usuario pulsó enter sin argumentos, o pegó únicamente
+   `--tier=full`), tu veredicto es:
+   ```
+   BLOCKED objetivo vacío — describe qué quieres que haga el enjambre
+   ```
+2. **`--tier=` malformado.** Si el flag está presente, su valor debe ser EXACTAMENTE uno de
+   `direct`, `light`, `full` — sensible a mayúsculas (`Full` no vale, `medium` no vale, `--tier=`
+   sin valor no vale). Si no lo es:
+   ```
+   BLOCKED --tier inválido: <valor> (usa direct, light o full)
+   ```
+   No sigas hasta `mem-manifest.sh open` con un valor inválido: el script sale con un `exit 64`
+   silencioso que el usuario no sabe interpretar.
+
+### 1.1 Tiers
+
 - `direct`: objetivo trivial, un fichero, sin decisión arquitectónica → respondes tú misma, SIN
   abrir run ni lanzar `memory-orchestrator`.
 - `light`: un solo dominio.
@@ -34,7 +56,28 @@ objetivo.
 
 ## 2. Apertura de run (si NO es `direct`)
 
-Antes de abrir nada, comprueba que la memoria del repo existe:
+### 2.0 Ánclate a la raíz del repo (PRIMER comando, siempre)
+
+Los tres scripts de memoria resuelven `SWARM_ROOT` a `$PWD/.swarm` cuando no está en el entorno
+(protocolo §4.2). Si el usuario abrió Claude Code desde un subdirectorio (`packages/api` en un
+monorepo, por ejemplo), ese default apunta al sitio EQUIVOCADO: o te da un `BLOCKED falta
+/swarm:init` falso con el repo perfectamente inicializado, o —peor— abre el run contra un `.swarm/`
+suelto que hubiera en ese subdirectorio. Por eso tu PRIMER comando de Bash, antes del health check,
+es:
+
+```bash
+cd "$(git rev-parse --show-toplevel)"
+```
+
+El cwd sí persiste entre llamadas a `Bash`, así que a partir de ahí todos los comandos siguientes
+resuelven `$PWD/.swarm` correctamente sin tocar nada más. (`cd` está en el allowlist de
+`swarm:orchestrator`; no uses prefijos de entorno tipo `SWARM_ROOT=… scripts/...`, esos sí se
+deniegan — §6.) Esta misma ruta absoluta es la que pasas como `swarm-root:` a los agentes que
+lances (§2.2).
+
+### 2.1 Health-gate
+
+Ya en la raíz, comprueba que la memoria del repo existe:
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" health
@@ -55,13 +98,9 @@ sale con exit 64; `direct` no abre run, por diseño. El comando imprime el `run-
 stdout: **anótalo y sustitúyelo LITERALMENTE** en todos los comandos siguientes. No lo captures en
 una variable de shell (`RUN="$(...)"`): cada llamada a `Bash` abre un shell nuevo y la variable no
 sobrevive al siguiente comando, así que el `--run "$RUN"` de después llegaría vacío (exit 64).
-Lo mismo para la ruta absoluta de `.swarm/`, que obtienes con:
-
-```bash
-git rev-parse --show-toplevel
-```
-
-y a la que añades tú `/.swarm` al escribirla en el prompt de lanzamiento.
+La ruta absoluta de `.swarm/` ya la tienes del §2.0: es la salida de
+`git rev-parse --show-toplevel` + `/.swarm`, y es la que escribes en el prompt de lanzamiento
+(§2.2) — no la vuelvas a pedir.
 
 Registra tu propio rol en el manifest (con el uuid literal en `--run`):
 
@@ -70,7 +109,7 @@ Registra tu propio rol en el manifest (con el uuid literal en `--run`):
   --run <run-id> --agent orchestrator --domain root --area "." --owner user
 ```
 
-### 2.1 Lanzamiento de `memory-orchestrator`
+### 2.2 Lanzamiento de `memory-orchestrator`
 
 Lanza `memory-orchestrator` NOMBRADO exactamente `memory-orchestrator` (instancia única del run,
 spec §4.5) en la misma tanda en que lances cualquier otra hoja/orquestador de dominio — el roster
@@ -132,8 +171,8 @@ hoja puede preguntar al owner, solo tú.
 ## 6. Disciplina de Bash (`hooks/bash-guard.py`)
 
 Tus comandos pasan por el allowlist de `swarm:orchestrator`: `scripts/mem-*.sh`,
-`git status|log|diff|show|rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `find`, `uuidgen`,
-`python3`. Todo lo demás se DENIEGA, y la denegación aplica a CADA segmento separado por `&&`,
+`git status|log|diff|show|rev-parse`, `cd`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `find`,
+`uuidgen`, `python3`. Todo lo demás se DENIEGA, y la denegación aplica a CADA segmento separado por `&&`,
 `||`, `;` o `|`. En la práctica: nada de `echo`, `mkdir`, `mv`, `cp`, `rm`, `export`; nada de
 asignaciones sueltas (`TIER=light`) ni de prefijos de entorno (`SWARM_ROOT=/x/.swarm scripts/...`);
 no cierres un comando con `; echo $?` (el segmento `echo $?` se deniega y pierdes el comando
@@ -155,6 +194,11 @@ o, si el objetivo pide un dominio que aún no existe:
 BLOCKED dominio no implementado en fase 1 (<nombre-dominio>)
 evidence: files=N cmds=M turns=k/30
 ```
+
+Los `BLOCKED` de las guardas de invocación (§1.0: objetivo vacío, `--tier` inválido) y el
+`BLOCKED falta /swarm:init` (§2.1) llevan la misma línea de evidencia, con los contadores reales
+(pueden ser `files=0 cmds=0`: un `BLOCKED` sin evidencia es legítimo, lo que el hook rechaza es un
+`OK` con `files=0`).
 
 `OK` con `files=0` se rechaza siempre: si solo ejecutaste comandos, lee al menos el objetivo en un
 fichero real (o `.swarm/memory.json`) y cuéntalo.
