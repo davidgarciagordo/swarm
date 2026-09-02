@@ -35,13 +35,24 @@ regla 4): no diseñas tú mismo, delegas siempre.
 
 ## Chequeo de idempotencia (ANTES de lanzar a nadie)
 
-Un plan ya escrito para este mismo objetivo no se re-escribe. Sanea el objetivo actual con las
-mismas reglas de §4.4 y busca en el repo:
-```bash
-grep -rF "**Objective:** <objetivo saneado>" docs/superpowers/plans/
+Un plan ya escrito para este mismo objetivo no se re-escribe. `planner` escribe `**Objective:**
+<objetivo literal del owner, tal cual, sin resumir>` — SIN sanear (§4.4 no aplica ahí porque
+`Write` nunca pasa por una shell). Por eso el chequeo aquí usa la herramienta `Grep` (tool
+nativo, ya en tu `tools:`) con el objetivo LITERAL, sin sanear — nunca `Bash grep`: una llamada a
+herramienta estructurada no pasa por `bash-guard.py` ni por una shell real, así que no hay riesgo
+de inyección que sanear, y buscar el texto exacto que escribió `planner` es lo único correcto
+(sanear aquí produciría un falso negativo silencioso si el objetivo trae backtick/`$`/comilla/
+barra invertida, porque el patrón saneado ya no coincidiría con lo que `planner` realmente
+escribió):
 ```
-Si encuentras un match, tu veredicto es `DONE · plan ya existe: <ruta del fichero>` sin lanzar a
-nadie — evidencia mínima (el `grep` cuenta para `cmds=`, lee al menos un fichero para `files=`).
+Grep(pattern: "**Objective:** <objetivo literal del owner>", path: "docs/superpowers/plans/")
+```
+Si encuentras un match, tu veredicto es `DONE` con una línea `PLAN · <ruta del fichero>:1 · plan
+ya existe → revisar directamente` (NUNCA `DONE · plan ya existe: <ruta>` — `hooks/
+validate-output.py`'s `VERDICT_RE` es `^(OK|KO .+|DONE|BLOCKED .+)$`, así que un `DONE` con
+sufijo `·` en la línea 1 se rechaza como narración; usa siempre el formato de tu propia sección
+"## Salida" abajo) sin lanzar a nadie — evidencia mínima (el `Grep` cuenta para `cmds=`, lee al
+menos un fichero para `files=`).
 
 ## Lanzamiento de pattern-advisor + domain-modeler (UNA sola tanda)
 
@@ -107,7 +118,23 @@ grill es `Pn · where · problema → fix`, y `where` puede ser un flujo sin `fi
 
 Para cada hallazgo `P1` (bloqueante) de los 3 lentes: decide con tu propio juicio si es real y si
 cambia el plan. Si SÍ: relanza `planner` con `operation: revise`, la ruta del plan, y un resumen
-de los `P1` a incorporar (tu propio texto, literal tuyo, no necesita saneado). Si el hallazgo es
+de los `P1` a incorporar (tu propio texto, literal tuyo, no necesita saneado) — y **recuérdale
+explícitamente en el prompt que edite (`Edit`) el fichero YA EXISTENTE en `<ruta>`, nunca que
+escriba uno nuevo**: `planner.md` tiene una sección "## Revisión tras grill" que hace lo correcto
+con `operation: revise` (edita el mismo fichero), pero también tiene, para `operation: plan`
+fresco, una regla de colisión de slug del mismo día que añade un sufijo numérico (`-2`, `-3`…) en
+vez de sobrescribir — un prompt descuidado que omita dejar claro que es una revisión del fichero
+existente puede desviar a `planner` por ese camino de colisión en vez del de revisión. Ejemplo de
+cabecera + prompt para el relanzamiento:
+```
+run-id: <RUN>
+swarm-root: <ruta absoluta de .swarm>
+operation: revise
+objective: <objetivo literal del owner>
+context: edita (Edit) el fichero YA EXISTENTE en <ruta absoluta del plan>, no escribas uno nuevo.
+Incorpora estos P1 de grill: <resumen literal tuyo>
+```
+Si el hallazgo es
 genuinamente ambiguo y solo el owner puede resolverlo (nunca inventes una respuesta): tu veredicto
 final es `BLOCKED <la pregunta concreta, en ≤20 palabras>` — no relances a `planner` con una
 suposición.
