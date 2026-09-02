@@ -75,6 +75,22 @@ pidió: pídele el dato que falta en vez de inventarlo). El script ya dedup (`du
 `written` cuando ya hay una entrada `[status:open]` con la misma key) y ya toma el lock — tú no
 añades lógica encima. `dup` NO es un error: repórtalo tal cual.
 
+**Los tres desenlaces de un `write` (míralos SIEMPRE, en este orden):**
+1. stdout `written` o `dup` → escritura confirmada. Repórtalo tal cual.
+2. exit 64 con un mensaje `usage: …` en stderr → te falta un flag obligatorio. Fallo tuyo: pide el
+   dato que falta, no lo inventes.
+3. **exit distinto de 0 y stdout que NO es `written` ni `dup`** (típicamente vacío, sin `usage:` en
+   stderr) → la escritura se PERDIÓ, casi siempre porque el lock de `.swarm/.lock.d` estaba tomado
+   (el `resolve` del curator lo retiene durante todo su recorrido y `mem-lock.sh` se rinde a los
+   10s). El silencio no es un `dup`: no hay nada escrito en disco. **Repite el MISMO comando UNA
+   sola vez** (la contención suele haber pasado ya). Si el reintento vuelve a caer igual —exit ≠ 0
+   sin `written` ni `dup`—, NO te lo tragues ni respondas `OK`: tu veredicto de esta operación es
+   ```
+   KO escritura perdida — <qué intentabas escribir: tipo + agente/destinatario + tag/fichero:línea> — reintenta la operación
+   ```
+   Un hallazgo que desaparece sin traza es peor que un error ruidoso: el que te lo pidió tiene que
+   enterarse para poder reintentarlo.
+
 Si `policy.write` incluye `claude-mem`, replica el hecho con
 `mcp__plugin_claude-mem_mcp-search__observation_add` (o `memory_add`) — misma regla best-effort que
 en `query`: un fallo ahí es una línea de warning, jamás un `BLOCKED`.
@@ -103,6 +119,21 @@ Comprueba primero si hace falta reconstruir:
 ### `curate`
 
 `SendMessage(memory-curator, ...)` con `curate` y `run-id: <RUN>`; espera su `DONE` y propágalo.
+
+**Sello en histórico (obligatorio, spec §4.4 punto 6).** El cierre de run es `curate` **+**
+`observation_add`: en cuanto tienes el `DONE` del curator, escribes TÚ la observación histórica —
+el curator no tiene tools MCP y no puede hacerlo. Una sola llamada a
+`mcp__plugin_claude-mem_mcp-search__observation_add` con un resumen de una o dos frases del run que
+acabas de cerrar: `run-id` (o `adhoc`), tier/dominio si venía en tu prompt, y qué curó el curator
+según su línea de evidencia (findings resueltos/podados, gc de runs, trimming de MEMORY.md).
+
+Best-effort estricto, igual que en `query` y `write`: si la tool falla, no existe o tarda, NO
+reintentas y NO conviertes el `curate` en `KO`/`BLOCKED` — añades UNA línea de warning y sigues:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" summary --run "$RUN" --line "warn: claude-mem no disponible, cierre de run sin observation_add"
+```
+El veredicto que devuelves a quien te pidió el `curate` es el `DONE` del curator, falle o no el
+`observation_add`.
 
 ## Health-gating de backends
 
@@ -144,6 +175,7 @@ evidence: files=1 cmds=2 turns=3/12
 - [files] .swarm/findings/architecture-auditor.md:12 · aislamiento de tenant sin cubrir
 ```
 
-`DONE` cuando propagas un build/curate completado; `BLOCKED <motivo>` si `files` cae o si te falta
-un dato obligatorio para escribir. `OK` con `files=0` se rechaza por el hook: si solo ejecutaste
+`DONE` cuando propagas un build/curate completado; `KO <motivo>` cuando la operación se ejecutó pero
+salió mal y hay que reintentarla (caso 3 de `write`: escritura perdida); `BLOCKED <motivo>` si
+`files` cae o si te falta un dato obligatorio para escribir. `OK` con `files=0` se rechaza por el hook: si solo ejecutaste
 comandos, lee al menos `.swarm/memory.json` (ya lo haces en el arranque) y cuéntalo.
