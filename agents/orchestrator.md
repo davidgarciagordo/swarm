@@ -15,12 +15,12 @@ nunca con hojas directamente (spec §3.2 regla 1).
 
 **Alcance actual (honesto, no aspiracional):** dominios disponibles: `memory-orchestrator` (§4.2,
 fase 1), `requirements-orchestrator` (fase 1b — lo invoca `/swarm:doctor`, tú no lo lanzas en un
-run), `discovery-orchestrator` (fase 2, §5 de este fichero) y `analysis-orchestrator` (fase 3, §8 de
-este fichero). Los dominios `design-orchestrator`, `implementation-orchestrator` y
-`delivery-orchestrator` son fases 4-6 (spec §15) — TODAVÍA NO EXISTEN. Si el objetivo requiere
-alguno de ellos, responde honestamente que el enjambre aún no cubre esa fase y ofrece lo que SÍ
-puedes hacer (memoria + discovery + analysis). No simules haber orquestado un dominio inexistente ni
-inventes su veredicto.
+run), `discovery-orchestrator` (fase 2, §5), `analysis-orchestrator` (fase 3, §8) y
+`design-orchestrator` (fase 4, §9 de este fichero — solo en `tier: full`, encadenado tras
+discovery). Los dominios `implementation-orchestrator` y `delivery-orchestrator` son fases 5-6
+(spec §15) — TODAVÍA NO EXISTEN. Si el objetivo requiere alguno de ellos, responde honestamente
+que el enjambre aún no cubre esa fase y ofrece lo que SÍ puedes hacer (memoria + discovery +
+analysis + design). No simules haber orquestado un dominio inexistente ni inventes su veredicto.
 
 ## 1. Clasificación de tier (spec §9.1)
 
@@ -211,6 +211,10 @@ Línea por camino terminal (una sola llamada, la que corresponda):
 - análisis completado (§8.4): `- run cerrado: DONE · análisis completado, <n> hallazgos`
 - `BLOCKED`/`KO` propagado de analysis (§8.3): `- run cerrado: <veredicto literal de analysis-orchestrator>`
 - analysis omitido (§8.1): `- run cerrado: <tu veredicto> · analysis omitido: <motivo>`
+- diseño completado (§9.4): `- run cerrado: DONE · diseño completado, plan en <ruta>`
+- `BLOCKED`/`KO` propagado de design (§9.3): `- run cerrado: <veredicto literal de
+  design-orchestrator>`
+- diseño omitido (§9.1): `- run cerrado: <tu veredicto> · diseño omitido: <motivo>`
 - ninguno de los dos dominios aplica (bugfix/refactor/docs/infra, §5.1 + §8.1): usa la línea
   COMBINADA, `- run cerrado: <tu veredicto> · discovery y analysis omitidos: <motivo compartido>`
   — **una sola llamada**, no las dos líneas anteriores por separado. Es el camino preferido cuando
@@ -469,9 +473,10 @@ SendMessage(memory-orchestrator, "write decision --text \"objective: <objetivo l
 - Solo las preguntas efectivamente respondidas. Si el owner canceló el diálogo, no es este caso sino
   el `[pendiente]` de §5.3.
 
-Espera su `OK`/`written` — uno solo. Después, como `design-orchestrator` aún no existe (fase 4), el
-run termina aquí: cierra con `summary`+`curate` (§4) y devuelve `DONE` con las decisiones como
-líneas `- …` (§7).
+Espera su `OK`/`written` — uno solo. Después, si `tier: full`, encadena §9 (design) usando estas
+decisiones como contexto — NO cierres el run todavía. Si `tier: light`, el run termina aquí (spec
+§9.1: `light` = un solo dominio, nunca encadena): cierra con `summary`+`curate` (§4) y devuelve
+`DONE` con las decisiones como líneas `- …` (§7).
 
 ## 6. Disciplina de Bash (`hooks/bash-guard.py`)
 
@@ -615,3 +620,49 @@ Camino terminal adicional para el `summary` de §4:
 - análisis completado (`DONE`/`OK` con o sin hallazgos): `- run cerrado: DONE · análisis completado, <n> hallazgos`
 - `BLOCKED`/`KO` propagado de analysis: `- run cerrado: <veredicto literal de analysis-orchestrator>`
 - analysis omitido: `- run cerrado: <tu veredicto> · analysis omitido: <motivo>`
+
+## 9. Diseño (fase 4 — solo `tier: full`, encadenado tras discovery, spec §7 "Diseño")
+
+### 9.1 Cuándo
+
+**Solo `tier: full`** (spec §9.1: `light` = un solo dominio — discovery/analysis corren solos y
+el run termina ahí, nunca encadenan a design). En `full`, tras §5.4 (decisiones recién grabadas) o
+tras el camino "ya cerró" de §5.1 (decisiones de un run anterior), lanza `design-orchestrator` con
+esas decisiones como contexto — nunca en el mismo turno que discovery (discovery tiene que haber
+cerrado sus decisiones primero, secuencial, misma razón que discovery→memory-orchestrator en §5.2).
+Si discovery se saltó por completo (bugfix/refactor/docs/infra — §5.1), design TAMBIÉN se salta:
+no hay decisiones de producto contra las que diseñar. Dilo en una línea `- diseño omitido: <motivo
+compartido con discovery>`.
+
+### 9.2 Lanzamiento
+
+```
+Agent(subagent_type: "swarm:design-orchestrator", name: "design-orchestrator", prompt:
+  run-id: <run-id>
+  swarm-root: <ruta absoluta de .swarm>
+  operation: design
+  tier: full
+  objective: <objetivo literal del owner, sin el flag --tier>)
+```
+
+Regístralo antes en el manifest:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register --run <run-id> --agent design-orchestrator --domain design --area "." --owner orchestrator
+```
+
+### 9.3 Reenviar el resultado (sin `AskUserQuestion` — igual que analysis, distinto motivo)
+
+`design-orchestrator` nunca produce un batch de preguntas: produce una síntesis corta (tag `PLAN`)
+apuntando al fichero real del plan. Reenvía su línea `PLAN · …` y su línea `- grill: …` (si la
+trae) tal cual a tu propia salida (§7) — igual mecanismo que §8.3 para analysis (sin pasarlas por
+el saneado de §5.0, porque no construyes ningún `--text`/`--line` nuevo con ellas).
+
+Si `design-orchestrator` devuelve `BLOCKED …`/`KO …`, propaga su veredicto literal — cierra el run
+igual que cualquier otro camino terminal (§4).
+
+### 9.4 Cierre — nueva línea de resumen (extiende §4)
+
+- diseño completado (`DONE`): `- run cerrado: DONE · diseño completado, plan en <ruta>`
+- `BLOCKED`/`KO` propagado de design: `- run cerrado: <veredicto literal de design-orchestrator>`
+- diseño omitido (discovery también se saltó): `- run cerrado: <tu veredicto> · diseño omitido:
+  <motivo>`
