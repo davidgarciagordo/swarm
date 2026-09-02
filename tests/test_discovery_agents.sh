@@ -55,5 +55,21 @@ done
 assert_eq "0" "$(has "$(body "$PLUGIN_ROOT/agents/value-critic.md" 2>/dev/null)" 'decisions.md')" "value-critic reads decisions.md so it never re-asks a decided question"
 assert_eq "0" "$(has "$(body "$PLUGIN_ROOT/agents/options-generator.md" 2>/dev/null)" 'YAGNI')" "options-generator states YAGNI discipline"
 
+# ---------- T3: research-analyst ----------
+check_common research-analyst sonnet 15
+f="$PLUGIN_ROOT/agents/research-analyst.md"
+if [ -f "$f" ]; then
+  front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"
+  assert_eq "0" "$(echo "$front" | grep -q '^background: true$' && echo 0 || echo 1)" "research-analyst is background: true (spec §7)"
+  assert_eq "1" "$(echo "$front" | grep -q '^isolation:' && echo 0 || echo 1)" "research-analyst has no worktree"
+  assert_eq "0" "$(has "$tools" 'WebSearch')" "research-analyst has WebSearch"
+  assert_eq "0" "$(has "$tools" 'WebFetch')" "research-analyst has WebFetch"
+  assert_eq "1" "$(has "$tools" 'Write')" "research-analyst is read-only: no Write"
+  assert_eq "1" "$(has "$tools" 'Agent')" "research-analyst spawns nobody"
+  assert_eq "allow" "$(guard swarm:research-analyst '${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh write finding --agent research-analyst --tag RESEARCH --file discovery --line 1 --run adhoc --text t --fix f')" "research-analyst can write findings"
+  assert_eq "deny" "$(guard swarm:research-analyst 'curl https://example.com')" "research-analyst cannot curl (WebFetch is the only network path)"
+  assert_eq "deny" "$(guard swarm:research-analyst 'python3 x.py')" "research-analyst cannot run python3"
+fi
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
