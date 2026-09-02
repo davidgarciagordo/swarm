@@ -140,6 +140,22 @@ EOF
 )"
 assert_eq "0" "$(echo "$out" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" "only SWARM_ROOT= is a transparent prefix, other env assignments are denied"
 
+# 8b. bypass regression (final-review re-review finding): SWARM_ROOT= value must reject shell
+#     metacharacters, not just "no literal whitespace" — \S+ let ${IFS} and $(...) through
+#     (${IFS} bash-expands to whitespace, so a whitespace-free token can still command-substitute
+#     at real-shell execution time even though shlex sees one word). Both must now be denied.
+out="$(_run_hook <<'EOF'
+{"agent_type": "swarm:memory-orchestrator", "tool_name": "Bash", "tool_input": {"command": "SWARM_ROOT=$(touch${IFS}/tmp/pwned) scripts/mem-files.sh health"}}
+EOF
+)"
+assert_eq "0" "$(echo "$out" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" "SWARM_ROOT= value with \$(...) command substitution is denied, not laundered as a transparent prefix"
+
+out="$(_run_hook <<EOF
+{"agent_type": "swarm:memory-orchestrator", "tool_name": "Bash", "tool_input": {"command": "SWARM_ROOT=\`touch /tmp/pwned\` scripts/mem-files.sh health"}}
+EOF
+)"
+assert_eq "0" "$(echo "$out" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" "SWARM_ROOT= value with backtick substitution is denied"
+
 # 9. limite de palabra: la primera palabra se compara EXACTA, no por startswith (M1)
 out="$(_run_hook <<'EOF'
 {"agent_type": "swarm:memory-orchestrator", "tool_name": "Bash", "tool_input": {"command": "lsof -i"}}

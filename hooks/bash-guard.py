@@ -16,7 +16,13 @@ ALLOWLIST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bash-
 # documentado en skills/swarm-protocol/SKILL.md §3 para que un agente en worktree (o con el
 # cwd fuera de la raíz) apunte al `.swarm/` canónico. Se recorta ANTES de validar, así que el
 # resto del segmento se juzga con las reglas normales: `SWARM_ROOT=/x rm -rf /` sigue denegado.
-ENV_PREFIX_RE = re.compile(r'^SWARM_ROOT=\S+$')
+#
+# El valor se restringe a un charset de ruta seguro — NUNCA `\S+` (permitía `$(...)`/`${IFS}`
+# sin espacio literal, ejecutando comandos arbitrarios al evaluarse en el shell real; hallazgo
+# de la re-review final, corregido antes de merge). Nada de `$`, backticks, `(`, `)`, `{`, `}`,
+# `;`, `|`, `&`, `<`, `>`, comillas, `*`, `?`, `~` seguido de nada raro — solo lo que una ruta
+# absoluta legítima necesita.
+ENV_PREFIX_RE = re.compile(r'^SWARM_ROOT=[A-Za-z0-9_./-]+$')
 
 # `find` sin restricción es un escape hatch (ejecuta/borra arbitrariamente). Solo se permite
 # como buscador de solo lectura.
