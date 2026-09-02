@@ -51,5 +51,25 @@ f="$PLUGIN_ROOT/agents/domain-modeler.md"
 [ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'invariante')" "domain-modeler documents invariants (spec §7)"
 [ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'agregado')" "domain-modeler documents aggregates (spec §7)"
 
+
+# ---------- T3: planner (único leaf del dominio con Write/Edit) ----------
+f="$PLUGIN_ROOT/agents/planner.md"
+assert_eq "0" "$([ -f "$f" ] && echo 0 || echo 1)" "agents/planner.md exists"
+if [ -f "$f" ]; then
+  front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"; b="$(body "$f")"
+  assert_eq "0" "$(echo "$front" | grep -q '^model: opus$' && echo 0 || echo 1)" "planner model is opus (spec §7)"
+  assert_eq "0" "$(echo "$front" | grep -q '^maxTurns: 20$' && echo 0 || echo 1)" "planner maxTurns is 20 (spec §7)"
+  assert_eq "1" "$(has "$tools" 'AskUserQuestion')" "planner NEVER has AskUserQuestion"
+  assert_eq "0" "$(has "$tools" 'Write')" "planner HAS Write (the one exception in this domain)"
+  assert_eq "0" "$(has "$tools" 'Edit')" "planner HAS Edit (revises its own draft)"
+  assert_eq "1" "$(has "$tools" 'Agent')" "planner is a leaf: spawns nobody"
+  assert_eq "0" "$(has "$tools" 'SendMessage')" "planner has SendMessage"
+  assert_eq "0" "$(has "$b" 'docs/superpowers/plans/')" "planner documents writing to docs/superpowers/plans/"
+  assert_eq "0" "$(has "$b" '**Objective:**')" "planner documents the Objective: header line for idempotency"
+  assert_eq "0" "$(has "$b" 'saneado')" "planner documents the sanitization rule for anything it DOES put in a shell arg"
+  assert_eq "allow" "$(guard "swarm:planner" '${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh write finding --agent planner --tag PLAN --file src/App/Foo.php --line 1 --run adhoc --text t --fix f')" "planner can write findings"
+  assert_eq "deny" "$(guard "swarm:planner" 'python3 x.py')" "planner cannot run python3"
+fi
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
