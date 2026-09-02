@@ -1,74 +1,79 @@
-# Handoff — swarm, 2026-09-02
+# Handoff — swarm, 2026-09-02 (fases 1 + 1b cerradas)
 
 ## Prompt copy-paste para la sesión nueva
 
-> Lee `docs/superpowers/handoffs/2026-09-02-next-session.md` y continúa desde ahí. Modo de trabajo:
-> Subagent-Driven Development (superpowers), commit por tarea, review adversarial por tarea +
-> review final de rama antes de merge, checklist de smoke ejecutado en vivo (no solo escrito) antes
-> de dar una fase por cerrada. David quiere avisos cuando cierre cada fase, no antes.
+> Lee `docs/superpowers/handoffs/2026-09-02-next-session.md` en `/Users/davidgarciagordo/projects/multiagents`
+> y continúa desde ahí — toca empezar la fase 2 (discovery). Modo de trabajo: brainstorming corto si
+> hace falta cerrar algo del diseño → `writing-plans` → Subagent-Driven Development (superpowers),
+> commit por tarea, review adversarial por tarea + review final de rama antes de merge, checklist de
+> smoke ejecutado EN VIVO (no solo escrito) antes de dar una fase por cerrada — así se han encontrado
+> y arreglado 3 bugs reales que ninguna review individual pilló. David quiere avisos cuando cierre
+> cada fase, no antes.
 
 ## Dónde está todo
 
-- Repo: `/Users/davidgarciagordo/projects/multiagents` (plugin Claude Code `swarm`, sin remoto aún).
+- Repo: `/Users/davidgarciagordo/projects/multiagents` (plugin Claude Code `swarm`, sin remoto aún,
+  rama `master`, sin ramas de trabajo abiertas).
 - Spec: `docs/superpowers/specs/2026-09-01-swarm-design.md` (v2.1) — fuente de verdad del diseño.
-- **Fase 1 (núcleo)**: completa, mergeada a `master`. 13 tareas + review final de rama + 2 bugs
-  Critical reales encontrados y arreglados en vivo (uno en la propia review final, otro ejecutando
-  el smoke checklist de verdad): el payload real de `SubagentStop` no es lo que se había asumido
-  (`last_assistant_message`, no `output`), y `memory-orchestrator` no tenía el tool `Agent` para
-  lanzar a `memory-builder`/`memory-curator` — solo `SendMessage`, que solo alcanza agentes ya
-  vivos. Lección aplicada explícitamente en fase 1b.
-- **Fase 1b (dominio requirements)**: EN VUELO, rama `phase1b-requirements` (sobre `master`).
-  Plan: `docs/superpowers/plans/2026-09-02-swarm-phase1b-requirements.md`.
-  Ledger: `.superpowers/sdd/2026-09-02-swarm-phase1b-requirements/progress.md` (gitignored, local).
-  **Las 5 tareas del plan están completas y commiteadas** (`requirements.json`, `scripts/req-check.sh`,
-  `agents/requirements-orchestrator.md` + `agents/env-checker.md`, `commands/doctor.md`, checklist
-  de smoke escrito). 16/16 tests en verde.
+- **Fase 1 (núcleo) — completa y mergeada.** 13 tareas + review final de rama + checklist de smoke
+  en vivo. 2 bugs Critical reales encontrados y arreglados: el payload real de `SubagentStop` no es
+  lo que se había asumido (`last_assistant_message`, no `output`), y `memory-orchestrator` no tenía
+  el tool `Agent` para lanzar a `memory-builder`/`memory-curator` (solo `SendMessage`, que solo
+  alcanza agentes ya vivos).
+- **Fase 1b (dominio requirements) — completa y mergeada.** 5 tareas + review final de rama +
+  checklist de smoke en vivo. 1 bug real encontrado y arreglado: `hooks/bash-guard.py` normalizaba
+  solo la forma `${CLAUDE_PLUGIN_ROOT}/` de ruta, no una ruta absoluta ya resuelta — cualquier
+  script fuera de la familia `mem-*.sh` (como el nuevo `req-check.sh`) quedaba denegado al
+  invocarse con ruta absoluta. Generalizado para cualquier script futuro.
+- Todo en `master`: 16 archivos de test, 16/16 en verde (`bash tests/run.sh`).
+- Agentes vivos: `swarm:orchestrator` (raíz), `swarm:memory-orchestrator`/`memory-builder`/
+  `memory-curator` (dominio memory), `swarm:requirements-orchestrator`/`env-checker` (dominio
+  requirements). Comandos: `/swarm:init`, `/swarm:run`, `/swarm:doctor`.
 
-## Lo que falta AHORA MISMO (bloqueante para cerrar fase 1b)
+## Lección aplicada dos veces ya (aplícala en cada fase nueva)
 
-**Ejecutar el checklist de smoke en vivo** — `docs/superpowers/plans/2026-09-02-phase1b-smoke-checklist.md`
-— NO basta con que exista, hay que correrlo de verdad (`claude -p "/swarm:doctor" --plugin-dir
-/Users/davidgarciagordo/projects/multiagents --permission-mode bypassPermissions` contra un repo
-fixture). Se empezó y se cortó por límite de cupo EXTERNO de la sesión anterior (no un bug del
-plugin) a mitad del ítem 1. Antes del corte se vio, en la traza real del subagente
-`requirements-orchestrator`:
-- 2 fricciones menores no fatales: `pwd` y `echo "..." ` (dentro de un `||` de Bash) no están en
-  el allowlist de `swarm:requirements-orchestrator` — el agente se adaptó solo usando `Read`/`cat`,
-  sin bloquear el flujo. Backlog, no urgente: valorar añadir `pwd`/`echo` al `default` de
-  `hooks/bash-allowlist.json` si se repite en más agentes.
-- Confirmado correcto: lee `requirements.json` del PROPIO plugin (no del repo target) — es lo
-  esperado, `/swarm:doctor` comprueba la máquina del operador.
-- No llegó a confirmarse si `env-checker` se lanzó de verdad (con `Agent`, nombrado `env-checker`)
-  antes del corte.
-
-**Pasos**: reintentar ítem 1 de cero (repo fixture limpio, `/swarm:init` + `/swarm:doctor`),
-confirmar `env-checker` se lanza con `Agent` (no `SendMessage`) y veredicto final `OK`; luego
-ítems 2 (tool inventado → `BLOCKED` con hint) y 3 (env-checker no reimplementa el chequeo). Rellenar
-el checklist con evidencia real (mismo patrón que `docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md`,
-ya relleno como referencia de formato). Si aparece un bug real, arreglarlo, re-test, commit — igual
-que se hizo en fase 1 (dos bugs reales de esa clase ya se encontraron así, no antes).
-
-Tras el checklist en verde: **review final de la rama `phase1b-requirements` completa** (modelo más
-capaz disponible, mismo patrón que fase 1 — dispatch con `superpowers:requesting-code-review`'s
-plantilla, foco en deriva entre T1-T5 que ninguna review individual pudo ver), luego
-`superpowers:finishing-a-development-branch` para decidir merge a `master` (David eligió "merge
-local" la vez anterior, sin remoto configurado).
+Todo orquestador de dominio que lance una hoja que NO preexiste necesita `Agent(<hoja>)` en su
+`tools:` — nunca solo `SendMessage`, que solo alcanza agentes ya vivos. Cada agente nuevo que
+lance hijos: escribe un test de regresión que haga `grep` del `tools:` del frontmatter buscando el
+`Agent(...)` correcto (patrón ya usado en `tests/test_requirements_orchestrator_spawns.sh`).
 
 ## Lo que NO se toca ni se construye todavía
 
-`dependency-auditor` y `dependency-installer` (spec §7) son fase 5, no fase 1b — no existen en
-ningún fichero, ni como stub. `requirements-orchestrator` solo dice en prosa que devuelve
-`BLOCKED dependency-installer no implementado aún (fase 5)` si alguien pide instalar algo.
+`dependency-auditor`/`dependency-installer` (spec §7) son fase 5 — cero código, solo prosa en
+`agents/requirements-orchestrator.md` diciendo `BLOCKED dependency-installer no implementado aún
+(fase 5)`. `/swarm:status`/`/swarm:findings` son fase 6.
 
-## Decisiones del owner pendientes de aplicar más adelante (no bloquean fase 1b)
+## Backlog no bloqueante (de las reviews finales de fase 1 y 1b — no urgente, atender cuando toque
+el área correspondiente)
 
-- `/swarm:status` / `/swarm:findings` (dashboard de consola) son fase 6 — David confirmó explícitamente
-  "seguimos el plan", no adelantar.
-- Tras fase 1b: fase 2 discovery (`discovery-orchestrator` + 4 hojas), spec §15.
+- `scripts/req-check.sh` no valida su entrada — un `requirements.json` malformado da un traceback
+  crudo con exit 1 (mismo código que "falta un tool requerido", ambiguo). Inalcanzable hoy (nadie
+  le pasa un fichero raro todavía); es requisito real para fase 5 cuando los packs traigan su
+  propio `requirements.json`. Arreglar: reservar exit 64 para fichero malformado + informe JSON de
+  error, antes de que fase 5 empiece a construir sobre esto.
+- `hooks/bash-guard.py`: no inspecciona `$(...)`/backticks DENTRO de los argumentos de un comando
+  ya permitido (solo la primera palabra del segmento se valida) — preexistente de fase 1, no
+  introducido por fase 1b, confirmado en la review final de 1b. Vale la pena una tarea de
+  hardening dedicada antes de dar más agentes con `Bash` a fases futuras.
+- `hooks/bash-allowlist.json`: `pwd`/`echo` no están en ningún allowlist — agentes se adaptan solos
+  usando `Read`/`cat`, no bloquea nada, pero si se repite en más agentes valorar añadirlos al
+  `default`.
+- `is_mem_script` en `bash-guard.py` sigue haciendo match por basename+carpeta padre (`mem-*.sh`
+  bajo cualquier `scripts/`), más laxo que el match exacto que ahora es viable tras el fix de fase
+  1b — candidato a simplificar/retirar ese fallback especial.
+
+## Siguiente paso: fase 2 — discovery (spec §15)
+
+`discovery-orchestrator` (sonnet) + 4 hojas: `value-critic` (opus), `research-analyst` (sonnet,
+background), `options-generator` (opus), `feasibility-spiker` (sonnet, background). Restricción
+clave (spec §3.2 regla 7): ningún subagente puede preguntar al owner directamente — discovery
+devuelve UN batch de preguntas+opciones y la RAÍZ lo presenta con `AskUserQuestion`. Empezar con
+`superpowers:writing-plans` sobre spec §7 "Discovery" (ya bastante detallado, no debería hacer
+falta brainstorming largo) — mismo patrón que 1b: plan → Subagent-Driven Development → smoke
+checklist en vivo → review final de rama → merge.
 
 ## Memoria persistente relevante
 
-Memorias guardadas en la sesión anterior (buscar con mem-search si están disponibles en esta
-sesión): convención de nombres estable (todo agente lanzado = su rol), routing de modelos
-(Fable/Opus decide y revisa, Sonnet ejecuta planes cerrados), identidad git personal
-(`garcia.gordo.david@gmail.com`, no la de Classlife).
+Buscar con mem-search si está disponible en esta sesión: convención de nombres estable (todo
+agente lanzado = su rol), routing de modelos (Fable/Opus decide y revisa, Sonnet ejecuta planes
+cerrados), identidad git personal (`garcia.gordo.david@gmail.com`, no la de Classlife).
