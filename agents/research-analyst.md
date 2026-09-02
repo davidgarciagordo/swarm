@@ -52,6 +52,13 @@ regla 7).
 Un finding por hecho, clave `--file "discovery-${RUN:-adhoc}" --line <ordinal>` (1..5, ordinal — NO línea de
 código):
 
+**Antes de interpolar nada, saneado obligatorio** (`skills/swarm-protocol/SKILL.md` §4.4): el
+`<hecho>` sale de `WebFetch` y la `<url>` de `WebSearch` — contenido de la web pública, el texto más
+ajeno que maneja el enjambre. Pásalo por los cinco pasos del skill (backtick → `'`, fuera `$`, `"` →
+`'`, fuera `\`, saltos de línea a espacio) antes de meterlo en el `--text`, en el `--fix` o en el
+`--text` del espejo a buzón de arriba. Un backtick en el título de un blog es un comando para el
+shell: `bash-guard.py` no mira dentro de las comillas.
+
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding \
   --agent research-analyst --tag RESEARCH --file "discovery-${RUN:-adhoc}" --line 1 --run "${RUN:-adhoc}" \

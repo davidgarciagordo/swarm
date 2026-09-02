@@ -82,6 +82,29 @@ assert_eq "0" "$(has "$dbody" 'el `--line` va saneado por la regla de arriba')" 
 # N5 — falta objective: ⇒ BLOCKED objetivo vacío (lo que la raíz ya prometía)
 assert_eq "0" "$(has "$dbody" 'BLOCKED objetivo vacío')" "discovery-orchestrator defines the missing-objective verdict"
 
+# I2 — todo camino terminal escribe run/<id>/summary.md ANTES del curate (spec §11)
+assert_eq "0" "$(has "$body" 'mem-manifest.sh" summary --run')" "root writes run/<id>/summary.md before closing (spec §11)"
+assert_eq "0" "$(has "$body" 'Todo run escribe `run/<id>/summary.md` al cierre')" "root states the spec §11 summary obligation"
+assert_eq "0" "$(has "$body" '- run cerrado: BLOCKED batch malformado')" "malformed-batch path has its own summary line"
+assert_eq "0" "$(has "$body" '- run cerrado: KO batch sin responder')" "cancelled-dialog path has its own summary line"
+assert_eq "0" "$(has "$body" 'cierra con `summary`+`curate` (§4)')" "normal close and cancellation close with summary + curate"
+
+# I4 — DONE/OK con CERO líneas `- Q` está definido (batch vacío = bug del productor, visto en el smoke)
+assert_eq "0" "$(has "$body" 'BLOCKED batch vacío de discovery-orchestrator')" "root defines the empty-batch verdict"
+assert_eq "0" "$(has "$body" 'CERO líneas `- Q` (batch vacío)')" "root treats DONE/OK with zero questions as a producer bug, not an OK run"
+assert_eq "0" "$(has "$body" 'UNA `- Q` de confirmación')" "root knows the legitimate zero-value-questions case still yields one Q"
+
+# I1 — el saneado es UNA regla compartida del skill y las CUATRO hojas la aplican
+hasi() { echo "$1" | grep -qiF -- "$2" && echo 0 || echo 1; }
+SKILL="$PLUGIN_ROOT/skills/swarm-protocol/SKILL.md"
+assert_eq "0" "$(grep -qF 'Saneado obligatorio de todo texto ajeno' "$SKILL" && echo 0 || echo 1)" "the sanitization rule is hoisted into the shared skill (SKILL.md §4.4)"
+assert_eq "0" "$(has "$body" 'skills/swarm-protocol/SKILL.md` §4.4')" "root points its local copy at the shared rule"
+for leaf in research-analyst value-critic options-generator feasibility-spiker; do
+  lb="$(awk '/^---$/{n++; next} n>=2{print}' "$PLUGIN_ROOT/agents/$leaf.md")"
+  assert_eq "0" "$(hasi "$lb" 'saneado obligatorio')" "$leaf sanitizes untrusted text before interpolating it into a shell argument"
+  assert_eq "0" "$(hasi "$lb" 'skills/swarm-protocol/SKILL.md` §4.4')" "$leaf points at the shared sanitization rule"
+done
+
 # Solo la raíz tiene AskUserQuestion en todo agents/
 for f in "$PLUGIN_ROOT"/agents/*.md; do
   [ "$(basename "$f")" = "orchestrator.md" ] && continue

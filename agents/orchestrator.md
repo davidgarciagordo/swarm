@@ -180,13 +180,40 @@ Su `OK` (pack fresco) y su `DONE` (pack reconstruido) valen igual: en ambos caso
 
 ## 4. Cierre
 
-Al terminar el trabajo del run:
+**Todo run escribe `run/<id>/summary.md` al cierre (spec §11).** Es el resumen visible de qué pasó,
+y lo escribes TÚ: `discovery-orchestrator` solo espeja ahí sus líneas `- Q…`, y en un run que ni
+llega a discovery (guardas de §1.0, `BLOCKED falta /swarm:init`, batch roto) no lo espeja nadie. Por
+eso, en CUALQUIER camino terminal —cierre normal (§5.4), batch malformado (§5.3), `BLOCKED`/`KO`
+propagado de discovery (§5.3), batch vacío (§5.3), cancelación del diálogo (§5.3), discovery omitido
+o dominio inexistente— escribes UNA línea de resumen JUSTO ANTES del `curate`:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" summary --run <run-id> --line "<qué pasó, una línea>"
+```
+
+Firma real (`scripts/mem-manifest.sh`, `_summary`): solo `--run` y `--line`, los DOS obligatorios
+(falta uno ⇒ exit 64); hace `>> run/<run>/summary.md` y responde `written`. El `<run-id>` va LITERAL
+(§2.1, nunca `"$RUN"`), y la `<línea>` va por el saneado de §5.0 si lleva texto ajeno (objetivo,
+pregunta, respuesta del owner).
+
+Línea por camino terminal (una sola llamada, la que corresponda):
+
+- cierre normal (§5.4): `- run cerrado: DONE · discovery respondido, <n> decisiones guardadas`
+- batch malformado (§5.3): `- run cerrado: BLOCKED batch malformado de discovery-orchestrator`
+- `BLOCKED`/`KO` propagado (§5.3): `- run cerrado: <veredicto literal de discovery-orchestrator>`
+- batch vacío (§5.3): `- run cerrado: BLOCKED batch vacío de discovery-orchestrator`
+- cancelación del diálogo (§5.3): `- run cerrado: KO batch sin responder (owner canceló)`
+- discovery omitido / dominio no implementado: `- run cerrado: <tu veredicto> · discovery omitido: <motivo>`
+
+Y solo después, el cierre de memoria:
 
 ```
 SendMessage(memory-orchestrator, "curate")
 ```
 
-Él propaga el `DONE` del curator y sella el histórico. No lances tú `memory-curator`.
+Él propaga el `DONE` del curator y sella el histórico. No lances tú `memory-curator`. Si el run
+nunca llegó a abrirse (guardas de §1.0, o `BLOCKED falta /swarm:init` de §2.1) no hay `<run-id>`:
+ahí no hay `summary` ni `curate` que escribir, y tu veredicto se va tal cual.
 
 ## 5. Discovery (fase 2 — antes de cualquier diseño, spec §3.2 regla 7)
 
@@ -225,6 +252,10 @@ que ve el parser del guard y lo que ve el shell son exactamente lo mismo.
 Sin excepciones y sin juicio propio sobre si "ese texto parece inofensivo": si el texto no es un
 literal tuyo, se sanea. La regla vale para CUALQUIER `--text`/`--fix`/`--line` que construyas en
 este contrato, no solo el de §5.4.
+
+Es la MISMA regla compartida del protocolo (`skills/swarm-protocol/SKILL.md` §4.4, que la aplica a
+todo agente `swarm:*`, hojas incluidas); está repetida aquí por localidad. Si alguna vez divergen,
+manda la del skill.
 
 ### 5.1 Cuándo
 
@@ -311,7 +342,11 @@ BLOCKED batch malformado de discovery-orchestrator: <qué falló, citando el Q<n
 Un bug del productor tiene que salir a la luz, no comerse en silencio las cuatro preguntas.
 
 **Antes de devolver ese `BLOCKED`, cierra el run** igual que en la cancelación del diálogo (más
-abajo en este mismo §5.3) y en el cierre normal (§4):
+abajo en este mismo §5.3) y en el cierre normal (§4) — resumen primero, `curate` después:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" summary --run <run-id> --line "- run cerrado: BLOCKED batch malformado de discovery-orchestrator"
+```
 
 ```
 SendMessage(memory-orchestrator, "curate")
@@ -339,12 +374,32 @@ en entradas del batch.
 
 Si la salida de `discovery-orchestrator` es `BLOCKED …`/`KO …` sin ninguna línea `- Q`, no llames
 a `AskUserQuestion`: propaga su veredicto literal como el tuyo, pero **cierra el run igual que en
-cualquier otro veredicto terminal** — `SendMessage(memory-orchestrator, "curate")`, espera su
-`DONE` — antes de devolver el `BLOCKED`/`KO`. Un run que se cae abierto (sin `curate`) dificulta
+cualquier otro veredicto terminal** — el `summary` de §4 con la línea de este camino y después
+`SendMessage(memory-orchestrator, "curate")`, esperando su `DONE` — antes de devolver el
+`BLOCKED`/`KO`. Un run que se cae abierto (sin `summary` ni `curate`) dificulta
 que un reintento detecte que ya hubo un intento fallido; no dejes el manifest a medias solo porque
 el veredicto es negativo. Si trae `KO …` CON líneas `- Q` (batch parcial, una hoja de juicio
 caída), presenta el batch igualmente y propaga su motivo literal en una línea `- …` de tu salida
-(el cierre con `curate` llega después de que el owner responda, como en el camino normal — §5.4).
+(el cierre con `summary`+`curate` llega después de que el owner responda, como en el camino normal
+— §5.4).
+
+**`DONE`/`OK` con CERO líneas `- Q` (batch vacío) es un bug del productor, no un run verde.** Pasó
+de verdad en el smoke de fase 2. No llames a `AskUserQuestion` sin preguntas (una llamada sin
+`questions` no tiene nada que presentar) ni lo des por bueno en silencio. Antes de decidirlo,
+comprueba que no haya una explicación legítima de cero preguntas: ninguno de los caminos de
+`agents/discovery-orchestrator.md` termina en `DONE` con cero `- Q` — si `value-critic` devolvió 0
+preguntas y solo hay 1 enfoque viable, su contrato produce igualmente UNA `- Q` de confirmación
+(`Enfoque`, A) ese enfoque · B) no construir todavía); si no queda ningún enfoque viable, su
+veredicto es `BLOCKED sin enfoque viable` (y entra por el camino de arriba); y `- warn: sin pregunta
+de viabilidad, spiker no lanzado` acompaña a las Q que sí hay, no las sustituye. Con veredicto
+`DONE`/`OK`, cero `- Q` y ninguna de esas explicaciones presente, tu veredicto es:
+
+```
+BLOCKED batch vacío de discovery-orchestrator
+```
+
+Ciérralo como cualquier otro camino terminal: `summary` con su línea (§4), `SendMessage(memory-
+orchestrator, "curate")`, espera su `DONE`, y devuelve el `BLOCKED`.
 
 **Si el owner cancela o descarta el diálogo** (lo cierra sin elegir — comportamiento normal y
 frecuente, no un error), NO reintentes, no re-preguntes y no lo des por respondido con la opción
@@ -355,7 +410,7 @@ una línea y el mismo saneado de §5.0 que §5.4—:
 SendMessage(memory-orchestrator, "write decision --text \"objective: <objetivo literal saneado> · discovery <run-id> [pendiente] batch sin responder (owner canceló) · Q1 [<cabecera>] <pregunta saneada> · Q2 [<cabecera>] <pregunta saneada> · …\"")
 ```
 
-Espera su `OK`/`written`, cierra con `curate` (§4) y tu veredicto es:
+Espera su `OK`/`written`, cierra con `summary`+`curate` (§4) y tu veredicto es:
 
 ```
 KO batch sin responder
@@ -397,8 +452,8 @@ SendMessage(memory-orchestrator, "write decision --text \"objective: <objetivo l
   el `[pendiente]` de §5.3.
 
 Espera su `OK`/`written` — uno solo. Después, como `design-orchestrator` aún no existe (fase 4), el
-run termina aquí: cierra con `curate` (§4) y devuelve `DONE` con las decisiones como líneas `- …`
-(§7).
+run termina aquí: cierra con `summary`+`curate` (§4) y devuelve `DONE` con las decisiones como
+líneas `- …` (§7).
 
 ## 6. Disciplina de Bash (`hooks/bash-guard.py`)
 

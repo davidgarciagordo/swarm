@@ -35,6 +35,10 @@ if [ -f "$ORCH" ]; then
   assert_eq "0" "$(has "$b" 'memory-orchestrator')" "orchestrator body justifies the cleanup: the finding is already persisted via memory-orchestrator"
   assert_eq "0" "$(has "$b" 'warn: worktree del spiker no borrado')" "cleanup failure is a soft failure: one warn line, never a blocked verdict"
   assert_eq "0" "$(has "$b" 'git worktree')" "orchestrator body documents git worktree in its own bash allowlist"
+  # camino descubierto por la review final: spiker lanzado (agentId en mano) que NUNCA reporta y
+  # cae por la regla de corte — sin esto, el worktree se fuga igual que antes del fix, por otra vía.
+  assert_eq "0" "$(has "$b" 'warn: feasibility-spiker sin respuesta')" "cut-rule timeout path names the spiker warn line"
+  assert_eq "2" "$(grep -cF 'git worktree remove .claude/worktrees/agent-' "$ORCH")" "cleanup runs in BOTH paths: on DONE/BLOCKED (1bis) and on cut-rule timeout"
 fi
 
 # ---------- 2. el allowlist real: solo discovery-orchestrator puede `git worktree` ----------
