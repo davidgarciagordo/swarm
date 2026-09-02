@@ -62,6 +62,44 @@ EOF
 assert_eq "0" "$(echo "$out" | grep -q 'systemMessage' && echo 0 || echo 1)" "turns==max produces systemMessage"
 assert_eq "1" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "turns==max is not a block"
 
+# turns>max (miscounted overflow) -> also treated as maxTurns, not silently passed
+out="$(python3 "$HOOK" <<'EOF'
+{"agent_type": "swarm:reviewer", "last_assistant_message": "OK\nevidence: files=3 cmds=2 turns=16/15\nREV · src/App/Foo.php:5 · falta validacion → anadir guard"}
+EOF
+)"
+assert_eq "0" "$(echo "$out" | grep -q 'systemMessage' && echo 0 || echo 1)" "turns>max also produces systemMessage"
+
+# stop_hook_active=true -> hook stands down entirely, no output even on garbage
+out="$(python3 "$HOOK" <<'EOF'
+{"agent_type": "swarm:flaky-agent", "last_assistant_message": "garbage", "stop_hook_active": true}
+EOF
+)"
+assert_eq "" "$out" "stop_hook_active=true short-circuits before any validation"
+
+# non-string agent_type/last_assistant_message -> no crash, no output (fail-closed, not fail-open)
+out="$(python3 "$HOOK" <<'EOF'
+{"agent_type": ["swarm:weird"], "last_assistant_message": 42}
+EOF
+)"
+rc=$?
+assert_eq "0" "$rc" "malformed field types do not crash the hook"
+assert_eq "" "$out" "malformed field types produce no output"
+
+# narration smuggled behind a "- " prefix, over the length cap -> still rejected
+long_line="- $(python3 -c 'print("x" * 130)')"
+out="$(python3 "$HOOK" <<EOF
+{"agent_type": "swarm:reviewer", "last_assistant_message": "OK\nevidence: files=1 cmds=1 turns=1/10\n$long_line"}
+EOF
+)"
+assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "long narration behind a dash prefix is still rejected"
+
+# short "- " lines (discovery-orchestrator's own - Q/- warn/- findings format) still pass
+out="$(python3 "$HOOK" <<'EOF'
+{"agent_type": "swarm:discovery-orchestrator", "last_assistant_message": "DONE\nevidence: files=1 cmds=9 turns=9/15\n- Q1 [Valor] · pregunta · A) uno · B) dos · rec: A\n- findings: value-critic,options-generator,research-analyst,feasibility-spiker"}
+EOF
+)"
+assert_eq "" "$out" "short dash-prefixed batch lines are accepted (no output)"
+
 rm -rf "$fixture"
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
