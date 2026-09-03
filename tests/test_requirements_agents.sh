@@ -31,5 +31,23 @@ if [ -f "$f" ]; then
   assert_eq "0" "$(has "$b" 'nunca instala')" "dependency-auditor states it never installs anything"
 fi
 
+# ---------- T4: dependency-installer (MUTANTE — gate de aprobación) ----------
+f="$PLUGIN_ROOT/agents/dependency-installer.md"
+assert_eq "0" "$([ -f "$f" ] && echo 0 || echo 1)" "agents/dependency-installer.md exists"
+if [ -f "$f" ]; then
+  front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"; b="$(body "$f")"
+  assert_eq "0" "$(echo "$front" | grep -q '^model: sonnet$' && echo 0 || echo 1)" "dependency-installer model is sonnet (spec §7)"
+  assert_eq "0" "$(echo "$front" | grep -q '^maxTurns: 10$' && echo 0 || echo 1)" "dependency-installer maxTurns is 10 (spec §7)"
+  assert_eq "1" "$(has "$tools" 'AskUserQuestion')" "dependency-installer never asks the owner itself (§3.2 rule 7)"
+  assert_eq "1" "$(has "$tools" 'Agent')" "dependency-installer is a leaf: spawns nobody"
+  assert_eq "0" "$(has "$b" 'approved:')" "dependency-installer documents the approved: header line"
+  assert_eq "0" "$(has "$b" 'BLOCKED sin aprobación del owner')" "dependency-installer BLOCKs without explicit approval"
+  assert_eq "0" "$(has "$b" 'nunca commiteas')" "dependency-installer never commits (ruling 3)"
+  assert_eq "0" "$(has "$b" 'brew')" "dependency-installer explains why OS packages are out of scope"
+  assert_eq "0" "$(has "$b" 'literal')" "dependency-installer installs only literally approved package ids"
+  # el par auditor/installer no puede confundirse: uno lee, el otro escribe
+  assert_eq "1" "$(has "$b" 'composer remove')" "dependency-installer does not document uninstalling (ruling 4)"
+fi
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
