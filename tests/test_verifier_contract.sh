@@ -38,6 +38,14 @@ assert_eq "0" "$(echo "$body" | grep -qF 'files=0' && echo 0 || echo 1)" "body r
 assert_eq "0" "$(echo "$body" | grep -qF '${CLAUDE_PLUGIN_ROOT}/agents/' && echo 0 || echo 1)" "body resolves agents/<domain>.md via \${CLAUDE_PLUGIN_ROOT}, never a bare repo-relative Read (Read doesn't expand env vars)"
 assert_eq "0" "$(echo "$body" | grep -qF 'ls -d "${CLAUDE_PLUGIN_ROOT}/agents/' && echo 0 || echo 1)" "body resolves the domain contract's absolute path via 'ls -d' before Read (Read never expands \${CLAUDE_PLUGIN_ROOT} itself)"
 
+# C1 regression: the SWARM_ROOT= prefix on mem-files.sh query must be UNCONDITIONAL — verifier's
+# bash-guard allowlist has no pwd/cd, so it has no way to check its own cwd; a "if cwd isn't root"
+# framing is an uncheckable condition that risks a silent empty-result false KO.
+assert_eq "0" "$(echo "$body" | grep -qF 'SWARM_ROOT=/ruta/absoluta/.swarm "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" query' && echo 0 || echo 1)" "documented mem-files.sh query command is SWARM_ROOT-prefixed"
+assert_eq "0" "$(echo "$body" | grep -qF 'SIEMPRE' && echo 0 || echo 1)" "body states the prefix applies SIEMPRE (unconditionally)"
+assert_eq "0" "$(echo "$body" | grep -qF 'no tienes forma de comprobar' && echo 0 || echo 1)" "body explains verifier cannot check its own cwd (no pwd/cd in its allowlist)"
+assert_eq "1" "$(echo "$body" | grep -qiF 'si tu cwd no fuera la raíz del repo, úsala' && echo 0 || echo 1)" "body no longer gates the SWARM_ROOT prefix behind an unverifiable 'if cwd' condition"
+
 # read-only real contra bash-guard (fichero nuevo, sin helper _run_hook — invoca el hook directo,
 # mismo patrón que tests/test_discovery_orchestrator_spawns.sh)
 out="$(python3 "$HOOK" <<'EOF'
