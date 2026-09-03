@@ -127,9 +127,14 @@ borrar. No la deduzcas de otro sitio ni la inventes — sale del resultado del s
 
 ## Espera y fusión
 
-1. Espera a las cuatro (o tres). Regla de corte: cuando tengas las dos foreground, concede DOS
-   turnos más a las background; si una no ha llegado, sigue sin ella y anota
-   `- warn: <hoja> sin respuesta`. No relances a nadie.
+1. Espera a las cuatro (o tres). Las dos foreground (`value-critic`, `options-generator`)
+   responden en el mismo turno en que las lanzas — es un `Agent(...)` síncrono. Las background
+   (`research-analyst`, `feasibility-spiker`) te llegan como notificación de finalización en un
+   turno POSTERIOR — mecanismo automático de la plataforma (no de este plugin): no hace falta que
+   compruebes nada ni que relances a nadie, simplemente sigues esperando. **No hay margen fijo de
+   turnos para esta espera** — el único límite real es tu propio `maxTurns` (15) del frontmatter,
+   igual que para cualquier otro trabajo tuyo. Si agotas `maxTurns` sin que una background haya
+   notificado, sigue sin ella y anota `- warn: <hoja> sin respuesta (maxTurns)`. No relances a nadie.
    **Si la que se quedó sin responder es `feasibility-spiker` y tienes su `agentId`**, su worktree
    sigue ahí: lanzado bien y sin reportar es exactamente el mismo huérfano que el paso 1bis existe
    para evitar (la plataforma no auto-limpia un worktree con `spike/` dentro), solo que por otro
