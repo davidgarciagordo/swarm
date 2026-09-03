@@ -33,5 +33,9 @@ assert_eq "0" "$([ -f "$PLUGIN_ROOT/agents/orchestrator.md" ] && echo 0 || echo 
 assert_file_contains "$PLUGIN_ROOT/commands/run.md" "orchestrator" "run.md invoca al orchestrator"
 assert_file_contains "$PLUGIN_ROOT/commands/run.md" '\$ARGUMENTS' "run.md pasa \$ARGUMENTS"
 
+# /swarm:doctor (fase 5b): el chequeo incluye el stack pack activo y nunca instala nada.
+assert_file_contains "$PLUGIN_ROOT/commands/doctor.md" "pack" "doctor documents that the check includes the active stack pack"
+assert_file_contains "$PLUGIN_ROOT/commands/doctor.md" "nunca instala" "doctor states it never installs"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

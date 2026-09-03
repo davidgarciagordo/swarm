@@ -1,6 +1,6 @@
 # swarm
 
-Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Construido hasta ahora: fases 1, 1b, 2, 3, 4 y 5a** — subsistema de memoria, orquestador raíz, dominio de requisitos, dominio discovery (batch de preguntas presentado al owner con `AskUserQuestion`), dominio de análisis (auditoría read-only del código en 6 lentes), dominio de diseño (escribe un plan de implementación real, revisado adversarialmente por grill×3, arbitrado por el propio `design-orchestrator`), y dominio de implementación (TDD RED→GREEN por fase en un worktree aislado, con `reviewer` como gate ANTES del merge local — solo por invocación explícita del owner, nunca encadenado).
+Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Construido hasta ahora: fases 1, 1b, 2, 3, 4, 5a y 5b** — subsistema de memoria, orquestador raíz, dominio de requisitos (chequeo de entorno + auditoría de dependencias + instalación aprobada por el owner), dominio discovery (batch de preguntas presentado al owner con `AskUserQuestion`), dominio de análisis (auditoría read-only del código en 6 lentes), dominio de diseño (escribe un plan de implementación real, revisado adversarialmente por grill×3, arbitrado por el propio `design-orchestrator`), dominio de implementación (TDD RED→GREEN por fase en un worktree aislado, con pasos condicionales de migración de esquema y documentación, `reviewer` como gate ANTES del merge local — solo por invocación explícita del owner, nunca encadenado), y el primer stack pack (`php-ddd-symfony8`, detectado automáticamente desde `composer.json`).
 
 Para una guía de uso completa (instalación, los 3 comandos, cada dominio, ejemplos reales, cómo
 interpretar la salida) ver `docs/USAGE.es.md`.
@@ -31,6 +31,8 @@ flowchart TD
     MC["memory-curator (haiku)"]
     RO["requirements-orchestrator (haiku)"]
     EC["env-checker (haiku)"]
+    DA["dependency-auditor (sonnet)"]
+    DI["dependency-installer (sonnet)"]
     DO["discovery-orchestrator (sonnet)"]
     VC["value-critic (opus)"]
     RA["research-analyst (sonnet)"]
@@ -50,6 +52,8 @@ flowchart TD
     IO["implementation-orchestrator (sonnet)"]
     TW["test-writer (sonnet)"]
     IM["implementer (sonnet)"]
+    ME["migration-engineer (sonnet)"]
+    DW["doc-writer (sonnet)"]
     QF["quality-fixer (haiku)"]
     RV["reviewer (opus)"]
 
@@ -61,7 +65,10 @@ flowchart TD
     DO --> RA
     DO --> OG
     DO --> FS
+    O -. audit-deps / install .-> RO
     RO --> EC
+    RO --> DA
+    RO --> DI
     O --> AO
     AO --> OA
     AO --> AA
@@ -76,6 +83,8 @@ flowchart TD
     O -. solo invocación explícita .-> IO
     IO --> TW
     IO --> IM
+    IO --> ME
+    IO --> DW
     IO --> QF
     IO --> RV
 
@@ -91,7 +100,7 @@ flowchart TD
     class planned planned
 ```
 
-El `orchestrator` raíz (opus) clasifica el tier del run y habla con cinco dominios hoy: `memory-orchestrator`, que dirige a `memory-builder` (construye/refresca el context-pack) y `memory-curator` (compacta hallazgos, GC); `discovery-orchestrator`, que dirige las cuatro hojas de discovery y devuelve UN batch de preguntas que la raíz presenta con `AskUserQuestion`; `analysis-orchestrator`, que selecciona un subconjunto de sus 6 lentes read-only según el objetivo y reenvía sus hallazgos directamente; `design-orchestrator`, que corre tras discovery (solo `tier: full`) — `pattern-advisor` + `domain-modeler` en una tanda, luego `planner` escribe el plan real, luego (también `tier: full`) grill×3 lo revisa adversarialmente y `design-orchestrator` arbitra los hallazgos él mismo, sin preguntar nunca al owner; y `implementation-orchestrator`, que secuencia `test-writer` (RED) → `implementer` (worktree aislado, GREEN) → `quality-fixer` (`--fix` determinista + residual) → `reviewer` (gate severidad-tagged ANTES del merge) → merge local a la rama del run, para UNA fase de un plan ya `arbitrado` por invocación — solo cuando el owner lo pide explícitamente, nunca encadenado tras discovery/diseño. `requirements-orchestrator` (con `env-checker`) es un sexto dominio, invocado por `/swarm:doctor` y no dentro de un run. El dominio restante — entrega — está especificado pero no implementado (ver estado más abajo).
+El `orchestrator` raíz (opus) clasifica el tier del run y habla con seis dominios hoy: `memory-orchestrator`, que dirige a `memory-builder` (construye/refresca el context-pack) y `memory-curator` (compacta hallazgos, GC); `requirements-orchestrator`, que dirige a `env-checker` (chequeo de herramientas OS/proyecto, `operation: check` de `/swarm:doctor`), `dependency-auditor` (auditoría read-only de CVEs/desactualización/licencias, `operation: audit-deps`) y `dependency-installer` (mutante, `operation: install`, lanzado solo con una aprobación itemizada del owner que la raíz recoge vía `AskUserQuestion` — ver `agents/orchestrator.md` §11); `discovery-orchestrator`, que dirige las cuatro hojas de discovery y devuelve UN batch de preguntas que la raíz presenta con `AskUserQuestion`; `analysis-orchestrator`, que selecciona un subconjunto de sus 6 lentes read-only según el objetivo y reenvía sus hallazgos directamente; `design-orchestrator`, que corre tras discovery (solo `tier: full`) — `pattern-advisor` + `domain-modeler` en una tanda, luego `planner` escribe el plan real, luego (también `tier: full`) grill×3 lo revisa adversarialmente y `design-orchestrator` arbitra los hallazgos él mismo, sin preguntar nunca al owner; y `implementation-orchestrator`, que secuencia `test-writer` (RED) → `implementer` (worktree aislado, GREEN) → `migration-engineer` (condicional, solo fases que tocan esquema) → `doc-writer` (condicional, solo fases con cambio de comportamiento observable) → `quality-fixer` (`--fix` determinista + residual) → `reviewer` (gate severidad-tagged ANTES del merge) → merge local a la rama del run, para UNA fase de un plan ya `arbitrado` por invocación — solo cuando el owner lo pide explícitamente, nunca encadenado tras discovery/diseño. `/swarm:doctor` también invoca a `requirements-orchestrator` directamente, en modo adhoc, fuera de cualquier run, para un chequeo de entorno simple. El dominio restante — entrega — está especificado pero no implementado (ver estado más abajo).
 
 ### Flujo de `/swarm:run`
 
@@ -168,16 +177,17 @@ Ningún agente escanea el repo o `.swarm/` dos veces, y ningún agente escribe `
 Fases según spec §15:
 
 1. **Núcleo (construido).** `orchestrator`, subsistema de memoria (`memory-orchestrator` + `memory-builder` + `memory-curator`, backends `files`/`claude-mem`), skill `swarm-protocol`, hooks (validación del contrato de evidencia + allowlist de bash), `/swarm:init`, smoke tests 1-8.
-1b. **Requisitos (construido).** `requirements-orchestrator`, `env-checker`, `req-check.sh`, `requirements.json`, `/swarm:doctor`.
+1b. **Requisitos — chequeo de entorno (construido).** `requirements-orchestrator`, `env-checker`, `req-check.sh`, `requirements.json`, `/swarm:doctor`.
 2. **Discovery (construido).** `discovery-orchestrator` + `value-critic`, `research-analyst`, `options-generator`, `feasibility-spiker`; la raíz presenta UN batch de preguntas con `AskUserQuestion` y registra cada respuesta en `.swarm/decisions.md`.
 3. **Análisis (construido).** `analysis-orchestrator` + `opportunity-analyst`, `architecture-auditor`, `security-auditor`, `vulnerability-scanner`, `performance-analyst`, `data-model-auditor`; la raíz reenvía sus hallazgos (`TAG · fichero:línea · problema → fix`) directamente, sin `AskUserQuestion` de por medio.
 4. **Diseño (construido).** `design-orchestrator` + `pattern-advisor`, `domain-modeler`, `planner`; corre tras discovery en `tier: full`, grill×3 (`working-methods:grill-architect/operator/engineer`) revisa adversarialmente el plan que escribe `planner`, y `design-orchestrator` arbitra los hallazgos él mismo — sin `AskUserQuestion` de por medio.
-5. **Implementación (construido — núcleo, fase 5a).** `implementation-orchestrator` + `test-writer`, `implementer`, `quality-fixer`, `reviewer`; ejecuta UNA fase de un plan ya `arbitrado` por invocación (TDD RED→GREEN en el worktree aislado de `implementer`, `quality-fixer` aplica `--fix` al residual, `reviewer` hace gate de hallazgos severidad-tagged ANTES del merge local a la rama del run); solo por invocación explícita del owner, nunca encadenado tras discovery/diseño. `dependency-auditor`/`dependency-installer` y el stack pack `php-ddd-symfony8` (el resto de la fase 5 de spec §15) siguen planeados.
+5. **Implementación — núcleo (construido, fase 5a).** `implementation-orchestrator` + `test-writer`, `implementer`, `quality-fixer`, `reviewer`; ejecuta UNA fase de un plan ya `arbitrado` por invocación (TDD RED→GREEN en el worktree aislado de `implementer`, `quality-fixer` aplica `--fix` al residual, `reviewer` hace gate de hallazgos severidad-tagged ANTES del merge local a la rama del run); solo por invocación explícita del owner, nunca encadenado tras discovery/diseño.
+5b. **Requisitos — auditoría/instalación de dependencias + stack pack (construido).** `dependency-auditor` (auditoría read-only de CVEs/desactualización/licencias, `operation: audit-deps` de `requirements-orchestrator`) y `dependency-installer` (mutante, `operation: install`, solo con una aprobación itemizada del owner recogida por la raíz vía `AskUserQuestion` — `agents/orchestrator.md` §11); `migration-engineer` y `doc-writer` se suman a la secuencia de `implementation-orchestrator` (ambos condicionales — fases que tocan esquema y fases con cambio de comportamiento observable, respectivamente); el primer stack pack, `php-ddd-symfony8` (`skills/pack-php-ddd-symfony8/`), detectado automáticamente desde un `composer.json` con requisito `symfony/*`.
 6. **Entrega (planeado).** 3 agentes + `/swarm:status`, `/swarm:findings`.
 
 ## Convención de nombres
 
-Todo agente lanzado va **nombrado con su rol** — el basename de su tipo, sin sufijos ni variantes (`memory-orchestrator`, `analysis-orchestrator`, y en fases futuras `pattern-advisor`, `dependency-installer`, …). Esto es lo que permite que agentes pares se manden `SendMessage` entre sí por nombre sin tener que descubrirlo antes, y que el owner se dirija a un agente concreto directamente — "avisa a `memory-builder` cuando termine" — sin que quien lo pide tenga que averiguar quién es. `memory-orchestrator` es el único caso obligatorio hoy: una única instancia nombrada por run (spec §4.5).
+Todo agente lanzado va **nombrado con su rol** — el basename de su tipo, sin sufijos ni variantes (`memory-orchestrator`, `analysis-orchestrator`, `pattern-advisor`, `dependency-installer`, y en el futuro `release-manager`…). Esto es lo que permite que agentes pares se manden `SendMessage` entre sí por nombre sin tener que descubrirlo antes, y que el owner se dirija a un agente concreto directamente — "avisa a `memory-builder` cuando termine" — sin que quien lo pide tenga que averiguar quién es. `memory-orchestrator` es el único caso obligatorio hoy: una única instancia nombrada por run (spec §4.5).
 
 ## Tests
 

@@ -190,15 +190,35 @@ summary, and a second identical run against an unchanged repo visibly skips the 
 
 ### Requirements
 
-**What it does for you:** verifies the tools your OS actually has against what the plugin (and any
-active stack pack) declares it needs, and tells you exactly what's missing and how to install it —
-before you hit a cryptic failure three domains deep into a run.
+**What it does for you:** three separate jobs behind one domain. It verifies the tools your OS
+actually has against what the plugin (and any active stack pack) declares it needs (`env-checker`,
+operation `check`); it audits your project's own dependencies for CVEs, outdated packages and
+license risk (`dependency-auditor`, operation `audit-deps`); and, only with your explicit,
+itemised approval, it installs or updates exactly the packages you approved (`dependency-installer`,
+operation `install`).
 
-**What triggers it:** `/swarm:doctor` (see §3). It is not part of the `/swarm:run` pipeline itself —
-you check requirements as a separate, explicit step, typically once after `/swarm:init`.
+**What triggers it:** `check` runs via `/swarm:doctor` (see §3) — a separate, explicit step, not
+part of the `/swarm:run` pipeline. `audit-deps` and `install` run *inside* a `/swarm:run` (phase
+5b) when your goal is dependency-shaped: "audit the dependencies", "what libraries are outdated",
+"install phpstan", "bump doctrine to 3" — see `agents/orchestrator.md` §11.
 
-**What you get back:** `OK` if everything `required: true` is present, or `BLOCKED <tool>` naming
-the exact missing tool plus its install hint (a `brew`/`apt` command) if not.
+**The install gate — the swarm never installs anything on its own judgement.** Installing or
+updating dependencies mutates the repo outside any worktree, without going through `reviewer`.
+So the root always audits first, then presents you with **one** `AskUserQuestion` **multi-select**
+batch — one option per concrete package, plus "install nothing" — and only the packages you
+actually check get translated into a literal `approved: <pkg>:<version> ...` line that
+`dependency-installer` executes exactly, and nothing more. If you check nothing or dismiss the
+dialog, nothing gets installed, and the run still closes cleanly reporting that. `dependency-
+installer` never commits: it leaves the manifests modified on disk and tells you exactly which
+files changed, so you (or a later `implementer`, inside its own phase) commit them with context.
+System tools (`brew`/`apt`) are never installed by the swarm — they come back as a hint with the
+exact command for you to run yourself.
+
+**What you get back:** `check` → `OK` if everything `required: true` is present, or `BLOCKED <tool>`
+naming the exact missing tool plus its install hint (a `brew`/`apt` command). `audit-deps` → a list
+of `DEP · file:line · problem → fix` findings. `install` → a `- instalado: ...` / `- modificado:
+...` summary of exactly what changed, or `BLOCKED sin aprobación del owner` if the `approved:` line
+is missing, empty, or not a literal package list.
 
 **Real example** (`docs/superpowers/plans/2026-09-02-phase1b-smoke-checklist.md`, item 1): run
 against the plugin's own checkout, `requirements-orchestrator` launches `env-checker`, which shells
@@ -288,13 +308,18 @@ incorporate them.
 ### Implementation
 
 **What it does for you:** executes exactly one phase of an already-designed, already-arbitrated plan
-— for real, with real tests and a real local merge, never partway. The sequence is strict:
-`test-writer` commits a failing (RED) test to the run's branch, `implementer` runs in an isolated
-git worktree to make it pass (GREEN) and commits there, `quality-fixer` runs the stack's
-deterministic `--fix` (lint/format) and patches whatever it can't auto-fix, and `reviewer` gates the
-result with severity-tagged findings *before* anything merges. Only after that gate passes does
-`implementation-orchestrator` merge the worktree's commit locally into the run's own branch and
-clean up the worktree.
+— for real, with real tests and a real local merge, never partway. The sequence is strict, and each
+step depends on the one before it, never in parallel: `test-writer` commits a failing (RED) test to
+the run's branch; `implementer` runs in an isolated git worktree to make it pass (GREEN) and commits
+there; `migration-engineer` runs next, *only if* the phase touches the persistence schema (entities,
+mappings, tables/columns), writing a migration file inside that same worktree — it never applies a
+migration against a real database; `doc-writer` runs next, *only if* the phase changes observable
+behaviour (a new use case, endpoint, console command, public contract) and the turn budget allows
+it, writing docs in the active stack pack's format plus a changelog entry, inside the same worktree;
+`quality-fixer` then runs the stack's deterministic `--fix` (lint/format) and patches whatever it
+can't auto-fix; and `reviewer` gates the result with severity-tagged findings *before* anything
+merges. Only after that gate passes does `implementation-orchestrator` merge the worktree's commit
+locally into the run's own branch and clean up the worktree.
 
 **What triggers it:** only an explicit request naming a plan ("implement the plan for X", "build X
 per the design already written") — never automatically after discovery or design finish, in any
@@ -321,10 +346,30 @@ evidence: files=9 cmds=17 turns=19/25
 It never touches `master` or a shared branch, and never runs `git push` — no agent in this domain
 even has that tool in its allowlist.
 
-**What's not built yet:** the `delivery` domain (release/PR/handoff automation) and the
-`php-ddd-symfony8` stack pack are still planned, not available. See `README.md`'s "Current status"
-section for the exact, up-to-date built/planned breakdown — this doc won't duplicate and risk
-drifting from that list.
+**What's not built yet:** the `delivery` domain (release/PR/handoff automation) is still planned,
+not available. See `README.md`'s "Current status" section for the exact, up-to-date built/planned
+breakdown — this doc won't duplicate and risk drifting from that list.
+
+### Stack packs
+
+**What it is:** stack-specific knowledge — naming/layering conventions, the canonical form of each
+lint/test/scan command, patterns already in use in the codebase, boundaries nothing should touch,
+and extra OS/library requirements — that swarm leaves read instead of guessing generically. There is
+exactly one today: `skills/pack-php-ddd-symfony8/` (PHP + DDD + Symfony).
+
+**How it's detected:** automatically, no configuration needed. When `memory-builder` builds
+`.swarm/context-pack.md`, it checks whether the repo's `composer.json` exists at the root and its
+`require` block contains a `symfony/*` package; if so it writes `stack: php-ddd-symfony8` into the
+pack. Every leaf that can use a pack (`quality-fixer`, `test-writer`, `implementer`,
+`migration-engineer`, `doc-writer`, `pattern-advisor`, `domain-modeler`, `vulnerability-scanner`,
+`dependency-auditor`, `env-checker` via `requirements-orchestrator`) resolves its absolute path from
+that line and reads only the files it needs.
+
+**What happens without one:** nothing breaks. A repo with no `composer.json`, or one that doesn't
+match a known pack, gets `stack: generic` — no `pack:` line is ever sent to a leaf, and each one
+falls back to its own documented generic behavior (detect whichever manifest is present, imitate the
+newest matching file already in the repo, never invent a command it hasn't seen documented there). A
+pack is purely additive: what it doesn't cover, a leaf resolves with its generic judgment instead.
 
 ## 5. How to read the output
 

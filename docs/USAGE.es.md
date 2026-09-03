@@ -198,15 +198,36 @@ modificación de `context-pack.md` sin cambios — confirmando que el chequeo de
 
 ### Requisitos
 
-**Qué hace por ti:** verifica las herramientas que tu sistema operativo realmente tiene contra lo
-que el plugin (y cualquier stack pack activo) declara necesitar, y te dice exactamente qué falta y
-cómo instalarlo — antes de que te encuentres con un fallo críptico tres dominios dentro de un run.
+**Qué hace por ti:** tres trabajos separados bajo un mismo dominio. Verifica las herramientas que tu
+sistema operativo realmente tiene contra lo que el plugin (y cualquier stack pack activo) declara
+necesitar (`env-checker`, operación `check`); audita las dependencias de tu propio proyecto en
+busca de CVEs, versiones desactualizadas y riesgo de licencia (`dependency-auditor`, operación
+`audit-deps`); y, solo con tu aprobación explícita e itemizada, instala o actualiza exactamente los
+paquetes que aprobaste (`dependency-installer`, operación `install`).
 
-**Qué lo dispara:** `/swarm:doctor` (ver §3). No forma parte del pipeline de `/swarm:run` en sí —
-compruebas los requisitos como un paso explícito aparte, típicamente una vez tras `/swarm:init`.
+**Qué lo dispara:** `check` corre vía `/swarm:doctor` (ver §3) — un paso explícito aparte, no forma
+parte del pipeline de `/swarm:run`. `audit-deps` e `install` corren *dentro* de un `/swarm:run`
+(fase 5b) cuando tu objetivo tiene forma de dependencias: "audita las dependencias", "¿qué
+librerías están desactualizadas?", "instala phpstan", "sube doctrine a la 3" — ver
+`agents/orchestrator.md` §11.
 
-**Qué recibes:** `OK` si todo lo `required: true` está presente, o `BLOCKED <tool>` nombrando la
-herramienta exacta que falta más su hint de instalación (un comando `brew`/`apt`) si no.
+**El gate de instalación — el enjambre nunca instala nada por su propio criterio.** Instalar o
+actualizar dependencias muta el repo fuera de cualquier worktree, sin pasar por `reviewer`. Por eso
+la raíz siempre audita primero, y luego te presenta UN batch **multi-select** con
+`AskUserQuestion` — una opción por paquete concreto, más "no instalar nada" — y solo los paquetes
+que de verdad marcaste se traducen a una línea literal `approved: <paquete>:<versión> ...` que
+`dependency-installer` ejecuta exactamente, y nada más. Si no marcas ninguno o cierras el diálogo,
+no se instala nada, y el run igualmente se cierra limpio reportándolo. `dependency-installer` nunca
+commitea: deja los manifiestos modificados en disco y te dice exactamente qué ficheros cambió, para
+que tú (o un `implementer` posterior, dentro de su propia fase) los commitees con contexto. Las
+herramientas de sistema (`brew`/`apt`) el enjambre nunca las instala — vuelven como un hint con el
+comando exacto para que lo ejecutes tú.
+
+**Qué recibes:** `check` → `OK` si todo lo `required: true` está presente, o `BLOCKED <tool>`
+nombrando la herramienta exacta que falta más su hint de instalación (un comando `brew`/`apt`).
+`audit-deps` → una lista de hallazgos `DEP · fichero:línea · problema → fix`. `install` → un resumen
+`- instalado: ...` / `- modificado: ...` con exactamente qué cambió, o `BLOCKED sin aprobación del
+owner` si la línea `approved:` falta, está vacía o no es una lista literal de paquetes.
 
 **Ejemplo real** (`docs/superpowers/plans/2026-09-02-phase1b-smoke-checklist.md`, ítem 1): ejecutado
 contra el propio checkout del plugin, `requirements-orchestrator` lanza `env-checker`, que invoca
@@ -300,13 +321,19 @@ bounded-context entre el agregado y su mapper) — `design-orchestrator` relanz�
 ### Implementación
 
 **Qué hace por ti:** ejecuta exactamente una fase de un plan ya diseñado y ya arbitrado — de
-verdad, con tests reales y un merge local real, nunca a medias. La secuencia es estricta:
-`test-writer` comitea un test que falla (RED) a la rama del run, `implementer` corre en un worktree
-de git aislado para hacerlo pasar (GREEN) y comitea ahí, `quality-fixer` ejecuta el `--fix`
-determinista del stack (lint/format) y parchea lo que no puede auto-arreglar, y `reviewer` hace de
-gate con hallazgos etiquetados por severidad *antes* de que nada se fusione. Solo después de que ese
-gate pasa, `implementation-orchestrator` fusiona el commit del worktree localmente a la rama propia
-del run y limpia el worktree.
+verdad, con tests reales y un merge local real, nunca a medias. La secuencia es estricta y cada paso
+depende del anterior, nunca en paralelo: `test-writer` comitea un test que falla (RED) a la rama del
+run; `implementer` corre en un worktree de git aislado para hacerlo pasar (GREEN) y comitea ahí;
+`migration-engineer` corre después, *solo si* la fase toca el esquema de persistencia (entidades,
+mapeos, tablas/columnas), escribiendo el fichero de migración dentro de ese mismo worktree — nunca
+aplica una migración contra una base de datos real; `doc-writer` corre después, *solo si* la fase
+cambia comportamiento observable (un caso de uso nuevo, un endpoint, un comando de consola, un
+contrato público) y el presupuesto de turnos lo permite, escribiendo la documentación en el formato
+del stack pack activo más una entrada de changelog, dentro del mismo worktree; `quality-fixer`
+ejecuta después el `--fix` determinista del stack (lint/format) y parchea lo que no puede
+auto-arreglar; y `reviewer` hace de gate con hallazgos etiquetados por severidad *antes* de que nada
+se fusione. Solo después de que ese gate pasa, `implementation-orchestrator` fusiona el commit del
+worktree localmente a la rama propia del run y limpia el worktree.
 
 **Qué lo dispara:** solo una petición explícita que nombre un plan ("implementa el plan de X",
 "construye X según el diseño ya escrito") — nunca automáticamente tras discovery o design, en
@@ -334,10 +361,31 @@ evidence: files=9 cmds=17 turns=19/25
 Nunca toca `master` ni una rama compartida, y nunca ejecuta `git push` — ningún agente de este
 dominio tiene siquiera esa herramienta en su lista permitida.
 
-**Qué falta por construir:** el dominio `delivery` (automatización de release/PR/handoff) y el stack
-pack `php-ddd-symfony8` siguen planeados, no disponibles. Consulta la sección "Estado actual" de
-`README.es.md` para el desglose exacto y actualizado de construido/planeado — este documento no lo
-duplica para no arriesgarse a que diverjan.
+**Qué falta por construir:** el dominio `delivery` (automatización de release/PR/handoff) sigue
+planeado, no disponible. Consulta la sección "Estado actual" de `README.es.md` para el desglose
+exacto y actualizado de construido/planeado — este documento no lo duplica para no arriesgarse a que
+diverjan.
+
+### Stack packs
+
+**Qué es:** conocimiento específico de un stack — convenciones de naming/capas, la forma canónica de
+cada comando de lint/test/scan, patrones ya en uso en el código, límites que nunca se tocan, y
+requisitos extra de OS/librerías — que las hojas del enjambre leen en vez de adivinar de forma
+genérica. Hoy hay exactamente uno: `skills/pack-php-ddd-symfony8/` (PHP + DDD + Symfony).
+
+**Cómo se detecta:** automáticamente, sin ninguna configuración. Cuando `memory-builder` construye
+`.swarm/context-pack.md`, comprueba si el `composer.json` del repo existe en la raíz y su bloque
+`require` contiene un paquete `symfony/*`; si es así, escribe `stack: php-ddd-symfony8` en el pack.
+Cada hoja que puede usar un pack (`quality-fixer`, `test-writer`, `implementer`,
+`migration-engineer`, `doc-writer`, `pattern-advisor`, `domain-modeler`, `vulnerability-scanner`,
+`dependency-auditor`, `env-checker` vía `requirements-orchestrator`) resuelve su ruta absoluta a
+partir de esa línea y lee solo los ficheros que necesita.
+
+**Qué pasa sin él:** nada se rompe. Un repo sin `composer.json`, o que no casa con ningún pack
+conocido, recibe `stack: generic` — nunca se envía una línea `pack:` a ninguna hoja, y cada una cae
+en su comportamiento genérico documentado (detecta el manifiesto que haya presente, imita el fichero
+más reciente que ya exista en el repo, nunca inventa un comando que no haya visto documentado ahí).
+Un pack es puramente aditivo: lo que no cubre, una hoja lo resuelve con su criterio genérico.
 
 ## 5. Cómo interpretar la salida
 
