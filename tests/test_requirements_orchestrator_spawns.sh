@@ -66,5 +66,17 @@ assert_eq "0" "$(has "$body" 'BLOCKED sin aprobación del owner')" "requirements
 assert_eq "1" "$(has "$body" 'dependency-installer no implementado aún')" "the phase-1b install stub is gone"
 assert_eq "0" "$(has "$body" 'operation: audit-deps')" "requirements-orchestrator documents the audit-deps operation"
 
+# Regresion del bug real f173a04 (live smoke): requirements-orchestrator pasaba
+# <pack>/requirements.json como pack: a dependency-auditor, que espera un DIRECTORIO. La linea
+# guard-rail explicita tiene que seguir en el cuerpo para que un futuro editor no repita la
+# confusion fichero-vs-directorio.
+assert_eq "0" "$(has "$body" 'nunca** le añadas `/requirements.json`')" "requirements-orchestrator pins the file-vs-directory guard-rail wording (f173a04 regression)"
+
+# Regresion Important de la review final de fase 5b: el --file de env-checker debe ser una ruta
+# LITERAL resuelta con ls -d, nunca la cadena sin expandir ${CLAUDE_PLUGIN_ROOT}/requirements.json
+# (Read no expande variables de shell).
+assert_eq "0" "$(has "$body" 'ls -d "${CLAUDE_PLUGIN_ROOT}/requirements.json"')" "requirements-orchestrator resolves its own requirements.json path with ls -d before passing --file"
+assert_eq "1" "$(has "$body" 'operation: check --file ${CLAUDE_PLUGIN_ROOT}/requirements.json')" "requirements-orchestrator no longer passes the unexpanded plugin-root string as --file"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
