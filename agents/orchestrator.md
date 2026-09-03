@@ -219,8 +219,13 @@ sigue siendo SIEMPRE `"swarm:verifier"` (el contrato/fichero es uno solo, genér
 `name:` de la INSTANCIA va cualificado por dominio — igual que las hojas de un orquestador de
 dominio se nombran por rol, no genéricas. Esto evita que dos dominios que cierran en verde en el
 MISMO run (p.ej. `implementation` y `requirements`, que no son mutuamente excluyentes entre sí —
-spec §8.1 solo excluye discovery/analysis) colisionen en el mismo nombre de agente, el mismo
-contador two-strike, o el mismo fichero de manifest `run/<run>/agents/<nombre>.json`.
+spec §8.1 solo excluye discovery/analysis) colisionen en el mismo nombre de agente o el mismo
+fichero de manifest `run/<run>/agents/<nombre>.json`. **Límite reconocido**: NO separa el contador
+de reintentos de `hooks/validate-output.py` — su `retry_key` se deriva de `agent_type.split(':')[-1]`
+(siempre `verifier`, el `name:` de la instancia no entra en la clave) más el hash del motivo de
+rechazo, así que dos instancias `verifier-<domain-tag>` distintas del mismo run SÍ comparten
+contador si emiten un `SubagentStop` malformado con el mismo motivo — ese two-strike de malformados
+sigue siendo cross-instancia, fuera de alcance de este fix.
 
 Regístralo antes en el manifest, como cualquier lanzamiento de agente (spec §5), con `--domain
 verify` (etiqueta propia del gate — `verifier` no es discovery/analysis/design/implementation/
@@ -280,21 +285,26 @@ verdict: <su veredicto literal completo>")
     **"Propaga literal" (rama anterior) solo aplica cuando SÍ existe una cadena `BLOCKED <motivo>`
     bien formada que copiar; en cualquier otro caso usa esta línea sintetizada — nunca inventes un
     `BLOCKED <motivo>` que el dominio nunca llegó a escribir.**
-- **La respuesta de `swarm:verifier` a su PRIMER lanzamiento no es un `OK` ni un `KO <motivo>`
-  limpio** (p.ej. el propio `verifier-<domain-tag>` cierra `BLOCKED` por agotar sus 10 turnos — su
-  uso normal documentado es ~3-4, pero un fichero de hallazgos grande o un contrato incómodo pueden
-  agotarlo — o su texto no parsea como ninguna de las dos formas pese al doble intento de
-  `hooks/validate-output.py`): trátalo como un FALLO de verificación, NUNCA como un `OK` implícito.
-  Esta rama es DISTINTA de las de arriba: ahí es el DOMINIO el que falla al responder tras un `KO`
-  del verificador (algo que corregir); aquí es `verifier` MISMO el que no completa su propio
-  chequeo la primera vez — no hay nada que "corregir" en el dominio, así que NO relances
-  `swarm:verifier` una segunda vez por este motivo (nada nuevo que reverificar) ni apliques el
-  two-strike de la rama `KO` la segunda vez (ese two-strike es sobre el CONTENIDO verificado, no
-  sobre si `verifier` llegó a completar su turno). Cierra directamente, mismo patrón de línea que
-  el two-strike: `- run cerrado: BLOCKED verificación fallida de <dominio>: verifier no completó
-  (<lo que devolvió, resumido>)` y sigue con `curate` normal.
-- **`KO` la segunda vez** (mismo motivo o no, tras un veredicto corregido REAL que sí volvió a
-  pasar por `swarm:verifier`): two-strike, igual que
+- **La respuesta de `swarm:verifier` a CUALQUIERA de sus dos lanzamientos (el primero, o el
+  relanzamiento tras la corrección del dominio) no es un `OK` ni un `KO <motivo>` limpio** (p.ej.
+  el propio `verifier-<domain-tag>` cierra `BLOCKED` por agotar sus 10 turnos — su uso normal
+  documentado es ~3-4, pero un fichero de hallazgos grande o un contrato incómodo pueden agotarlo
+  en cualquiera de los dos intentos, no solo el primero — o su texto no parsea como ninguna de las
+  dos formas pese al doble intento de `hooks/validate-output.py`): trátalo como un FALLO de
+  verificación, NUNCA como un `OK` implícito, en NINGUNO de los dos lanzamientos. Esta rama es
+  DISTINTA de las de arriba: ahí es el DOMINIO el que falla al responder tras un `KO` del
+  verificador (algo que corregir); aquí es `verifier` MISMO el que no completa su propio chequeo —
+  no hay nada que "corregir" en el dominio, así que NO relances `swarm:verifier` por este motivo en
+  ninguno de los dos casos (nada nuevo que reverificar) ni apliques el two-strike de la rama `KO`
+  la segunda vez (ese two-strike es sobre el CONTENIDO de un veredicto corregido REAL que
+  `swarm:verifier` sí llegó a evaluar, no sobre si `verifier` completó su turno). Cierra
+  directamente, mismo patrón de línea que el two-strike: `- run cerrado: BLOCKED verificación
+  fallida de <dominio>: verifier no completó (<lo que devolvió, resumido>)` y sigue con `curate`
+  normal.
+- **`KO` la segunda vez** (mismo motivo o no, tras un veredicto corregido REAL del dominio que SÍ
+  volvió a pasar por `swarm:verifier` en su relanzamiento Y ese segundo lanzamiento SÍ completó con
+  un `KO <motivo>` limpio propio — si en cambio ese segundo lanzamiento no completa limpio, es la
+  rama de arriba, no esta): two-strike, igual que
   `hooks/validate-output.py` — NO cures nada: la línea de cierre pasa a ser
   `- run cerrado: BLOCKED verificación fallida de <dominio>: <motivo del verifier>` y sigues con
   `curate` normal (el run se cierra `BLOCKED`, nunca en falso verde).
