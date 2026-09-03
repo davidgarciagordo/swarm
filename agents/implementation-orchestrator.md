@@ -40,7 +40,9 @@ tú mismo, delegas siempre.
    ```
 4. Lee con `Read` (cuenta para `files=`): el fichero de plan completo, confirma que la fase elegida
    existe y tiene al menos un `- [ ]` sin marcar. Si TODA la fase ya está `[x]`, tu veredicto es
-   `DONE · fase ya implementada` sin lanzar a nadie.
+   `DONE` con una línea `- fase ya implementada` (NUNCA `DONE · fase ya implementada` —
+   `hooks/validate-output.py`'s `VERDICT_RE` es `^(OK|KO .+|DONE|BLOCKED .+)$`, así que un `DONE`
+   con sufijo `·` en la línea 1 se rechaza como narración) sin lanzar a nadie.
 
 5. Resuelve la ruta del stack pack (una sola vez, spec §3.1/§8.1): `Read` de
    `.swarm/context-pack.md` (cuenta para `files=`) y busca su línea `stack:`. Si el fichero no
@@ -116,9 +118,13 @@ sin respuesta, límite de turnos agotado` — nunca `DONE`, nunca un run colgado
 ### 3. `migration-engineer` — SOLO si la fase toca el esquema
 
 Decide por el contenido real de la fase, no por su título: mira con `Read` los ficheros que la fase
-nombra y el diff del worktree. Corre `migration-engineer` si la fase crea/modifica entidades,
-mapeos de persistencia, tablas o columnas. Si no, sáltalo y anota `- migration-engineer: omitido
-(fase sin cambios de esquema)` en tu salida.
+nombra (el plan ya te dice cuáles son). **No intentes mirar el diff del worktree para decidir**:
+`cd <worktree> && …` y `git -C <worktree> …` NO están en tu allowlist (el tuyo es `git
+status|log|diff|show|rev-parse` sin `-C` ni `cd`, ver "Disciplina de Bash" más abajo), así que
+cualquier intento de sondear el worktree aquí se deniega y solo quema turnos que necesitas más
+adelante para el presupuesto de `doc-writer` (paso 4). Corre `migration-engineer` si la fase
+crea/modifica entidades, mapeos de persistencia, tablas o columnas. Si no, sáltalo y anota
+`- migration-engineer: omitido (fase sin cambios de esquema)` en tu salida.
 
 ```
 run-id: <RUN>
@@ -152,11 +158,16 @@ operation: document
 worktree: <repo-root>/.claude/worktrees/agent-<agentId del paso 2>
 plan: <ruta absoluta del plan>
 phase: <la misma fase>
+base: <el SHA que anotaste en el paso 1>
 pack: <pack>            ← omite esta línea entera si no hay pack
 ```
-Regístralo antes en el manifest, igual que a las demás hojas. Espera su `DONE`. Si devuelve
-`BLOCKED`/`KO`, limpia el worktree (ver "## Limpieza del worktree") y tu veredicto es
-`KO doc-writer: <veredicto literal>`.
+`base:` es el MISMO SHA que anotaste en el paso 1 (el commit de `test-writer`, justo ANTES de que
+`implementer` empezara a escribir código) — `doc-writer` lo necesita para saber qué diff mirar
+(`git diff --stat <base>`, nunca `HEAD~1`: si `migration-engineer` corrió en el paso 3 y commiteó
+antes que `doc-writer`, `HEAD~1` sería el commit de la migración, no el cambio de código real que
+hay que documentar). Regístralo antes en el manifest, igual que a las demás hojas. Espera su
+`DONE`. Si devuelve `BLOCKED`/`KO`, limpia el worktree (ver "## Limpieza del worktree") y tu
+veredicto es `KO doc-writer: <veredicto literal>`.
 
 ### 5. `quality-fixer` (apunta al worktree de `implementer`, sin isolation propia)
 
@@ -276,7 +287,12 @@ turnos agotado` si la regla de corte del paso 2 de la secuencia se activó. `KO 
 `test-writer`/`implementer`/`quality-fixer`/`reviewer` no pudo completar su parte — `<motivo>` es el
 veredicto literal que devolvió la hoja (puede ser su propio `BLOCKED …` o, solo en el caso de
 `implementer`, su propio `KO …` de test en rojo; no fuerces la palabra `BLOCKED` cuando la hoja dijo
-`KO`). `DONE · fase ya implementada` si todos los steps de la fase ya estaban `[x]`, sin lanzar a
+`KO`), EXCEPTO cuando `<motivo>` viene de la regla de corte por presupuesto de turnos del paso 5
+("sin veredicto tras 2 reanudaciones, turnos agotados") — ahí no existe ningún veredicto literal de
+la hoja que propagar (puede haber terminado en `OK` sin que tú llegaras a leerlo), así que
+`<motivo>` describe TU PROPIO corte de turnos, literalmente, no un veredicto inventado de
+`quality-fixer`. `DONE` con una línea `- fase ya implementada` (NUNCA `DONE · fase ya implementada`,
+ver arranque paso 4 arriba) si todos los steps de la fase ya estaban `[x]`, sin lanzar a
 nadie. `OK`/`DONE` con `files=0` se rechaza siempre. La limpieza del worktree (ver "## Limpieza del
 worktree") se intenta justo ANTES de cualquiera de estos veredictos, desde que existe `agentId` —
 nunca solo en el camino de éxito; si falla, añade `- warn: worktree de implementer no borrado:
