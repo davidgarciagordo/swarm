@@ -52,5 +52,24 @@ if [ -f "$f" ]; then
   assert_eq "allow" "$(guard "swarm:quality-fixer" 'git commit -m x')" "quality-fixer can commit its fixes"
 fi
 
+
+# ---------- T4: reviewer (read-only, gate ANTES del merge) ----------
+f="$PLUGIN_ROOT/agents/reviewer.md"
+assert_eq "0" "$([ -f "$f" ] && echo 0 || echo 1)" "agents/reviewer.md exists"
+if [ -f "$f" ]; then
+  front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"; b="$(body "$f")"
+  assert_eq "0" "$(echo "$front" | grep -q '^model: opus$' && echo 0 || echo 1)" "reviewer model is opus (spec §7)"
+  assert_eq "0" "$(echo "$front" | grep -q '^maxTurns: 15$' && echo 0 || echo 1)" "reviewer maxTurns is 15 (spec §7)"
+  assert_eq "1" "$(has "$tools" 'AskUserQuestion')" "reviewer NEVER has AskUserQuestion"
+  assert_eq "1" "$(has "$tools" 'Write')" "reviewer is read-only: no Write"
+  assert_eq "1" "$(has "$tools" 'Edit')" "reviewer is read-only: no Edit"
+  assert_eq "1" "$(echo "$front" | grep -q '^isolation:' && echo 0 || echo 1)" "reviewer has NO worktree isolation of its own"
+  assert_eq "0" "$(has "$b" 'Critical')" "reviewer documents Critical severity"
+  assert_eq "0" "$(has "$b" 'Important')" "reviewer documents Important severity"
+  assert_eq "0" "$(has "$b" 'Minor')" "reviewer documents Minor severity"
+  assert_eq "0" "$(has "$b" 'ANTES')" "reviewer documents it runs BEFORE the merge, not after"
+  assert_eq "deny" "$(guard "swarm:reviewer" 'git commit -m x')" "reviewer (read-only) cannot commit"
+fi
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
