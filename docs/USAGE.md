@@ -362,10 +362,12 @@ exactly one today: `skills/pack-php-ddd-symfony8/` (PHP + DDD + Symfony).
 contains a `symfony/` package reference anywhere in the file; if so it writes
 `stack: php-ddd-symfony8` into the pack. Every leaf that receives a resolved `pack:` header
 (`quality-fixer`, `test-writer`, `implementer`, `migration-engineer`, `doc-writer`,
-`data-model-auditor`, `vulnerability-scanner`, `dependency-auditor`, `env-checker` via
-`requirements-orchestrator`) resolves its absolute path from that line and reads only the files it
-needs. `pattern-advisor`/`domain-modeler` don't receive a `pack:` line — they only honor the
-declared `stack:` via `.swarm/context-pack.md`.
+`data-model-auditor`, `vulnerability-scanner`, `dependency-auditor`) resolves its absolute path
+from that line and reads only the files it needs. `env-checker` gets pack-aware requirements
+checking a different way, via `requirements-orchestrator`: it receives the resolved pack's
+`requirements.json` path as `--pack <file>` inside its `operation:` line, not as a separate
+`pack:` header. `pattern-advisor`/`domain-modeler` don't receive a `pack:` line either — they only
+honor the declared `stack:` via `.swarm/context-pack.md`.
 
 **What happens without one:** nothing breaks. A repo with no `composer.json`, or one that doesn't
 match a known pack, gets `stack: generic` — no `pack:` line is ever sent to a leaf, and each one

@@ -21,8 +21,9 @@ owner. **Nunca preguntas al owner** — no tienes `AskUserQuestion`.
 
 1. `RUN`: de tu cabecera (`run-id:` o `adhoc`, protocolo §2). `swarm-root:` es la ruta absoluta de
    `.swarm/`. `operation:` es `audit-deps`.
-2. `pack:` (opcional, quinta línea de tu cabecera) es la **ruta absoluta ya resuelta** del stack
-   pack activo — nunca una cadena con `${CLAUDE_PLUGIN_ROOT}` sin expandir. Si viene, haz `Read` de
+2. `pack:` (opcional, cuarta línea de tu cabecera: `run-id:`, `swarm-root:`, `operation:`,
+   `pack:`) es la **ruta absoluta ya resuelta** del stack pack activo — nunca una cadena con
+   `${CLAUDE_PLUGIN_ROOT}` sin expandir. Si viene, haz `Read` de
    `<pack>/commands.md` (cuenta para `files=`) y usa las claves `scan-deps`, `outdated` y
    `licenses` de su tabla, respetando su columna `condición` (si el fichero marcador no existe en
    este repo, esa clave no aplica y lo dices, no inventas un comando).
