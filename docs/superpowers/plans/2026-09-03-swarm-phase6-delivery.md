@@ -20,12 +20,26 @@ la realidad** (HEAD es esa rama, ese remoto existe con esa URL, la rama no es la
 protegida) y solo entonces hace `git push <remote> <branch>` y `gh pr create`. Nunca fusiona el PR,
 nunca hace checkout, nunca commitea, nunca empuja a una rama protegida — y esas cuatro cosas no
 dependen solo de la prosa: `hooks/bash-guard.py` gana un backstop determinista nuevo que las deniega
-para CUALQUIER agente, presente o futuro. `handoff-writer` corre al final de CADA invocación (éxito,
-bloqueo o rechazo del owner) y escribe un MD de relevo con la forma ya establecida en
-`docs/superpowers/handoffs/`. Los dos comandos de visibilidad NO llevan modelo: son dos scripts
-deterministas (`scripts/swarm-status.sh`, `scripts/swarm-findings.sh`) que el comando ejecuta y
-reporta tal cual, igual que `/swarm:init` con `swarm-init.sh` (spec principio 4: tool determinista
-antes que modelo; aquí, ningún modelo en absoluto).
+para CUALQUIER agente, presente o futuro.
+
+Hay una **tercera operación**, `configure-remote`, que existe por el caso real de este mismo repo: un
+repo sin remoto. `release-manager` sigue devolviendo `BLOCKED sin remoto configurado` (no puede
+empujar a un remoto que no existe), pero la RAÍZ trata ESE motivo distinto de cualquier otro
+`BLOCKED`: no cierra el run en seco, sino que lo convierte en una pregunta real al owner con
+`AskUserQuestion` — crear un repo nuevo en su cuenta de GitHub y usarlo como `origin`, usar un remoto
+que ya tiene, o no hacer nada. Si el owner elige mutar, la raíz construye una segunda cabecera de
+aprobación con la MISMA forma que la del push, `approved-remote: action=create name=<repo>
+visibility=<public|private>` (o `action=use url=<url>`), y `release-manager` —nunca la raíz, que no
+ejecuta trabajo de hoja— es quien corre `gh repo create`/`git remote add`. La raíz sigue sin tener
+`gh` en su allowlist, a propósito.
+
+`handoff-writer` corre al final de CADA invocación (éxito, bloqueo o rechazo del owner) y escribe un
+MD de relevo con la forma ya establecida en `docs/superpowers/handoffs/`. Los dos comandos de
+visibilidad tienen como camino PRIMARIO dos scripts deterministas (`scripts/swarm-status.sh`,
+`scripts/swarm-findings.sh`) que el comando ejecuta y reporta tal cual, igual que `/swarm:init` con
+`swarm-init.sh` (spec principio 4: tool determinista antes que modelo) — cero modelo en el caso
+común — más un **fallback acotado, inline en el propio fichero de comando** (sin subagente) para el
+residual que el script no puede resolver de forma determinista y señaliza con `exit 2`.
 
 **Tech Stack:** Markdown (frontmatter YAML) para agentes y comandos, Python 3 stdlib
 (`hooks/bash-guard.py`), Bash 3.2 (scripts y tests), `git` (≥ 2.x, ya requerido en
@@ -47,6 +61,14 @@ de verificación independiente, `swarm:verifier`) NO se construye en este plan**
 - **Un push real a un remoto de red.** Todo el smoke (Task 7) corre contra un **repo bare local
   desechable** (`git init --bare` en un tmp dir, `file://` como URL de remoto). Ningún paso de esta
   fase toca GitHub/GitLab ni ningún host real, ni durante el desarrollo ni durante la verificación.
+  **Matiz de `configure-remote` (Task 2b):** su rama `action=use` SÍ se ejercita en el smoke (la URL
+  es la del bare `file://`); su rama `action=create` **no se ejercita automáticamente**, porque
+  crearía un repositorio real en la cuenta del owner. Lo que sí se verifica sin tocar la red: el
+  guard (formas denegadas de `gh repo create`/`git remote add`, Task 1), el gate (`BLOCKED sin
+  aprobación de remoto` / `BLOCKED aprobación de remoto malformada` sin ejecutar nada) y el preview.
+  La ejecución real de `action=create` es un paso MANUAL y opcional del checklist, que el owner corre
+  una vez si quiere (ítem 11 de Task 7) — y de hecho ya se ejercitó a mano en este repo el
+  2026-09-03, de donde sale el ruling 14.
 - **Auto-merge de un PR.** `release-manager` prepara, empuja y abre el PR; **el merge del PR lo hace
   una persona**, siempre. Esto NO es un diferido a v1.1: es una propiedad permanente del diseño, del
   mismo rango que "`implementation-orchestrator` nunca toca `master`". `gh pr merge` queda denegado
@@ -106,8 +128,14 @@ de verificación independiente, `swarm:verifier`) NO se construye en este plan**
   `tests/test_agent_bash_blocks_allowed.sh` (Tasks 2, 3, 4) — cada bloque ```bash documentado en su
   cuerpo pasa por `hooks/bash-guard.py` con su `agent_type` real.
 - **Lección 6: limpieza de recursos mutables en TODOS los caminos de salida, con test.** Verificado
-  para esta fase: **ningún agente nuevo crea un recurso con ciclo de vida** (ni worktree, ni lock, ni
-  rama nueva, ni commit). `release-manager` publica una rama que YA existía y escribe bajo `.swarm/`
+  para esta fase: **ningún agente nuevo crea un recurso con ciclo de vida DENTRO del run** (ni
+  worktree, ni lock, ni rama nueva, ni commit). La excepción consciente es `configure-remote`
+  (Task 2b): el repositorio de GitHub y la entrada `origin` que crea son **permanentes y así lo
+  quiere el owner** — no son recursos que el run deba limpiar al salir, sino el resultado que el
+  owner aprobó explícitamente. Por eso no entran en la lección 6 (nada que revertir en el camino de
+  error: si el `gh repo create` falla, no hay repo; si falla el push posterior, el repo queda creado
+  y vacío y el veredicto lo dice literalmente, ver ruling 14).
+  `release-manager` publica una rama que YA existía y escribe bajo `.swarm/`
   (gitignorado); `handoff-writer` escribe un fichero de docs que deja sin commitear a propósito
   (ruling 9). Por eso este plan **no añade un test de limpieza nuevo** — pero Task 4 sí exige que
   `delivery-orchestrator` lance `handoff-writer` en TODOS sus caminos terminales (éxito, `KO`,
@@ -178,16 +206,48 @@ de verificación independiente, `swarm:verifier`) NO se construye en este plan**
      `--delete`/`--mirror`/`--all`/`--tags`, o con refspec `+`/`:dst` vacío → **denegado para
      cualquier agente**. Mismo patrón que el backstop `composer update` de fase 5b: la prosa dice
      qué hacer, el guard hace imposible lo contrario.
+   - **(e) La MISMA forma se reutiliza para la otra mutación externa del dominio** (crear un remoto,
+     ruling 3): `approved-remote: action=create name=<repo> visibility=<public|private>` o
+     `approved-remote: action=use url=<url>`. No se inventa un mecanismo distinto: mismo sitio donde
+     se construye (solo la raíz, tras `AskUserQuestion`), mismo preview literal ANTES de preguntar,
+     misma cabecera `clave=valor` que NOMBRA el destino, mismo rechazo (`BLOCKED sin aprobación de
+     remoto` / `BLOCKED aprobación de remoto malformada`) cuando falta o está malformada, mismo
+     backstop determinista por debajo (Task 1). Dos aprobaciones distintas para dos mutaciones
+     distintas: una NUNCA vale por la otra, y `approved-push:` no autoriza a crear nada.
 
-3. **Sin remoto configurado ⇒ `BLOCKED` ANTES de mutar nada.** Verificado EN VIVO en este repo el
-   2026-09-03: `git remote -v` no imprime nada — el repo del plugin no tiene remoto. `release-manager`
-   comprueba el remoto en sus primeros comandos, antes de escribir notas o de mirar nada más, y si no
-   hay ninguno su veredicto es `BLOCKED sin remoto configurado` con la línea de hint literal
-   `- hint: git remote add origin <url>` y CERO mutaciones. Alternativa considerada y descartada:
-   hacer igualmente el trabajo local (notas, verde) y devolver un aviso — descartada porque deja
-   artefactos huérfanos de un flujo que no puede terminar, y porque contradice el precedente
-   gate-first de `dependency-installer` (comprobar la autorización/precondición ANTES de tocar nada).
-   Coste si el ruling está mal: el owner corre `git remote add` y repite el comando.
+3. **Sin remoto configurado ⇒ `BLOCKED` en la hoja, y una PREGUNTA REAL en la raíz — no el final del
+   run.** *(Reescrito el 2026-09-03 tras la revisión del owner: la versión original terminaba el run
+   en seco con el `BLOCKED`; el owner pidió literalmente "preguntar al usuario qué quiere hacer, en
+   este caso crea un repo nuevo público en mi cuenta y súbelo tú mismo".)* Verificado EN VIVO en este
+   repo: `git remote -v` no imprimía nada — el repo del plugin no tenía remoto. El ruling tiene dos
+   mitades, y solo la segunda cambia:
+   - **En la hoja, nada cambia.** `release-manager` comprueba el remoto en sus primeros comandos,
+     antes de escribir notas o de mirar nada más, y si no hay ninguno su veredicto es
+     `BLOCKED sin remoto configurado` con la línea de hint literal `- hint: git remote add origin
+     <url>` y CERO mutaciones. Sin remoto no puede empujar: eso es un hecho, no una decisión.
+     Alternativa considerada y descartada: hacer igualmente el trabajo local (notas, verde) y
+     devolver un aviso — descartada porque deja artefactos huérfanos de un flujo que no puede
+     terminar, y porque contradice el precedente gate-first de `dependency-installer`.
+   - **En la raíz, ese motivo concreto abre un `AskUserQuestion`.** `sin remoto configurado` es el
+     ÚNICO `BLOCKED` del dominio que la raíz NO propaga y cierra: es una precondición que el owner
+     puede resolver ahora mismo, no un error. La raíz pregunta (§12.2bis): (a) crear un repositorio
+     nuevo en GitHub bajo su cuenta y usarlo como `origin`, (b) usar un remoto que ya tiene (URL por
+     texto libre en "Other"), (c) nada — se queda `BLOCKED` y el run termina honestamente. Con (a) o
+     (b), la raíz construye `approved-remote:` (ruling 2e) y relanza el dominio con
+     `operation: configure-remote`; **la raíz NO ejecuta `gh repo create` ella misma** (spec §3.2
+     regla 4: la raíz nunca ejecuta trabajo de hoja, y de hecho no tiene `gh` en su allowlist —
+     verificado en `hooks/bash-allowlist.json`). Quien muta es `release-manager`, con su gate.
+   - **Preview ANTES de preguntar, como en el push.** Quien conoce la cuenta autenticada y el nombre
+     del repo es la hoja, no la raíz: por eso el `BLOCKED sin remoto configurado` de fase A trae ya
+     las líneas `- cuenta gh:` y `- remoto propuesto: <el comando literal>`. El owner ve el nombre
+     exacto, la visibilidad y el comando ANTES de decidir — nunca después.
+   - **Tras crear el remoto, el owner RE-INVOCA; no se encadena solo.** Razón fuerte, no
+     conservadurismo: una `approved-push:` NOMBRA remoto, rama y base (ruling 2a), y en el momento en
+     que el owner aprobó el remoto **la base todavía no existía** en ningún sitio. Encadenar el push
+     dentro del mismo run exigiría fabricar una aprobación para un destino que nadie ha visto — que
+     es exactamente lo que el ruling 2 prohíbe. Así que `configure-remote` termina en `DONE` con la
+     línea `- siguiente: vuelve a lanzar la entrega ahora que <remote> existe`, y el owner teclea un
+     `/swarm:run` más. Coste si el ruling está mal: una invocación extra.
 
 4. **"Merge en verde" = la suite local está VERDE antes de empujar. Nunca = auto-mergear el PR.**
    La lectura literal del spec ("rama, PR, changelog, merge en verde") admite dos interpretaciones y
@@ -260,11 +320,33 @@ de verificación independiente, `swarm:verifier`) NO se construye en este plan**
     (unos turnos repetidos de validación) se paga a cambio de determinismo en la acción más
     consecuente del enjambre.
 
-12. **`/swarm:status` y `/swarm:findings` no llevan modelo.** Son dos scripts deterministas
-    (`scripts/swarm-status.sh`, `scripts/swarm-findings.sh`) invocados por comandos con
-    `allowed-tools: Bash`, que reportan su salida tal cual — exactamente el patrón ya probado de
-    `/swarm:init` con `swarm-init.sh`. Ni un subagente, ni un turno de modelo: leer `.swarm/` y
-    formatear no necesita juicio (spec principio 2 y 4). El filtro de `/swarm:findings` se valida
+12. **`/swarm:status` y `/swarm:findings`: script determinista como camino PRIMARIO, con un fallback
+    inline acotado para el residual.** *(Reescrito el 2026-09-03: la versión original era "no llevan
+    modelo, punto"; el owner respondió "lo que sea más óptimo, puede ser como subagente con un
+    fallback determinista".)* La regla vinculante del proyecto
+    (`~/.claude/rules/common/orchestration-and-tokens.md`) es "herramienta determinista = ejecútala,
+    NO le pongas modelo delante… un modelo SOLO para el residual que la herramienta no puede
+    auto-arreglar, y en el tier más barato que sirva". Así que el orden es ése, no el inverso:
+    - **Primario (el 100% del caso común, cero modelo):** los dos scripts deterministas
+      (`scripts/swarm-status.sh`, `scripts/swarm-findings.sh`), cuya salida el comando reporta tal
+      cual — el patrón ya probado de `/swarm:init` con `swarm-init.sh`. `exit 0` (salida normal),
+      `exit 1` (no hay `.swarm/`) y `exit 64` (filtro inválido) son casos que el script ya resuelve
+      ÉL, y el comando NO llama a ningún modelo en ninguno de los tres.
+    - **Fallback (residual, y solo con `exit` ∉ {0,1,64}):** el script no ha podido interpretar los
+      datos de forma determinista y lo dice con `exit 2` (o ha reventado: `python3` ausente → 127,
+      un `.swarm/` ilegible → traceback). Entonces —y solo entonces— el comando lee él mismo un
+      puñado acotado de ficheros de `.swarm/` y da un resumen best-effort, SIEMPRE precedido de la
+      línea `- warn: modo degradado — <script> falló (exit <n>)`. Un resultado degradado jamás se
+      presenta como el normal.
+    - **El fallback es INLINE en el fichero del comando, no un subagente nuevo.** Justificación
+      (Task 5 Step 9): el caso es de dos disparadores conocidos y se resuelve con ≤3 `Read` y ocho
+      líneas de salida; un agente nuevo costaría frontmatter, entrada de allowlist, contrato de
+      veredicto, cobertura en `test_agents_frontmatter.sh`/`test_verdict_templates_valid.sh` y un
+      spawn con registro en el manifest — todo ello para un camino que en operación normal no se
+      recorre nunca. Y el ahorro real no es "un modelo barato en cada llamada" sino **cero modelo en
+      cada llamada**, que es estrictamente mejor. El precedente de comando que hace `Bash`+`Read` sin
+      subagente ya existe (`commands/doctor.md` declara `Agent, Read, Bash, SendMessage`).
+    El filtro de `/swarm:findings` se valida
     **en el script** (`[A-Za-z0-9_-]+`, si no `exit 64`), que es la defensa autoritativa: un comando
     de slash NO pasa por `hooks/bash-guard.py` (el guard solo actúa sobre `agent_type` que empieza por
     `swarm:`), así que el argumento del usuario no puede depender de una instrucción en prosa.
@@ -277,9 +359,43 @@ de verificación independiente, `swarm:verifier`) NO se construye en este plan**
     guard lo deniega y el caso cae en el tercer estado del ruling 4 ("verde NO verificado"), nunca en
     un falso verde.
 
+14. **La identidad de `gh` y la de `git` pueden NO coincidir, y `release-manager` NUNCA reinterpreta
+    el error: lo devuelve LITERAL.** *(Ruling nuevo, 2026-09-03, de un fallo REAL reproducido en vivo
+    en esta misma sesión al crear el repo de este proyecto.)* Lo que pasó: `gh auth status` daba como
+    cuenta ACTIVA `davidgarciagordo` (la personal), `gh repo create --push` dejó el remoto como
+    `git@github.com:<owner>/<repo>.git`, y el `git push` falló con
+    `Permission ... denied to DavidClasslife` — porque el host `github.com` a secas resuelve por el
+    `Host github.com` por defecto de `~/.ssh/config`, atado a OTRA clave (la de Classlife), mientras
+    la clave personal vive bajo el alias `github-personal-david`. Se arregló a mano con
+    `git remote set-url origin git@github-personal-david:<owner>/<repo>.git`. Consecuencias de
+    diseño:
+    - **Emparejamiento asumido y documentado** en todo este flujo: cuenta personal de GitHub
+      (`davidgarciagordo`) + email de git personal (`garcia.gordo.david@gmail.com`), nunca la de
+      Classlife (memoria de proyecto "Git identity personal"). `release-manager` lo **reporta**
+      (`- cuenta gh: <login> (activa) · git user.email: <email>`) para que una discrepancia sea
+      visible ANTES de aprobar; no lo corrige.
+    - **`release-manager` NO construye ni reescribe URLs de remoto.** Deja que
+      `gh repo create --source=. --remote=origin --push` ponga la URL y luego **verifica** el
+      resultado. No tiene `git remote set-url` (denegado por el guard, y sigue denegado): reescribir
+      la config de git del owner por su cuenta es justo el "arreglo" silencioso que este proyecto
+      prohíbe.
+    - **Opción elegida: (b), superficie el error crudo.** Se descartó (a) "detectar y arreglar el
+      alias SSH": exigiría parsear `~/.ssh/config` (con `Include`, `Match`, wildcards), adivinar qué
+      alias corresponde a qué cuenta, y aun así escribir en la config del owner — mucho esfuerzo,
+      poco fiable, y muta algo que no es del run. (b) es barato y honesto: el veredicto lleva **el
+      texto literal de `git`/`gh`, sin recortar ni reformular**
+      (`BLOCKED remoto creado pero push rechazado: <stderr literal>`) más una línea de hint que
+      NOMBRA este modo de fallo, para que el owner lo diagnostique de un vistazo y sea ÉL quien mute
+      su config.
+    - **Ningún `KO`/`BLOCKED` de este dominio "traduce" un error de `git` o de `gh`.** El recorte a
+      ≤60 caracteres vale para el resumen de una suite de tests (ruling 4), no para un error de
+      credenciales o de permisos: ahí el valor está exactamente en el texto íntegro. Excepción
+      explícita al recorte, documentada en la sección "Errores de `git`/`gh`: literales, nunca
+      reinterpretados" de `agents/release-manager.md` (Task 2).
+
 ---
 
-### Task 1: Backstop determinista de `git push`/`gh` en `hooks/bash-guard.py` + allowlist de los 3 agentes nuevos
+### Task 1: Backstop determinista de `git push`/`gh`/`git remote` en `hooks/bash-guard.py` + allowlist de los 3 agentes nuevos
 
 **Files:**
 - Modify: `hooks/bash-guard.py`
@@ -295,10 +411,15 @@ de verificación independiente, `swarm:verifier`) NO se construye en este plan**
     `swarm:handoff-writer`. Las Tasks 2-4 documentan comandos que dependen EXACTAMENTE de estos
     prefijos.
   - Reglas nuevas de `hooks/bash-guard.py`: `PUSH_DENIED_FLAGS`, `PROTECTED_REFS`,
-    `SUBCOMMAND_DENIED_ARGS`, funciones `_push_dst(ref)` y `push_segment_denied(words)`. La **forma
-    única de push permitida** en todo el plugin queda fijada aquí: `git push <remote> <rama>` — dos
-    palabras posicionales, sin flags destructivos, destino no protegido. Task 2 documenta esa forma
-    literal y no otra.
+    `SUBCOMMAND_DENIED_ARGS`, `SUBCOMMAND_ALLOWED_ARGS`, `GH_REPO_CREATE_ALLOWED_FLAGS`, funciones
+    `_push_dst(ref)`, `push_segment_denied(words)`, `remote_add_segment_denied(words)` y
+    `gh_repo_create_denied(words)`. Aquí quedan fijadas las **tres únicas formas mutantes permitidas**
+    en todo el plugin:
+    - `git push <remote> <rama>` — dos palabras posicionales, sin flags destructivos, destino no
+      protegido (Task 2 documenta esa forma literal y no otra);
+    - `git remote add <nombre> <url>` — exactamente dos posicionales y **cero flags** (Task 2b);
+    - `gh repo create <nombre> [flags de un conjunto cerrado]` (Task 2b).
+    Todo lo demás de `git remote` y de `gh repo` sigue denegado para cualquier agente.
 
 - [ ] **Step 1: Escribir el test del guard (falla primero)**
 
@@ -319,7 +440,16 @@ cat > tests/test_push_guard.sh <<'EOF'
 #   - refspec con `+` (force implícito) o con destino vacío (`:rama` = borrado remoto);
 #   - `gh pr merge|close|edit|ready|review|reopen|comment|lock|unlock|checkout` (auto-merge de un PR
 #     es la propiedad de seguridad que esta fase existe para NO tener), `gh auth login|logout|...`,
-#     y los subcomandos MUTANTES de `git remote` (add/set-url/rename/remove/...).
+#     y los subcomandos DESTRUCTIVOS de `git remote` (set-url/rename/remove/prune/...).
+#
+# Y las dos únicas formas mutantes que el bootstrap de remoto necesita (ruling 3, Task 2b), cada una
+# acotada a su forma exacta para que un flag no la convierta en otra cosa:
+#   - `git remote add <nombre> <url>`: exactamente dos posicionales y CERO flags. `git remote add` es
+#     aditivo (falla si el nombre ya existe, así que no puede pisar un remoto del owner), pero
+#     `--mirror=push` lo convertiría en un remoto que borra ramas en cada push: por eso, cero flags.
+#   - `gh repo create <nombre> [flags de un conjunto CERRADO]`: `--public`/`--private`/`--source`/
+#     `--remote`/`--push`/`--description`. Cualquier otro flag (`--template`, `--clone`, `--team`…)
+#     deniega el segmento entero. `gh repo` sin `create` detrás sigue denegado por completo.
 set -u
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$DIR/lib.sh"
@@ -378,19 +508,40 @@ assert_eq "deny"  "$(guard $A 'gh pr edit 12 --title x')" "gh pr edit is denied"
 assert_eq "deny"  "$(guard $A 'gh pr ready 12')" "gh pr ready is denied"
 assert_eq "deny"  "$(guard $A 'gh pr checkout 12')" "gh pr checkout is denied (never moves the working tree)"
 assert_eq "deny"  "$(guard $A 'gh auth login')" "gh auth login is denied (interactive, mutates credentials)"
-assert_eq "deny"  "$(guard $A 'gh repo delete owner/repo')" "gh repo is not in the allowlist at all"
 
-# --- git remote: leer sí, mutar no ---
+# --- gh repo: SOLO `create`, y solo con su conjunto cerrado de flags (ruling 3, Task 2b) ---
+assert_eq "allow" "$(guard $A 'gh repo create owner/repo --private --source=. --remote=origin --push')" "the one allowed gh repo form: create with closed flags"
+assert_eq "allow" "$(guard $A 'gh repo create owner/repo --public --source=. --remote=origin --push')" "--public is in the closed flag set too"
+assert_eq "allow" "$(guard $A 'gh repo create owner/repo --public --source . --remote origin --push')" "the space form of a value flag is accepted (its value is consumed, not counted as a positional)"
+assert_eq "deny"  "$(guard $A 'gh repo delete owner/repo')" "gh repo delete is denied (only create is reachable)"
+assert_eq "deny"  "$(guard $A 'gh repo rename other')" "gh repo rename is denied"
+assert_eq "deny"  "$(guard $A 'gh repo edit --visibility public')" "gh repo edit is denied"
+assert_eq "deny"  "$(guard $A 'gh repo clone owner/repo')" "gh repo clone is denied (writes a tree the owner did not ask for)"
+assert_eq "deny"  "$(guard $A 'gh repo')" "bare gh repo is denied (no third word at all)"
+assert_eq "deny"  "$(guard $A 'gh repo create owner/repo --template evil/repo')" "an out-of-set flag denies the whole segment (flag injection)"
+assert_eq "deny"  "$(guard $A 'gh repo create owner/repo --clone')" "--clone is not in the closed set"
+assert_eq "deny"  "$(guard $A 'gh repo create')" "gh repo create with no repo name is denied"
+assert_eq "deny"  "$(guard $A 'gh repo create a b')" "two positionals after create is denied (one name, exactly)"
+
+# --- git remote: leer sí; `add` sí en su forma exacta; el resto de mutantes NO ---
 assert_eq "allow" "$(guard $A 'git remote -v')" "git remote -v is allowed"
 assert_eq "allow" "$(guard $A 'git remote get-url origin')" "git remote get-url is allowed"
-assert_eq "deny"  "$(guard $A 'git remote add origin https://example.com/x.git')" "git remote add is denied"
-assert_eq "deny"  "$(guard $A 'git remote set-url origin https://example.com/x.git')" "git remote set-url is denied"
+assert_eq "allow" "$(guard $A 'git remote add origin https://example.com/x.git')" "git remote add <name> <url> is allowed (additive: fails if the name exists)"
+assert_eq "deny"  "$(guard $A 'git remote add --mirror=push origin https://example.com/x.git')" "--mirror=push would turn every push into a destructive one: denied"
+assert_eq "deny"  "$(guard $A 'git remote add -f origin https://example.com/x.git')" "no flags at all on git remote add"
+assert_eq "deny"  "$(guard $A 'git remote add origin')" "git remote add with no URL is denied"
+assert_eq "deny"  "$(guard $A 'git remote set-url origin https://example.com/x.git')" "git remote set-url is denied (never rewrites the owner's remote — ruling 14)"
+assert_eq "deny"  "$(guard $A 'git remote -v set-url origin https://example.com/x.git')" "git remote -v set-url … is denied too (a leading flag does not hide the subcommand)"
 assert_eq "deny"  "$(guard $A 'git remote rename origin upstream')" "git remote rename is denied"
+assert_eq "deny"  "$(guard $A 'git remote remove origin')" "git remote remove is denied"
 
 # --- el backstop es GLOBAL: ningún otro agente gana push por tener el prefijo en el futuro ---
 assert_eq "deny"  "$(guard swarm:implementation-orchestrator 'git push origin feature/x')" "implementation-orchestrator has no push at all"
 assert_eq "deny"  "$(guard swarm:delivery-orchestrator 'git push origin feature/x')" "the domain orchestrator does NOT push — only its leaf does"
 assert_eq "deny"  "$(guard swarm:handoff-writer 'git push origin feature/x')" "handoff-writer never pushes"
+assert_eq "deny"  "$(guard swarm:delivery-orchestrator 'gh repo create owner/repo --private --source=. --remote=origin --push')" "the domain orchestrator creates no repository — only its leaf does"
+assert_eq "deny"  "$(guard swarm:delivery-orchestrator 'git remote add origin https://example.com/x.git')" "the domain orchestrator adds no remote"
+assert_eq "deny"  "$(guard swarm:orchestrator 'gh repo create owner/repo --private --source=. --remote=origin --push')" "the ROOT never runs leaf work: no gh at all (spec §3.2 rule 4)"
 
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
@@ -428,13 +579,39 @@ PROTECTED_REFS = ('master', 'main', 'develop', 'trunk')
 
 # Tercera palabra denegada para un prefijo de dos palabras ya permitido. Un prefijo de DOS palabras
 # ("gh pr") no puede expresar "todo menos merge" — esto lo expresa. `gh pr merge` es la línea roja
-# permanente del diseño (el PR lo mergea una persona); los mutantes de `git remote` y `gh auth`
-# cambian configuración del owner fuera del alcance de un run.
+# permanente del diseño (el PR lo mergea una persona); los mutantes DESTRUCTIVOS de `git remote` y
+# `gh auth` cambian configuración del owner fuera del alcance de un run.
+#
+# `add` NO está en la lista de `git remote`: es la única forma que el bootstrap de remoto necesita
+# (ruling 3) y es ADITIVA — `git remote add` falla si el nombre ya existe, así que no puede pisar un
+# remoto del owner. Su forma exacta la fija `remote_add_segment_denied`. `set-url` SÍ sigue denegado:
+# reescribir la URL de un remoto existente es justo lo que el ruling 14 prohíbe hacer en silencio.
 SUBCOMMAND_DENIED_ARGS = {
-    ('git', 'remote'): ('add', 'remove', 'rm', 'set-url', 'rename', 'set-head', 'prune', 'update'),
+    ('git', 'remote'): ('remove', 'rm', 'set-url', 'rename', 'set-head', 'prune', 'update'),
     ('gh', 'pr'): ('merge', 'close', 'edit', 'ready', 'review', 'reopen', 'comment', 'lock', 'unlock', 'checkout'),
     ('gh', 'auth'): ('login', 'logout', 'refresh', 'setup-git', 'token'),
 }
+
+# Inverso de SUBCOMMAND_DENIED_ARGS: para estos prefijos de dos palabras SOLO se permite un conjunto
+# CERRADO de terceras palabras, y cualquier otra (incluida la ausencia de tercera palabra) se
+# deniega. Denylist y allowlist no son intercambiables: `gh repo` tiene decenas de subcomandos y `gh`
+# añade más en cada versión, así que enumerar lo prohibido envejece mal y falla ABIERTO. Aquí sólo
+# `create` es alcanzable, y su forma la acota además `gh_repo_create_denied`.
+SUBCOMMAND_ALLOWED_ARGS = {
+    ('gh', 'repo'): ('create',),
+}
+
+# Conjunto CERRADO de flags de `gh repo create`. Lo que se protege aquí es la inyección de flags: el
+# nombre del repo y la visibilidad los decide el owner (ruling 2e), pero un `--template`, un
+# `--clone` o un `--team` convertirían "crea mi repo vacío" en otra cosa distinta. Lo que no está en
+# esta tupla deniega el segmento entero.
+GH_REPO_CREATE_ALLOWED_FLAGS = (
+    '--public', '--private', '--source', '--remote', '--push', '--description',
+)
+
+# De los anteriores, los que llevan valor: hay que consumirlo para no contarlo como el nombre del
+# repo cuando vienen en su forma con espacio (`--source .`).
+GH_REPO_CREATE_VALUE_FLAGS = ('--source', '--remote', '--description')
 ```
 
 Y justo ANTES de `def segment_allowed(...)`, las dos funciones:
@@ -477,6 +654,62 @@ def push_segment_denied(words):
     if not dst or dst in PROTECTED_REFS:
         return True
     return False
+
+
+def subcommand_and_rest(words):
+    """(subcomando, resto) de un segmento `<cmd> <grupo> …`.
+
+    El subcomando es el PRIMER no-flag tras el grupo, no `words[2]` a secas: con `words[2]` fijo,
+    `git remote -v set-url origin <url>` colaría por delante de SUBCOMMAND_DENIED_ARGS (el tercer
+    palabro sería `-v`) y `git remote -v` legítimo dejaría de funcionar si se denegara todo flag.
+    El `resto` lleva TODO lo demás —incluidos los flags que iban ANTES del subcomando—, para que
+    los verificadores de forma no puedan saltarse un flag por su posición.
+    """
+    sub = None
+    rest = []
+    for word in words[2:]:
+        if sub is None and not word.startswith('-'):
+            sub = word
+        else:
+            rest.append(word)
+    return sub, rest
+
+
+def remote_add_segment_denied(rest):
+    """True si este `git remote add` cae fuera de la ÚNICA forma permitida.
+
+    Forma permitida: `git remote add <nombre> <url>` — exactamente dos palabras posicionales y CERO
+    flags. `--mirror=push` convertiría el remoto en uno que BORRA ramas en cada push, y `-f`
+    dispararía un fetch que nadie pidió: por eso no se permite ningún flag, no una lista de flags
+    malos (fallar cerrado, igual que GH_REPO_CREATE_ALLOWED_FLAGS).
+    """
+    if any(w.startswith('-') for w in rest):
+        return True
+    return len(rest) != 2
+
+
+def gh_repo_create_denied(rest):
+    """True si este `gh repo create` cae fuera de la forma permitida.
+
+    Forma permitida: exactamente UN posicional (el nombre `owner/repo` o `repo`) y flags
+    únicamente del conjunto cerrado GH_REPO_CREATE_ALLOWED_FLAGS, en su forma `--flag`,
+    `--flag=valor` o `--flag valor`. Se cuenta el posicional tras consumir el valor de los flags que
+    lo llevan: sin eso, `--source .` metería `.` en la cuenta y la forma legítima se denegaría.
+    """
+    positional = []
+    i = 0
+    while i < len(rest):
+        word = rest[i]
+        if word.startswith('-'):
+            name = word.split('=', 1)[0]
+            if name not in GH_REPO_CREATE_ALLOWED_FLAGS:
+                return True
+            if name in GH_REPO_CREATE_VALUE_FLAGS and '=' not in word:
+                i += 1  # consume el valor de la forma `--flag valor`
+        else:
+            positional.append(word)
+        i += 1
+    return len(positional) != 1
 ```
 
 Y dentro de `segment_allowed`, inmediatamente DESPUÉS del bloque `if (len(words) >= 2 and
@@ -487,10 +720,22 @@ Y dentro de `segment_allowed`, inmediatamente DESPUÉS del bloque `if (len(words
     if len(words) >= 2 and (command_word, words[1]) == ('git', 'push'):
         if push_segment_denied(words):
             return False
-    if len(words) >= 3:
-        denied_sub = SUBCOMMAND_DENIED_ARGS.get((command_word, words[1]))
-        if denied_sub and words[2] in denied_sub:
-            return False
+    if len(words) >= 2:
+        group = (command_word, words[1])
+        allowed_sub = SUBCOMMAND_ALLOWED_ARGS.get(group)
+        denied_sub = SUBCOMMAND_DENIED_ARGS.get(group)
+        if allowed_sub is not None or denied_sub is not None:
+            sub, rest = subcommand_and_rest(words)
+            if allowed_sub is not None and sub not in allowed_sub:
+                return False  # `gh repo` a secas, o con un subcomando que no sea `create`
+            if denied_sub is not None and sub in denied_sub:
+                return False
+            if group == ('git', 'remote') and sub == 'add':
+                if remote_add_segment_denied(rest):
+                    return False
+            if group == ('gh', 'repo') and sub == 'create':
+                if gh_repo_create_denied(rest):
+                    return False
 ```
 
 - [ ] **Step 4: Añadir las 3 entradas nuevas a `hooks/bash-allowlist.json`**
@@ -507,7 +752,7 @@ orden no importa; así el fichero sigue la cronología de fases):
     "swarm:release-manager": [
       "git status", "git log", "git diff", "git show", "git rev-parse", "git remote",
       "git push",
-      "gh auth", "gh pr",
+      "gh auth", "gh pr", "gh repo",
       "ls", "cat", "head", "tail", "wc", "grep",
       "scripts/mem-", "scripts/mem-lock.sh",
       "php vendor/bin/phpunit", "php vendor/bin/paratest",
@@ -523,7 +768,13 @@ orden no importa; así el fichero sigue la cronología de fases):
 Notas deliberadas:
 - `swarm:release-manager` es el ÚNICO agente del plugin con `git push` y con `gh` — a propósito
   (ruling 2). `delivery-orchestrator` NO los tiene: el orquestador secuencia, no ejecuta trabajo de
-  hoja (spec §3.2 regla 4).
+  hoja (spec §3.2 regla 4). **La raíz tampoco los tiene** (`swarm:orchestrator` en el mismo fichero:
+  `git status|log|diff|show|rev-parse`, `cd`, `ls|cat|head|tail|wc|grep`, `scripts/mem-*`) — por eso
+  el `gh repo create` del ruling 3 lo ejecuta la hoja y no la raíz, aunque sea la raíz quien pregunta.
+- `gh repo` entra por el bootstrap de remoto (ruling 3), y entra ACOTADO: el prefijo de dos palabras
+  del allowlist solo abre la puerta, y `SUBCOMMAND_ALLOWED_ARGS` + `gh_repo_create_denied` la
+  estrechan a `gh repo create <nombre>` con su conjunto cerrado de flags. Sin esas dos reglas, "gh
+  repo" en el allowlist habría dado también `gh repo delete`.
 - Los runners de test van por prefijo de DOS palabras (`php vendor/bin/phpunit`, `composer test`,
   `npm test`…), nunca `php`/`composer`/`npm` a secas (ruling 13): darle ejecución arbitraria al
   agente que además empuja sería regalar la llave entera. `pytest` es de una palabra porque el
@@ -571,6 +822,11 @@ assert_eq "deny"  "$(guard swarm:release-manager 'git checkout feature/x')" "rel
 assert_eq "deny"  "$(guard swarm:release-manager 'git switch -c release/x')" "release-manager never creates/switches branches"
 assert_eq "deny"  "$(guard swarm:release-manager 'git tag v1.0.0')" "release-manager creates no tags in v1"
 assert_eq "deny"  "$(guard swarm:release-manager 'git worktree remove /tmp/x')" "release-manager owns no worktree"
+# bootstrap de remoto (ruling 3): las dos formas mutantes que necesita, y nada más
+assert_eq "allow" "$(guard swarm:release-manager 'gh repo create owner/repo --private --source=. --remote=origin --push')" "release-manager can create the repo the owner approved"
+assert_eq "allow" "$(guard swarm:release-manager 'git remote add origin https://example.com/x.git')" "release-manager can add the origin the owner approved"
+assert_eq "deny"  "$(guard swarm:release-manager 'gh repo delete owner/repo')" "…and nothing else under gh repo"
+assert_eq "deny"  "$(guard swarm:release-manager 'git remote set-url origin https://example.com/x.git')" "…and never rewrites an existing remote URL (ruling 14)"
 
 # --- delivery-orchestrator: secuencia, no ejecuta trabajo de hoja (spec §3.2 regla 4) ---
 assert_eq "allow" "$(guard swarm:delivery-orchestrator 'git status --porcelain')" "delivery-orchestrator can read state"
@@ -637,12 +893,20 @@ Expected: sin `FAIL` en ninguno de los dos, exit 0.
 
 Run:
 ```bash
-grep -n "push\|PROTECTED_REFS\|SUBCOMMAND_DENIED" hooks/bash-guard.py
+grep -n "push\|PROTECTED_REFS\|SUBCOMMAND_\|remote\|gh_repo" hooks/bash-guard.py
 ```
-Expected: las constantes nuevas, las dos funciones, y **exactamente un** punto de llamada de
-`push_segment_denied` dentro de `segment_allowed`. Si aparece cualquier otra rama de código que
-trate `git push` por separado (no debería haberla), se unifica antes de continuar — el bug de fase
-5b fue exactamente esto: un fix aplicado en un sitio de dos.
+Expected: las constantes nuevas, las cuatro funciones (`_push_dst`, `push_segment_denied`,
+`subcommand_and_rest`, `remote_add_segment_denied`, `gh_repo_create_denied`), y **exactamente un**
+punto de llamada de cada una dentro de `segment_allowed`. Si aparece cualquier otra rama de código
+que trate `git push`, `git remote` o `gh repo` por separado (no debería haberla), se unifica antes de
+continuar — el bug de fase 5b fue exactamente esto: un fix aplicado en un sitio de dos.
+
+Comprobación específica de esta versión del step (la que cierra el agujero de forma que la primera
+redacción tenía): **el subcomando se resuelve con `subcommand_and_rest`, no con `words[2]`**. Con
+`words[2]` fijo, `git remote -v set-url origin <url>` habría pasado por delante de
+`SUBCOMMAND_DENIED_ARGS` (su tercera palabra es `-v`, no `set-url`) y `set-url` habría quedado
+alcanzable pese a estar denegado — justo lo que el ruling 14 prohíbe. El test lo fija con la
+aserción `git remote -v set-url … is denied`.
 
 - [ ] **Step 9: Suite completa en verde**
 
@@ -687,8 +951,13 @@ git commit -m "feat(delivery): backstop determinista de git push/gh + allowlist 
   - Líneas de salida que el orquestador y la raíz reenvían tal cual:
     `- preview push: …`, `- preview pr: …`, `- remote: …`, `- commits: …`, `- verde: …`,
     `- warn: sin suite ejecutable — verde NO verificado`, `- pushed: …`, `- pr: …`,
-    `- pr manual: …`, `- pr comando: …`, `- notas: <ruta>`.
+    `- pr manual: …`, `- pr comando: …`, `- notas: <ruta>`, `- hint: …`, y —solo en el camino "sin
+    remoto"— `- cuenta gh: …` y `- remoto propuesto: …` (el preview del ruling 3, que la raíz
+    convierte en su `AskUserQuestion` de §12.2bis).
   - Ruta del artefacto de notas: `<swarm-root>/run/<run-id|adhoc>/release-notes.md`.
+  - **Task 2b añade una TERCERA operación a esta misma cabecera** (`operation: configure-remote` +
+    `approved-remote:`) y las líneas `- remoto creado:`/`- siguiente:`. El contrato de aquí no
+    cambia: se extiende.
 
 - [ ] **Step 1: Escribir el test del agente (falla primero)**
 
@@ -728,6 +997,9 @@ assert_eq "0" "$(has "$body" 'operation: publish-release')" "documents phase B"
 # propiedades permanentes
 assert_eq "0" "$(has "$body" 'BLOCKED HEAD en rama protegida')" "never publishes from a protected branch"
 assert_eq "0" "$(has "$body" 'BLOCKED sin remoto configurado')" "handles the no-remote repo honestly (ruling 3)"
+assert_eq "0" "$(has "$body" '- remoto propuesto:')" "the no-remote BLOCKED carries the preview the root needs to ask the owner (ruling 3)"
+assert_eq "0" "$(has "$body" '- cuenta gh:')" "…and names the authenticated gh account, so an identity mismatch is visible before approving (ruling 14)"
+assert_eq "0" "$(has "$body" 'sin recortar')" "raw git/gh errors are surfaced verbatim, never trimmed or reworded (ruling 14)"
 assert_eq "0" "$(has "$body" 'BLOCKED árbol sucio')" "refuses to publish a dirty tree (ruling 6)"
 assert_eq "0" "$(has "$body" 'KO tests en rojo')" "a red suite blocks the preview (ruling 4)"
 assert_eq "0" "$(has "$body" 'verde NO verificado')" "an unknown suite is reported as unknown, never as green (ruling 4)"
@@ -814,10 +1086,13 @@ primera:
   se mueve bajo sus pies. Publicas la rama en la que YA estás.
 - **Nunca empujas a `master`/`main`/`develop`/`trunk`**, en ninguna forma de refspec.
 - **Nunca creas tags** ni decides números de versión (fuera de alcance de v1).
+- **Nunca reescribes la URL de un remoto que ya existe** (no tienes `git remote set-url`, y el guard
+  lo deniega). Si una URL existente está mal, lo dices con el error literal y un hint; no la
+  "arreglas" (ruling 14).
 - **Nunca preguntas al owner** (no tienes `AskUserQuestion`, spec §3.2 regla 7). Quien pregunta es la
   RAÍZ; quien te trae su respuesta como línea de cabecera es `delivery-orchestrator`.
 
-## Arranque (idéntico en las dos fases)
+## Arranque (idéntico en TODAS tus operaciones)
 
 1. `RUN`, `swarm-root:`, `operation:` de tu cabecera (protocolo §2). `base:` es opcional;
    `pack:` puede faltar (sin stack pack); `approved-push:` SOLO existe en `publish-release`.
@@ -851,14 +1126,49 @@ con lo publicado engaña al owner.
 ```bash
 git remote -v
 ```
-(cuenta para `cmds=`). Si no imprime NADA, no hay remoto: no hay nada que publicar y no hay nada que
-aprobar. Tu veredicto es, **sin haber mutado nada**:
+(cuenta para `cmds=`). Si no imprime NADA, no hay remoto: no puedes empujar y no hay nada que
+aprobar. Ese es tu veredicto, **sin haber mutado nada** — pero **no lo devuelves pelado**: es el
+único `BLOCKED` de este agente que la raíz convierte en una pregunta al owner (ruling 3), y la
+pregunta solo puede ser concreta si tú le das el preview. Reúne los tres datos que la raíz no puede
+obtener (no tiene `gh` en su allowlist) y devuélvelos en el propio veredicto:
+
+```bash
+gh auth status
+```
+(cuenta para `cmds=`; si `gh` no está o no hay sesión, la línea `- cuenta gh:` dice
+`sin gh autenticado` y ya está — no es un error tuyo).
+
+```bash
+git log -1 --format=%ae
+```
+(cuenta para `cmds=`). **No uses `git config user.email`**: `git config` no está en tu allowlist y no
+va a estarlo — es un comando de ESCRITURA (`git config core.pager <cualquier cosa>` sería ejecución
+arbitraria disfrazada de lectura). El email del último commit responde a la misma pregunta —qué
+identidad está firmando de verdad en este repo— con un comando que ya tienes (`git log`).
+
+El nombre propuesto para el repo es el **basename de `<repo-root>`**, tal cual, sin inventar sufijos
+ni slugs. La visibilidad **no la eliges tú**: la decide el owner, y por eso el preview la muestra
+como el valor por defecto que se le va a proponer (`--private`), no como un hecho.
 
 ```
 BLOCKED sin remoto configurado
-evidence: files=1 cmds=3 turns=3/15
+evidence: files=1 cmds=5 turns=4/15
 - hint: git remote add origin <url> y vuelve a lanzar la entrega
+- cuenta gh: <login de la cuenta ACTIVA> (activa) · último commit firmado por: <email>
+- remoto propuesto: gh repo create <login>/<basename de repo-root> --private --source=. --remote=origin --push
 ```
+
+**Emparejamiento esperado en este repo** (ruling 14, memoria de proyecto "Git identity personal"):
+cuenta `gh` personal (`davidgarciagordo`) con email de git personal
+(`garcia.gordo.david@gmail.com`), nunca la cuenta ni el email de Classlife.
+
+La línea `- remoto propuesto:` es un **preview literal, no una ejecución**: en esta operación no
+corres ese comando bajo ningún concepto. Es exactamente el mismo patrón que `- preview push:` — el
+owner ve el comando entero, con sus valores resueltos, ANTES de decidir, y quien decide es él.
+
+**Si `- cuenta gh:` muestra una cuenta y un email que no casan** (por ejemplo cuenta personal y email
+corporativo), NO lo arregles y NO lo escondas: la línea ya lo hace visible, y quien decide es el
+owner (ruling 14).
 
 Si hay varios remotos, usa el del `approved-push:` en fase B; en fase A, usa `origin` si existe y si
 no el PRIMERO que liste `git remote -v`, y dilo explícitamente en la línea `- remote:` para que el
@@ -1026,8 +1336,10 @@ Esa es la ÚNICA forma que `hooks/bash-guard.py` te permite: `git push <remote> 
 posicionales, sin flags. Nada de `--force`, `--delete`, `--mirror`, `--all`, `--tags`, refspec con
 `+` o `:`, ni push a rama protegida — el guard los deniega todos, para ti y para cualquier agente
 futuro. Si el push falla (rechazo del remoto, credenciales, red), tu veredicto es
-`KO push rechazado: <motivo literal de git, ≤60 caracteres>` — **no reintentes con otra forma del
-comando y no relajes nada**: un push que el remoto rechaza es una decisión del remoto.
+`KO push rechazado: <stderr literal de git, SIN recortar>` — **no reintentes con otra forma del
+comando y no relajes nada**: un push que el remoto rechaza es una decisión del remoto. El recorte a
+≤60 caracteres que sí aplicas al resumen de una suite de tests **no aplica aquí** (ver la sección
+siguiente).
 
 ### PR (degradación honesta si no hay `gh`)
 
@@ -1054,16 +1366,50 @@ gh auth status
   `git@host:owner/repo`, `https://` y `file://` no se parsean igual y una URL inventada que lleva a
   ningún sitio es peor que un comando exacto que el owner puede pegar.
 
+## Errores de `git`/`gh`: literales, nunca reinterpretados
+
+Cuando `git` o `gh` fallan, **el texto exacto del error ES el hallazgo**. Lo copias tal cual a tu
+veredicto: sin recortar, sin traducir, sin resumirlo con tus palabras y sin sustituirlo por un
+diagnóstico tuyo. Un `KO push rechazado: fallo de permisos` no vale nada; el mensaje real sí.
+
+**Excepción explícita al recorte de ≤60 caracteres.** Ese recorte existe para el resumen de una suite
+de tests (`KO tests en rojo: …`), donde la primera línea de fallo es representativa. Un error de
+credenciales, de permisos o de red no es representativo de nada: el valor está en el texto íntegro.
+
+**El modo de fallo que hay que reconocer sin arreglarlo** (visto EN VIVO el 2026-09-03 en este mismo
+repo, ruling 14): en una máquina con VARIAS identidades de GitHub, el remoto puede quedar con el host
+por defecto `git@github.com:…` mientras la clave SSH de la cuenta autenticada vive bajo otro alias de
+`~/.ssh/config` (p. ej. `github-personal-david`). El síntoma es un push que falla con
+`Permission ... denied to <OTRA-CUENTA>` aunque `gh auth status` diga que la cuenta activa es la
+correcta. Cuando el stderr contenga `denied to` o `Permission denied`, además del texto literal añade
+esta línea:
+
+```
+- hint: el remoto usa el host SSH por defecto y tu clave de <cuenta activa> puede estar bajo otro alias de ~/.ssh/config — git remote set-url origin git@<alias>:<owner>/<repo>.git
+```
+
+**Y ahí te paras.** No ejecutas ese `git remote set-url` (no lo tienes: el guard lo deniega, a
+propósito), no parseas `~/.ssh/config`, no adivinas el alias correcto. Reescribir en silencio la
+configuración de git del owner es peor que un error claro: el hint le da el diagnóstico exacto en una
+línea y la decisión sigue siendo suya.
+
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
 Allowlist de `swarm:release-manager`: `git status|log|diff|show|rev-parse|remote`, **`git push`**,
-**`gh auth`/`gh pr`**, `ls|cat|head|tail|wc|grep`, `scripts/mem-*.sh`, y los runners de test por
-prefijo de DOS palabras (`php vendor/bin/phpunit`, `php vendor/bin/paratest`, `composer test`,
-`npm test`, `make test`, `go test`, `cargo test`) más `pytest`. **Denegados por diseño**: `git add`,
-`git commit`, `git merge`, `git checkout`, `git switch`, `git tag`, `git worktree`, `gh pr merge`
-(y `close`/`edit`/`ready`/`review`/`checkout`), `gh auth login`, los mutantes de `git remote`
-(`add`/`set-url`/`rename`/…), `php`/`composer`/`npm` a secas, `brew`, `apt`. Un comando por llamada,
-nunca encadenado con `&&` (el guard valida segmento a segmento).
+**`gh auth`/`gh pr`/`gh repo`**, `ls|cat|head|tail|wc|grep`, `scripts/mem-*.sh`, y los runners de
+test por prefijo de DOS palabras (`php vendor/bin/phpunit`, `php vendor/bin/paratest`,
+`composer test`, `npm test`, `make test`, `go test`, `cargo test`) más `pytest`. **Denegados por
+diseño**: `git add`, `git commit`, `git merge`, `git checkout`, `git switch`, `git tag`,
+`git worktree`, `git config` (es un comando de ESCRITURA), `gh pr merge` (y
+`close`/`edit`/`ready`/`review`/`checkout`), `gh auth login`, `gh repo` con cualquier subcomando que
+no sea `create`, los mutantes destructivos de `git remote` (`set-url`/`rename`/`remove`/…),
+`php`/`composer`/`npm` a secas, `brew`, `apt`. Un comando por llamada, nunca encadenado con `&&` (el
+guard valida segmento a segmento).
+
+`gh repo` y `git remote add` están en tu allowlist —acotados por el guard a `gh repo create <nombre>`
+con un conjunto cerrado de flags y a `git remote add <nombre> <url>` sin ningún flag— pero **no los
+usas en ninguna de estas dos operaciones**: `prepare-release` y `publish-release` no crean ni añaden
+remotos, solo leen el que haya.
 
 ## Salida
 
@@ -1075,7 +1421,10 @@ evidence: files=2 cmds=9 turns=12/15
 - notas: /abs/.swarm/run/<run-id>/release-notes.md
 ```
 
-`BLOCKED sin remoto configurado` si `git remote -v` no imprime nada (paso 2), con su línea de hint.
+`BLOCKED sin remoto configurado` si `git remote -v` no imprime nada (paso 2), con su línea de hint y
+con las dos líneas de preview (`- cuenta gh:`, `- remoto propuesto:`) que la raíz necesita para
+preguntarle al owner qué quiere hacer — es el único `BLOCKED` tuyo que abre una decisión en vez de
+cerrar el run, y por eso es el único que va acompañado de un preview.
 `BLOCKED HEAD en rama protegida, nada que publicar` si `HEAD` es `master`/`main`/`develop`/`trunk` o
 coincide con la base (paso 3). `BLOCKED base indeterminada` si no hay `base:` en la cabecera y
 `git rev-parse --abbrev-ref <remote>/HEAD` falla (paso 3). `BLOCKED sin aprobación de push` si falta
@@ -1112,8 +1461,18 @@ Junto a `ANALYSIS_LEAF_BLOCKED_RE` en `hooks/validate-output.py`, añade:
 # de fase 2 y que el Important #1 de fase 4, tercera aparición. Exención por FORMA (prefijo fijo
 # del vocabulario + resto), NUNCA por venir con un "- " delante: cualquier otra línea "- " sigue
 # sujeta al cap de 120.
-DELIVERY_LONG_RE = re.compile(r'^- (preview push|preview pr|pr|pr manual|pr comando|notas|handoff|pushed|remote): .+$')
+DELIVERY_LONG_RE = re.compile(
+    r'^- (preview push|preview pr|pr|pr manual|pr comando|notas|handoff|pushed|remote'
+    r'|remoto propuesto|remoto creado|cuenta gh|hint|siguiente|discrepancia): .+$'
+)
 ```
+
+Vocabulario del segundo bloque (todos pueden pasar de 120 caracteres con total normalidad, y todos
+son de FORMA fija, no prosa): `- remoto propuesto:` y `- remoto creado:` llevan un `gh repo create …`
+entero; `- cuenta gh:` lleva login + email; `- hint:` lleva un comando pegable (el de
+`git remote set-url` del ruling 14 mide ~150); `- siguiente:` cierra `configure-remote`;
+`- discrepancia:` reporta el campo que no casa en la re-verificación. Igual que arriba: la exención
+es por PREFIJO del vocabulario, nunca por venir con un `- ` delante.
 
 Y añade `DELIVERY_LONG_RE.match(stripped)` a la cadena de `or` del bloque de exenciones (el que hoy
 encadena `DISCOVERY_Q_RE` / `DISCOVERY_OTHER_RE` / `ANALYSIS_ADDITIONAL_RE` /
@@ -1154,6 +1513,314 @@ Expected: `files: 45, failed: 0`.
 ```bash
 git add agents/release-manager.md hooks/validate-output.py tests/test_delivery_agents.sh tests/test_agent_bash_blocks_allowed.sh tests/test_verdict_templates_valid.sh
 git commit -m "feat(delivery): release-manager con preview + gate de aprobacion itemizada de push"
+```
+
+---
+
+### Task 2b: `release-manager` — operación `configure-remote` (bootstrap de remoto, ruling 3)
+
+> **Por qué es una tarea aparte y no más pasos de la Task 2.** Es una capacidad NUEVA y separable:
+> una segunda mutación externa (crea un repositorio real en la cuenta del owner), con su propia
+> cabecera de aprobación, su propio gate, sus propias precondiciones y su propio veredicto. Tenerla
+> en su commit hace que (a) la Task 2 siga siendo "publicar una rama que ya existe", que es una
+> unidad completa y verificable por sí sola, y (b) el owner pueda revertir el bootstrap de remoto
+> ENTERO con un `git revert` si cambia de idea, sin tocar el flujo de push. Coste: se edita
+> `agents/release-manager.md` dos veces (Task 2 lo escribe, Task 2b lo extiende) — el mismo patrón
+> que ya usan Tasks 2/3/4 con `tests/test_delivery_agents.sh`.
+
+**Files:**
+- Modify: `agents/release-manager.md` (fila de la tabla, bullet de "Lo que NUNCA haces", párrafo de
+  "Disciplina de Bash", sección nueva `## Operación configure-remote`, y su `## Salida`)
+- Modify: `tests/test_delivery_agents.sh` (bloque de aserciones nuevo)
+
+**Interfaces:**
+- Consumes: el guard y el allowlist de Task 1 (`gh repo create` con su conjunto cerrado de flags,
+  `git remote add <nombre> <url>` sin flags, `git remote set-url` denegado) y el fichero de agente de
+  Task 2.
+- Produces (contrato que Tasks 4 y 6 deben respetar LITERALMENTE):
+  - Tercera operación de la cabecera:
+    ```
+    run-id: <uuid|adhoc>
+    swarm-root: <ruta absoluta de .swarm>
+    operation: configure-remote
+    approved-remote: action=create name=<owner>/<repo> visibility=<public|private>
+    approved-remote: action=use url=<url>        ← la otra forma; nunca las dos a la vez
+    ```
+  - Líneas de salida nuevas: `- remoto creado: …`, `- siguiente: …`, `- warn: name=<owner> no
+    coincide con la cuenta activa <login>`.
+  - Artefacto: `<swarm-root>/run/<run-id|adhoc>/remote-setup.md` (registro de la mutación externa).
+  - Veredictos nuevos: `BLOCKED sin aprobación de remoto`,
+    `BLOCKED aprobación de remoto malformada`, `BLOCKED ya hay remoto configurado: <nombre> <url>`,
+    `BLOCKED sin gh autenticado`, `BLOCKED remoto creado pero push rechazado: <stderr literal>`,
+    `KO no se pudo crear el repositorio: <stderr literal>`,
+    `KO no se pudo añadir el remoto: <stderr literal>`.
+
+- [ ] **Step 1: Añadir el bloque de aserciones al test (falla primero)**
+
+Añade a `tests/test_delivery_agents.sh`, dentro del bloque de `release-manager` (justo antes del
+comentario `# el veredicto DONE nunca lleva sufijo`):
+
+```bash
+# --- operación configure-remote (ruling 3): la SEGUNDA mutación externa, con su propio gate ---
+assert_eq "0" "$(has "$body" 'operation: configure-remote')" "documents the remote-bootstrap operation"
+assert_eq "0" "$(has "$body" 'approved-remote: action=create name=')" "documents the create approval line, verbatim"
+assert_eq "0" "$(has "$body" 'approved-remote: action=use url=')" "documents the use-an-existing-remote approval line"
+assert_eq "0" "$(has "$body" 'BLOCKED sin aprobación de remoto')" "refuses to configure a remote without the approval line"
+assert_eq "0" "$(has "$body" 'BLOCKED aprobación de remoto malformada')" "refuses a malformed remote approval"
+assert_eq "0" "$(has "$body" 'BLOCKED ya hay remoto configurado')" "never clobbers a remote that already exists"
+assert_eq "0" "$(has "$body" 'BLOCKED remoto creado pero push rechazado')" "distinguishes 'repo created, push failed' from 'nothing happened' (ruling 14)"
+assert_eq "0" "$(has "$body" 'approved-push:` NO vale como aprobación de remoto')" "one approval never stands in for the other (ruling 2e)"
+assert_eq "0" "$(has "$body" 'git remote set-url')" "names the command it must NOT run to 'fix' a URL (ruling 14)"
+assert_eq "0" "$(has "$body" '- siguiente:')" "closes by telling the owner to re-invoke, never by chaining the push itself (ruling 3)"
+assert_eq "1" "$(has "$body" 'gh repo delete')" "never mentions any gh repo subcommand other than create"
+```
+
+- [ ] **Step 2: Confirmar que falla**
+
+Run: `bash tests/test_delivery_agents.sh`
+Expected: FAIL en las once aserciones nuevas; el resto del fichero sigue en verde (Task 2 ya pasó).
+
+- [ ] **Step 3: Extender `agents/release-manager.md`**
+
+Cuatro ediciones puntuales con `Edit` (no reescribas el fichero entero):
+
+**(3a)** La tabla de fases gana una fila (el orden importa: `configure-remote` va ANTES de A porque es
+lo que desbloquea que A pueda existir):
+
+```
+| — | `configure-remote` | creas/añades el `origin` que el owner aprobó, y nada más | ningún push de entrega, ninguna reescritura de un remoto que ya exista |
+```
+
+Y la frase que introduce la tabla ("Trabajas en **dos fases separadas por una decisión humana**, y
+nunca haces la segunda sin la primera") pasa a:
+
+```
+Trabajas en **dos fases separadas por una decisión humana**, y nunca haces la segunda sin la
+primera. Hay además una operación de bootstrap, `configure-remote`, que no forma parte de esa
+secuencia: no publica nada, solo deja configurado el `origin` que el owner aprobó para que la fase A
+pueda llegar a existir. También tiene su propia decisión humana delante.
+```
+
+**(3b)** En "Lo que NUNCA haces", el bullet de la URL del remoto gana su segunda frase:
+
+```
+- **Nunca reescribes la URL de un remoto que ya existe** (no tienes `git remote set-url`, y el guard
+  lo deniega). Puedes AÑADIR un `origin` que no existía, y solo en `operation: configure-remote` con
+  la cabecera `approved-remote:` del owner. Si una URL existente está mal, lo dices con el error
+  literal y un hint; no la "arreglas" (ruling 14).
+```
+
+**(3c)** En "Disciplina de Bash", el párrafo de `gh repo`/`git remote add` se sustituye por:
+
+```
+`gh repo` y `git remote add` están en tu allowlist —acotados por el guard a `gh repo create <nombre>`
+con un conjunto cerrado de flags y a `git remote add <nombre> <url>` sin ningún flag— y los usas
+ÚNICAMENTE en `operation: configure-remote`, con su cabecera de aprobación. `prepare-release` y
+`publish-release` no crean ni añaden remotos: solo leen el que haya.
+```
+
+**(3d)** Sección nueva completa, entre "## Errores de `git`/`gh`: literales, nunca reinterpretados" y
+"## Disciplina de Bash":
+
+````markdown
+## Operación `configure-remote` — el bootstrap del remoto
+
+Existe por un caso real y frecuente: **un repo que todavía no tiene remoto**. Cuando
+`prepare-release` devuelve `BLOCKED sin remoto configurado`, la RAÍZ no cierra el run: le pregunta al
+owner qué quiere hacer con tu preview delante (`- cuenta gh:`, `- remoto propuesto:`), y si el owner
+decide crear o usar un remoto, te relanza con esta operación y una cabecera de aprobación. Tú no has
+preguntado nada y no has decidido nada: ejecutas una decisión ya tomada y NOMBRADA.
+
+### Gate de aprobación (lo primero, antes de cualquier otra cosa)
+
+Tu cabecera DEBE traer UNA de estas dos líneas, con esta sintaxis literal:
+
+```
+approved-remote: action=create name=<owner>/<repo> visibility=public
+approved-remote: action=create name=<owner>/<repo> visibility=private
+approved-remote: action=use url=<url>
+```
+
+- Si **no viene** o viene **vacía**: `BLOCKED sin aprobación de remoto`, sin ejecutar NADA.
+- Si viene pero **no casa** con una de esas dos formas —falta `action=`, `action=` no es `create` ni
+  `use`, `create` sin `name=` o sin `visibility=`, `visibility=` con un valor que no sea exactamente
+  `public` o `private`, `use` sin `url=`, o campos de más—: `BLOCKED aprobación de remoto malformada`,
+  sin ejecutar NADA.
+- **La `approved-push:` NO vale como aprobación de remoto, y la `approved-remote:` no autoriza ningún
+  push de entrega.** Son dos aprobaciones distintas para dos mutaciones distintas; ninguna se deduce
+  de la otra, ni siquiera si vienen en la misma cabecera.
+
+Los dos valores viajan a un shell REAL, así que además de la forma compruebas el contenido, y
+**fallas cerrado** en vez de sanear:
+
+- `name=` tiene que casar `^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)?$`;
+- `url=` tiene que empezar por `https://`, `git@`, `ssh://` o `file://` y no contener espacios ni
+  ninguno de `; | & $ ` ( ) < > \` ni saltos de línea.
+
+Si alguno no casa: `BLOCKED aprobación de remoto malformada`. **No lo sanees**: una URL que hay que
+sanear para poder ejecutarla no es la URL que el owner quiso escribir, y el saneado del §4.4 existe
+para texto que se muestra, no para autorizar una mutación externa.
+
+### Precondiciones (fallar ANTES de mutar, como siempre)
+
+1. **El remoto sigue sin existir.**
+   ```bash
+   git remote -v
+   ```
+   (cuenta para `cmds=`). Si ahora imprime algo, alguien lo configuró entre la pregunta y tu
+   lanzamiento: `BLOCKED ya hay remoto configurado: <nombre> <url>` con la línea
+   `- hint: relanza la entrega; si ese remoto no es el que quieres, cámbialo tú con git remote set-url`.
+   **Nunca pisas ni reescribes un remoto existente** — es la misma ventana entre preview y ejecución
+   que cierra la re-verificación de `publish-release`.
+2. **La rama actual**, para poder nombrarla en tu salida:
+   ```bash
+   git rev-parse --abbrev-ref HEAD
+   ```
+   (cuenta para `cmds=`).
+3. **Solo con `action=create`, que haya sesión de `gh`:**
+   ```bash
+   gh auth status
+   ```
+   (cuenta para `cmds=`). Exit distinto de 0 → `BLOCKED sin gh autenticado` con
+   `- hint: gh auth login (no puedo ejecutarlo yo: está denegado por el guard)`. Su salida trae el
+   login de la cuenta **activa**: si `name=` trae un `<owner>/` que no es esa cuenta, **no lo
+   corriges** — añades `- warn: name=<owner> no coincide con la cuenta activa <login>` y sigues. La
+   discrepancia se hace visible; quien decide es el owner (ruling 14).
+
+**No exiges árbol limpio en esta operación** (a diferencia de `prepare-release`): configurar un
+remoto no publica el árbol de trabajo, y `--push` publica solo lo que ya está commiteado, igual que
+cualquier push. Lo que sí haces es decirlo: si `git status --porcelain` imprime algo, añade
+`- warn: <n> ficheros sin commitear quedan fuera del push inicial`.
+
+### `action=create`
+
+Un comando, en su propia llamada, con el nombre y la visibilidad **literales de la cabecera** (no
+añades sufijos, no "mejoras" el nombre, no cambias la visibilidad):
+
+```bash
+gh repo create owner/repo --private --source=. --remote=origin --push
+```
+
+(`--public` si `visibility=public`.) Los tres flags de estado van en el MISMO comando a propósito:
+**es `gh` quien deja la URL del remoto, no tú** — tú no construyes URLs de remoto y no tienes
+`git remote set-url` para corregirla después (ruling 14). No pasas `--description` ni ningún otro
+flag: el guard solo admite el conjunto cerrado
+`--public/--private/--source/--remote/--push/--description`, y v1 no usa el último.
+
+**Verificas el resultado; no te fías de que "no dio error":**
+
+```bash
+git remote -v
+```
+(cuenta para `cmds=`)
+
+Tres desenlaces, y el segundo es el que este ruling existe para no esconder:
+
+- **`gh` exit 0 y `git remote -v` lista `origin`** → `DONE`, con `- remoto creado:` y `- siguiente:`.
+- **`gh` exit ≠ 0 pero `git remote -v` YA lista `origin`** → el repositorio se creó y el remoto se
+  añadió; lo que falló es el push. **El estado externo ha cambiado y hay que decirlo**:
+  `BLOCKED remoto creado pero push rechazado: <stderr literal de gh/git, sin recortar>`, más la línea
+  de hint del modo de fallo de identidad SSH (ver "Errores de `git`/`gh`") cuando el texto contenga
+  `denied to` o `Permission denied`. No reintentas, no cambias la URL, no borras el repo.
+- **`gh` exit ≠ 0 y sigue sin haber remoto** → no se creó nada:
+  `KO no se pudo crear el repositorio: <stderr literal, sin recortar>`.
+
+### `action=use`
+
+```bash
+git remote add origin <url>
+```
+(cuenta para `cmds=`). Sin ningún flag y con exactamente dos posicionales: es la única forma que el
+guard te permite. Comprueba el resultado con `git remote -v` (cuenta para `cmds=`); si el comando
+falla, `KO no se pudo añadir el remoto: <stderr literal, sin recortar>`.
+
+**Aquí no empujas nada.** Añadir un remoto no es publicar, y publicar necesita su propia aprobación
+`approved-push:` que NOMBRE remoto, rama y base.
+
+### El registro de la mutación (con `Write`)
+
+Toda mutación externa deja rastro. Escribe
+`<swarm-root>/run/<tu-run-id-o-adhoc>/remote-setup.md` (cuenta para `files=`) con esta forma:
+
+```
+# Remoto configurado — <YYYY-MM-DD>
+
+- accion: create | use
+- comando: <el comando literal que ejecutaste>
+- exit: <código>
+- git remote -v:
+  <la salida literal, tal cual>
+- rama actual: <branch>
+```
+
+Es el equivalente de las notas de release para esta operación: un artefacto bajo `.swarm/`
+(gitignorado) que deja por escrito qué se creó en la cuenta del owner y con qué comando exacto.
+
+### Por qué NO encadenas la entrega aquí
+
+Terminas con `- siguiente: vuelve a lanzar la entrega ahora que <remote> existe` y **no relanzas
+nada**. No es prudencia genérica: una `approved-push:` NOMBRA remoto, rama y base, y en el momento en
+que el owner aprobó el remoto **la base todavía no existía en ningún sitio**. Encadenar el push aquí
+exigiría fabricar una aprobación para un destino que el owner no ha visto — exactamente lo que el
+gate de push prohíbe. Un `/swarm:run` más cuesta una línea al owner; una aprobación fabricada costaría
+la propiedad de seguridad entera.
+
+### Salida
+
+```
+DONE
+evidence: files=1 cmds=5 turns=6/15
+- remoto creado: origin → https://github.com/owner/repo (private)
+- siguiente: vuelve a lanzar la entrega ahora que origin existe
+```
+
+Con `action=use`, la primera línea es `- remote: origin → <url>` y la segunda, la misma
+`- siguiente:`.
+````
+
+**(3e)** El párrafo final de "## Salida" del fichero gana esta frase, junto a los demás veredictos:
+
+```
+En `configure-remote`: `BLOCKED sin aprobación de remoto` si falta la línea `approved-remote:`;
+`BLOCKED aprobación de remoto malformada` si su forma o sus valores no casan;
+`BLOCKED ya hay remoto configurado: <nombre> <url>` si el remoto apareció entre medias;
+`BLOCKED sin gh autenticado` con `action=create` y sin sesión de `gh`;
+`BLOCKED remoto creado pero push rechazado: <stderr literal>` cuando el repo se creó y el push no
+entró (ruling 14); `KO no se pudo crear el repositorio: <stderr literal>` y `KO no se pudo añadir el
+remoto: <stderr literal>` cuando el comando falla sin dejar nada creado. En el camino feliz, `DONE`
+con `- remoto creado:`/`- remote:` y `- siguiente:`.
+```
+
+**(3f)** El `description:` del frontmatter gana la tercera operación (sigue empezando por "Use when",
+que es lo que exige `tests/test_agents_frontmatter.sh`):
+
+```
+description: Use when delivery-orchestrator needs a branch published — phase A previews the exact push/PR commands after checking a clean tree, a real remote and a green local suite; phase B pushes and opens the PR only with an itemised approved-push: header naming remote, branch and base; operation configure-remote creates or adds the origin the owner approved, and only with an approved-remote: header. Never merges a PR, never commits, never moves the working tree, never rewrites an existing remote URL.
+```
+
+- [ ] **Step 4: Confirmar que los tests pasan**
+
+Run:
+```bash
+bash tests/test_delivery_agents.sh && bash tests/test_agent_bash_blocks_allowed.sh && bash tests/test_verdict_templates_valid.sh
+```
+Expected: los tres sin `FAIL`, exit 0. `test_agent_bash_blocks_allowed.sh` es el que importa aquí:
+extrae los bloques ```bash nuevos (`gh repo create …`, `git remote add …`, `gh auth status`) y los
+corre contra el guard REAL con `agent_type: swarm:release-manager`. Si alguno sale denegado, el fallo
+está en la forma documentada o en el allowlist de Task 1 — **nunca se arregla borrando el bloque del
+test** (lección 5).
+
+- [ ] **Step 5: Suite completa en verde**
+
+Run: `bash tests/run.sh`
+Expected: `files: 45, failed: 0` (esta tarea no crea ficheros de test nuevos: extiende
+`tests/test_delivery_agents.sh`, igual que hará la Task 3).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add agents/release-manager.md tests/test_delivery_agents.sh
+git commit -m "feat(delivery): operacion configure-remote con gate approved-remote y errores literales"
 ```
 
 ---
@@ -1229,8 +1896,10 @@ mecánica → haiku en `full` y en `light`). Escribes UN fichero Markdown de rel
 sabe, para que una sesión nueva retome sin releer la historia entera.
 
 Corres en **todos** los caminos terminales del dominio, no solo en el feliz: si `release-manager`
-devolvió `BLOCKED sin remoto configurado`, o el owner dijo que no al push, el relevo vale MÁS, no
-menos — es justo cuando el estado es confuso.
+devolvió un `BLOCKED`, si el owner dijo que no al push, o si lo que se hizo fue configurar un remoto
+nuevo (`operation: configure-remote`) y la entrega queda para la siguiente invocación, el relevo vale
+MÁS, no menos — es justo cuando el estado es confuso, o cuando algo cambió fuera del repo, cuando una
+sesión nueva necesita saber dónde se quedó todo.
 
 ## Arranque
 
@@ -1307,8 +1976,12 @@ Reglas de contenido:
 - **Solo hechos que has verificado en este run.** Nada de inventar backlog, prioridades ni lecciones
   que no salen del `context:`, de `summary.md` o de los comandos que has corrido. Un relevo con
   información inventada es peor que no tener relevo.
-- Los asuntos de commit y el `context:` van tal cual, sin reinterpretar.
+- Los asuntos de commit y el `context:` van tal cual, sin reinterpretar. Si trae el stderr literal de
+  un error de `git`/`gh`, **lo copias entero**: ese texto es justo lo que la sesión siguiente
+  necesita para diagnosticar (ruling 14), y recortarlo destruye su único valor.
 - Si el `context:` trae un `BLOCKED`, "Siguiente paso" es exactamente el hint de ese `BLOCKED`.
+- Si trae una línea `- siguiente: …` (el caso de `operation: configure-remote`, que deja el remoto
+  configurado y la entrega pendiente), "Siguiente paso" es esa línea, literal.
 
 ## No commiteas
 
@@ -1381,13 +2054,15 @@ git commit -m "feat(delivery): handoff-writer, relevo de sesion en todos los cam
     ```
     run-id: <uuid>
     swarm-root: <ruta absoluta de .swarm>
-    operation: prepare-release | publish-release
+    operation: prepare-release | publish-release | configure-remote
     base: <rama base>                                             ← OPCIONAL
     approved-push: remote=<remote> branch=<branch> base=<base>    ← SOLO en publish-release
+    approved-remote: action=… …                                   ← SOLO en configure-remote
     ```
   - Salida: veredicto ≤10 líneas que **reenvía tal cual** las líneas de `release-manager`
     (`- preview push:`, `- preview pr:`, `- remote:`, `- commits:`, `- verde:`, `- warn:`,
-    `- pushed:`, `- pr:`, `- pr manual:`, `- pr comando:`, `- notas:`) más la línea
+    `- pushed:`, `- pr:`, `- pr manual:`, `- pr comando:`, `- notas:`, `- cuenta gh:`,
+    `- remoto propuesto:`, `- remoto creado:`, `- siguiente:`, `- hint:`) más la línea
     `- handoff: <ruta>` de `handoff-writer`.
 
 - [ ] **Step 1: Escribir el test de spawns (falla primero)**
@@ -1430,6 +2105,8 @@ assert_eq "0" "$(has "$body" 'approved-push: remote=')" "forwards the approval l
 assert_eq "0" "$(has "$body" 'nunca construyes')" "states it never builds the approval itself"
 assert_eq "0" "$(has "$body" 'operation: prepare-release')" "documents phase A"
 assert_eq "0" "$(has "$body" 'operation: publish-release')" "documents phase B"
+assert_eq "0" "$(has "$body" 'operation: configure-remote')" "documents the remote-bootstrap operation (ruling 3)"
+assert_eq "0" "$(has "$body" 'approved-remote:')" "forwards the remote approval line too, and verbatim"
 assert_eq "1" "$(has "$body" 'DONE ·')" "no 'DONE · detalle' anywhere"
 
 # handoff en TODOS los caminos terminales: la sección compartida existe y cada camino la referencia
@@ -1476,16 +2153,20 @@ la entrega"). Es la misma razón de seguridad que `implementation-orchestrator` 
 humano, publicarlo donde otras personas lo ven y lo mergean lo merece más.
 
 **Tú tampoco puedes preguntar al owner** (no tienes `AskUserQuestion`, spec §3.2 regla 7) y **nunca
-construyes la línea `approved-push:` por tu cuenta**: la construye la RAÍZ, a partir de una respuesta
-real del owner a un `AskUserQuestion`, y tú la reenvías LITERAL, carácter a carácter, a
-`release-manager`. Si tu cabecera no la trae, no la inventas ni la deduces del preview: lanzas la
-hoja sin ella y su propio gate hará su trabajo.
+construyes por tu cuenta ninguna de las dos líneas de aprobación —`approved-push:` ni
+`approved-remote:`—**: las construye la RAÍZ, a partir de una respuesta real del owner a un
+`AskUserQuestion`, y tú las reenvías LITERALES, carácter a carácter, a `release-manager`. Si tu
+cabecera no las trae, no las inventas ni las deduces del preview: lanzas la hoja sin ellas y su
+propio gate hará su trabajo. **Y nunca conviertes una en la otra**: una aprobación de push no
+autoriza a crear un repositorio, y una aprobación de remoto no autoriza a empujar.
 
 ## Contexto de arranque
 
 1. `RUN`, `swarm-root:`, `operation:` de tu cabecera (protocolo §2). `operation:` es
-   `prepare-release` (fase A) o `publish-release` (fase B). `base:` es opcional. `approved-push:`
-   solo llega en fase B.
+   `prepare-release` (fase A), `publish-release` (fase B) o `configure-remote` (bootstrap del remoto,
+   cuando la fase A devolvió `BLOCKED sin remoto configurado` y el owner decidió crearlo o
+   apuntarlo). `base:` es opcional. `approved-push:` solo llega en fase B; `approved-remote:` solo en
+   `configure-remote`.
 2. Ánclate a la raíz absoluta del repo (mismo motivo que `implementation-orchestrator`: las rutas que
    pasas a tus hojas tienen que ser absolutas):
    ```bash
@@ -1530,17 +2211,29 @@ propia cabecera — nunca reescrita, nunca reconstruida a partir del preview):
 ```
 run-id: <RUN>
 swarm-root: <ruta absoluta de .swarm>
-operation: <prepare-release | publish-release, el mismo que traes tú>
+operation: <prepare-release | publish-release | configure-remote, el mismo que traes tú>
 base: <la base de tu cabecera>          ← omite esta línea entera si no la traes
 pack: <pack>                            ← omite esta línea entera si no hay pack
-approved-push: <la línea literal de tu cabecera>   ← SOLO en publish-release
+approved-push: <la línea literal de tu cabecera>     ← SOLO en publish-release
+approved-remote: <la línea literal de tu cabecera>   ← SOLO en configure-remote
 ```
+
+En `operation: configure-remote` **no resuelves el pack** (paso 4 del arranque): configurar un remoto
+no corre ninguna suite, así que la línea `pack:` sobra y la omites.
 
 Espera su veredicto y **reenvía sus líneas tal cual** a tu salida. Cualquier veredicto que devuelva
 —`DONE`, `KO …`, `BLOCKED …`— es terminal para esta hoja: **no la relanzas ni la "arreglas"**. Un
 `BLOCKED sin remoto configurado` o un `BLOCKED sin aprobación de push` son preguntas para el owner,
 no problemas que resolver desde aquí. Sigue al paso 2 en TODOS los casos
 (ver "## Handoff — SIEMPRE").
+
+**Caso especial de reenvío: `BLOCKED sin remoto configurado`.** Es el único `BLOCKED` de la hoja que
+la raíz convierte en una pregunta en vez de en un cierre (§12.2bis de `agents/orchestrator.md`), y
+solo puede hacerlo si le llegan sus líneas de preview. Reenvía `- cuenta gh:`, `- remoto propuesto:`
+y `- hint:` **literales**, sin recortar el comando de `- remoto propuesto:` aunque sea largo (está
+exento por forma en `hooks/validate-output.py`). Tú no evalúas ese preview, no propones un nombre de
+repo alternativo y **no lanzas `configure-remote` por tu cuenta**: sin `approved-remote:` en tu
+cabecera, esa operación no existe para ti.
 
 **Regla de corte** (mismo mecanismo que `implementation-orchestrator` con `implementer`): si
 `release-manager` no ha devuelto veredicto y te quedan ≤3 turnos de tu `maxTurns: 10`, no te quedes
@@ -1607,9 +2300,20 @@ evidence: files=2 cmds=4 turns=7/10
 - handoff: /abs/docs/superpowers/handoffs/2026-09-03-next-session.md (sin commitear)
 ```
 
-`BLOCKED <motivo literal de release-manager>` cuando la hoja bloquea (sin remoto, sin aprobación,
-aprobación malformada o no coincidente, HEAD en rama protegida, base indeterminada) — propagas su
-veredicto LITERAL, no lo reformulas. `KO <motivo literal de release-manager>` cuando la hoja devuelve
+`configure-remote` (remoto configurado; la entrega queda para la siguiente invocación):
+```
+DONE
+evidence: files=1 cmds=3 turns=5/10
+- remoto creado: origin → https://github.com/owner/repo (private)
+- siguiente: vuelve a lanzar la entrega ahora que origin existe
+- handoff: /abs/docs/superpowers/handoffs/2026-09-03-next-session.md (sin commitear)
+```
+
+`BLOCKED <motivo literal de release-manager>` cuando la hoja bloquea (sin remoto, sin aprobación de
+push o de remoto, aprobación malformada o no coincidente, HEAD en rama protegida, base indeterminada,
+ya hay remoto configurado, sin `gh` autenticado, remoto creado pero push rechazado) — propagas su
+veredicto LITERAL, no lo reformulas, **y en particular no recortas el `<stderr literal>` de un error
+de `git`/`gh`** (ruling 14: ahí el valor está en el texto íntegro). `KO <motivo literal de release-manager>` cuando la hoja devuelve
 `KO` (árbol sucio, tests en rojo, push rechazado). `KO release-manager: sin respuesta, límite de
 turnos agotado` si se activó tu regla de corte — ahí el motivo es TU corte de turnos, literalmente,
 no un veredicto inventado de la hoja. En todos ellos, el handoff se ha lanzado ANTES de devolver el
@@ -1643,7 +2347,7 @@ git commit -m "feat(delivery): delivery-orchestrator secuencia release + handoff
 
 ---
 
-### Task 5: `/swarm:status` y `/swarm:findings` — visibilidad determinista, sin modelo
+### Task 5: `/swarm:status` y `/swarm:findings` — visibilidad determinista primero, con fallback acotado
 
 **Files:**
 - Create: `scripts/swarm-status.sh`
@@ -1661,9 +2365,19 @@ git commit -m "feat(delivery): delivery-orchestrator secuencia release + handoff
   `run/<id>/agents/<agente>.json` (`{agent, domain, area, owner}`), `run/<id>/summary.md`,
   `findings/<agente>.md` con entradas
   `- [key:<agente>|<TAG>|<file>:<line>] [sha:…] [status:open|resolved] [run:<id>] <TAG> · <file>:<line> · <texto> → <fix>`.
-- Produces: dos scripts con contrato estable —
-  `scripts/swarm-status.sh` (sin argumentos, exit 0 / exit 1 si no hay `.swarm/`) y
-  `scripts/swarm-findings.sh [filtro] [--all]` (filtro `[A-Za-z0-9_-]+`, exit 64 si no lo cumple).
+- Produces: dos scripts con contrato de salida estable, y el mismo en los dos —
+  `scripts/swarm-status.sh` (sin argumentos) y `scripts/swarm-findings.sh [filtro] [--all]` (filtro
+  `[A-Za-z0-9_-]+`):
+  - **0** — salida normal, el comando la reporta tal cual;
+  - **1** — no hay `.swarm/`; mensaje accionable en stderr (`/swarm:init`);
+  - **64** — argumento inválido del usuario (solo `swarm-findings.sh`);
+  - **2** — **datos que el script no puede interpretar de forma determinista** (ver ruling 12): un
+    `run.json` presente pero ilegible o malformado, o líneas de hallazgo que empiezan por `- [` y no
+    casan con la cabecera de metadatos esperada. El script imprime igualmente todo lo que SÍ pudo
+    leer, más una línea `no interpretable: …` por cada caso, y termina en 2. **Ese 2 es la señal que
+    activa el fallback del comando**, y es la única razón por la que existe: antes, el script se
+    comía el problema en silencio (`tier: ?`, o un conteo de hallazgos que no cuadra con lo que el
+    fichero tiene delante), que es justo la mentira por omisión que este proyecto no admite.
 
 - [ ] **Step 1: Escribir el test de `/swarm:status` (falla primero)**
 
@@ -1671,7 +2385,10 @@ git commit -m "feat(delivery): delivery-orchestrator secuencia release + handoff
 cat > tests/test_swarm_status.sh <<'EOF'
 #!/usr/bin/env bash
 # tests/test_swarm_status.sh — /swarm:status es DETERMINISTA (spec §11, principio 4): un script que
-# lee .swarm/ y formatea. Ningún subagente, ningún turno de modelo. Este test fija su contrato.
+# lee .swarm/ y formatea, sin subagente y sin turno de modelo en el camino normal. Este test fija su
+# contrato de salida COMPLETO —0 normal, 1 sin .swarm/, 2 datos no interpretables (ruling 12)—
+# porque el 2 es lo que decide si el comando cae o no en su fallback: si el script se degradara en
+# silencio (el viejo "tier: ?"), el fallback no se dispararía nunca y el usuario vería un dato falso.
 set -u
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$DIR/lib.sh"
@@ -1722,6 +2439,13 @@ rm -rf "$root2"
 assert_eq "0" "$rc" "exits 0 on an initialised but never-run .swarm/"
 assert_eq "0" "$(echo "$out" | grep -q 'sin runs' && echo 0 || echo 1)" "says plainly that there are no runs yet"
 
+# 4. run.json presente pero malformado → exit 2 (el residual del ruling 12), NUNCA un "tier: ?" mudo
+printf '%s' '{"id": "RUN1", "tier":' > "$root/.swarm/run/RUN1/run.json"
+out="$(SWARM_ROOT="$root/.swarm" bash "$SCRIPT" 2>&1)"; rc=$?
+assert_eq "2" "$rc" "exits 2 when run.json exists but cannot be parsed"
+assert_eq "0" "$(echo "$out" | grep -q 'no interpretable' && echo 0 || echo 1)" "and says which file it could not read"
+assert_eq "0" "$(echo "$out" | grep -q 'RUN1' && echo 0 || echo 1)" "while still printing everything it COULD read"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
 EOF
@@ -1740,9 +2464,15 @@ cat > scripts/swarm-status.sh <<'EOF'
 #!/usr/bin/env bash
 # scripts/swarm-status.sh — /swarm:status (spec §11): run actual, tier, agentes registrados,
 # líneas de summary, hallazgos abiertos y runs recientes. Determinista: ni un turno de modelo.
+#
+# Contrato de salida (ruling 12): 0 = normal · 1 = no hay .swarm/ · 2 = hay datos que este script NO
+# puede interpretar de forma determinista (imprime todo lo que sí pudo, más una línea
+# "no interpretable: …" por caso). El 2 es lo que activa el fallback acotado de commands/status.md.
+# Nunca se degrada en silencio a "tier: ?": un dato ilegible se DICE.
 set -u
 
 SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"
+degraded=0
 
 if [ ! -d "$SWARM_ROOT" ]; then
   echo "swarm: no hay .swarm/ en $SWARM_ROOT — corre /swarm:init en este repo primero" >&2
@@ -1762,6 +2492,7 @@ import json, os, sys
 run_dir, run_id = sys.argv[1], sys.argv[2]
 
 tier = started = "?"
+degraded = False
 run_json = os.path.join(run_dir, "run.json")
 if os.path.isfile(run_json):
     try:
@@ -1769,8 +2500,12 @@ if os.path.isfile(run_json):
             data = json.load(fh)
         tier = data.get("tier", "?")
         started = data.get("started", "?")
-    except (ValueError, OSError):
-        pass
+    except (ValueError, OSError) as exc:
+        # Antes esto era un `pass` y el usuario veía "tier: ?" sin saber por qué. Un run.json
+        # truncado (run interrumpido a mitad de escritura) o de otra versión del plugin es
+        # justamente el residual que un script no puede resolver y un lector sí.
+        print("no interpretable: %s (%s)" % (run_json, exc))
+        degraded = True
 
 print("run: %s · tier: %s · iniciado: %s" % (run_id, tier, started))
 
@@ -1799,7 +2534,11 @@ if os.path.isfile(summary):
         print("  %s" % l)
 else:
     print("summary del run: (todavía sin líneas)")
+
+if degraded:
+    sys.exit(2)
 PYEOF
+  [ $? -eq 2 ] && degraded=2
 fi
 
 python3 - "$SWARM_ROOT" <<'PYEOF'
@@ -1811,18 +2550,31 @@ findings_dir = os.path.join(swarm_root, "findings")
 open_by_agent = Counter()
 open_by_tag = Counter()
 total_open = 0
+unparsed = []
 if os.path.isdir(findings_dir):
     for name in sorted(os.listdir(findings_dir)):
         if not name.endswith(".md"):
             continue
+        bad = 0
         with open(os.path.join(findings_dir, name)) as fh:
             for line in fh:
                 m = re.search(r"\[key:([^|\]]+)\|([^|\]]+)\|", line)
-                if not m or "[status:open]" not in line:
+                if not m:
+                    # una línea que EMPIEZA como una entrada pero no trae la cabecera de metadatos
+                    # (fichero editado a mano, o entrada de una versión futura): el conteo saldría
+                    # bajo y nadie se enteraría. Se dice.
+                    if line.startswith("- ["):
+                        bad += 1
+                    continue
+                if "[status:open]" not in line:
                     continue
                 total_open += 1
                 open_by_agent[m.group(1)] += 1
                 open_by_tag[m.group(2)] += 1
+        if bad:
+            unparsed.append((name, bad))
+for name, bad in unparsed:
+    print("no interpretable: %d entradas de findings/%s sin cabecera [key:…]" % (bad, name))
 by_tag = ", ".join("%s: %d" % (t, n) for t, n in sorted(open_by_tag.items())) or "—"
 print("hallazgos abiertos: %d (%s)" % (total_open, by_tag))
 for agent, n in sorted(open_by_agent.items()):
@@ -1847,9 +2599,13 @@ recents.sort(reverse=True)
 print("runs recientes: %d" % len(recents))
 for started, name, tier in recents[:5]:
     print("  - %s (%s, %s)" % (name, tier, started))
-PYEOF
 
-exit 0
+if unparsed:
+    sys.exit(2)
+PYEOF
+[ $? -eq 2 ] && degraded=2
+
+exit "$degraded"
 EOF
 chmod +x scripts/swarm-status.sh
 ```
@@ -1919,6 +2675,13 @@ rm -rf "$root2"
 assert_eq "1" "$rc" "exits 1 when .swarm/ does not exist"
 assert_eq "0" "$(echo "$out" | grep -q 'swarm:init' && echo 0 || echo 1)" "and points the user at /swarm:init"
 
+# 6. entradas que no casan con la cabecera de metadatos → exit 2 (el residual del ruling 12)
+echo '- [algo escrito a mano] REVIEW · src/D.php:1 · nota suelta' >> "$root/.swarm/findings/reviewer.md"
+out="$(SWARM_ROOT="$root/.swarm" bash "$SCRIPT" 2>&1)"; rc=$?
+assert_eq "2" "$rc" "exits 2 when a '- [' entry has no [key:…] header"
+assert_eq "0" "$(echo "$out" | grep -q 'no interpretable' && echo 0 || echo 1)" "and names how many entries it could not read"
+assert_eq "0" "$(echo "$out" | grep -q 'src/A.php:10' && echo 0 || echo 1)" "while still listing the findings it COULD read"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
 EOF
@@ -1940,6 +2703,10 @@ cat > scripts/swarm-findings.sh <<'EOF'
 #
 # El filtro se valida AQUÍ (no en la prosa del comando): un comando de slash no pasa por
 # hooks/bash-guard.py, así que el argumento del usuario tiene que fallar cerrado en el propio script.
+#
+# Contrato de salida (ruling 12): 0 = normal · 1 = no hay .swarm/ · 64 = filtro inválido (error del
+# usuario, lo resuelve el propio script) · 2 = hay entradas que no se pueden interpretar de forma
+# determinista. Solo el 2 activa el fallback acotado de commands/findings.md.
 set -u
 
 SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"
@@ -1983,6 +2750,7 @@ STATUS_RE = re.compile(r"\[status:(\w+)\]")
 CAP = 50
 
 rows = []
+unparsed = 0
 if os.path.isdir(findings_dir):
     for name in sorted(os.listdir(findings_dir)):
         if not name.endswith(".md"):
@@ -1991,6 +2759,11 @@ if os.path.isdir(findings_dir):
             for line in fh:
                 m = KEY_RE.search(line)
                 if not m:
+                    # línea con forma de entrada pero sin cabecera de metadatos: no se puede filtrar
+                    # ni clasificar de forma determinista. Se cuenta y se dice (ruling 12), en vez de
+                    # desaparecer del listado sin dejar rastro.
+                    if line.startswith("- ["):
+                        unparsed += 1
                     continue
                 agent, tag = m.group(1), m.group(2)
                 sm = STATUS_RE.search(line)
@@ -2013,9 +2786,13 @@ for agent, tag, status, body in rows[:CAP]:
     print("  - %-22s %s%s" % (agent, body, mark))
 if len(rows) > CAP:
     print("  … y %d más (afina con /swarm:findings <agente|TAG>)" % (len(rows) - CAP))
+if unparsed:
+    print("no interpretable: %d entradas sin cabecera [key:…] (no se pueden filtrar)" % unparsed)
+    sys.exit(2)
 PYEOF
+rc=$?
 
-exit 0
+exit "$rc"
 EOF
 chmod +x scripts/swarm-findings.sh
 ```
@@ -2032,22 +2809,39 @@ Expected: sin `FAIL`, exit 0.
 ```markdown
 ---
 description: Muestra el estado del enjambre en este repo — run actual, tier, agentes registrados, summary y hallazgos abiertos.
-allowed-tools: Bash
+allowed-tools: Bash, Read
 ---
 
 Ejecuta `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-status.sh` y reporta su salida al usuario tal cual — no
 reformatees, no resumas y no añadas interpretación: ya es un resumen en texto plano, y cualquier
-reescritura le quita al usuario los valores exactos (run-id, tier, conteos) que ha pedido ver. Si el
-script termina con código distinto de 0, muestra su línea de stderr tal cual (el caso normal es
-`.swarm/` inexistente, que se arregla con `/swarm:init`).
+reescritura le quita al usuario los valores exactos (run-id, tier, conteos) que ha pedido ver.
 
 `/swarm:status` no toma argumentos: cualquier texto que el usuario añada tras el comando se ignora.
-No lanza ningún subagente y no consume ningún turno de modelo — leer `.swarm/` y formatear no
-necesita juicio (spec §11 y principio 4: tool determinista antes que modelo).
+En el camino normal **no lanza ningún subagente y no consume ningún turno de modelo** — leer `.swarm/`
+y formatear no necesita juicio (spec §11 y principio 4: tool determinista antes que modelo).
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/swarm-status.sh"
 ```
+
+Según el código de salida del script:
+
+- **0** — su salida es el resultado. Repórtala tal cual y **termina ahí**: ninguna tool más.
+- **1** — no hay `.swarm/`. Muestra su línea de stderr tal cual (dice que se arregla con
+  `/swarm:init`) y termina. **No es un fallo del script**: es la respuesta correcta.
+- **cualquier otro código (2, 127, un traceback…)** — y SOLO entonces, camino degradado: el script no
+  ha podido interpretar los datos (un `run.json` truncado por un run interrumpido o escrito por otra
+  versión del plugin; entradas de `findings/*.md` sin la cabecera `[key:…]` esperada) o no ha podido
+  ni arrancar. Haz esto, y nada más:
+  1. Muestra primero la línea literal
+     `- warn: modo degradado — swarm-status.sh falló (exit <código>)`, seguida de la salida que el
+     script sí llegó a producir.
+  2. Lee **como mucho tres** ficheros, con `Read`, y solo estos: `.swarm/run/current`,
+     `.swarm/run/<ese id>/run.json` y `.swarm/run/<ese id>/summary.md`.
+  3. Resume en **≤8 líneas**: qué run parece el actual, qué se puede leer de él y qué no.
+  4. **No vuelvas a ejecutar el script, no lo "arregles", no toques ningún fichero de `.swarm/` y no
+     lances ningún subagente.** Un resultado degradado se presenta SIEMPRE como degradado; nunca
+     rellenes con suposiciones el hueco que el script no pudo leer.
 ```
 
 `commands/findings.md` (usa `Write`):
@@ -2056,20 +2850,37 @@ necesita juicio (spec §11 y principio 4: tool determinista antes que modelo).
 ---
 description: Consulta filtrada de los hallazgos del enjambre — por agente o por tag, solo abiertos por defecto.
 argument-hint: [agente|TAG] [--all]
-allowed-tools: Bash
+allowed-tools: Bash, Read
 ---
 
 Ejecuta `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-findings.sh` pasándole el argumento del usuario, y
-reporta su salida tal cual — no reformatees ni resumas. Si el script termina con código distinto de
-0, muestra su línea de stderr tal cual (`64` = filtro inválido, `1` = `.swarm/` inexistente, que se
-arregla con `/swarm:init`).
+reporta su salida tal cual — no reformatees ni resumas.
 
 El argumento es como mucho **un** filtro (nombre de agente o TAG) más el flag opcional `--all`. El
 propio script rechaza cualquier filtro que no case con `[A-Za-z0-9_-]+` y termina con `exit 64` sin
 tocar nada: no intentes "arreglar" un filtro raro ni construir una variante del comando — pásalo
 entrecomillado y deja que el script decida.
 
-No lanza ningún subagente y no consume ningún turno de modelo (spec §11 y principio 4).
+En el camino normal no lanza ningún subagente y no consume ningún turno de modelo (spec §11 y
+principio 4). Según el código de salida:
+
+- **0** — su salida es el resultado; repórtala tal cual y termina.
+- **1** (no hay `.swarm/`) y **64** (filtro inválido) — muestra su línea de stderr tal cual y
+  termina. Los dos son respuestas correctas del script a una situación que él mismo resuelve; **no
+  son el disparador del fallback** y no justifican ni una lectura extra.
+- **cualquier otro código (2, 127, un traceback…)** — y SOLO entonces, camino degradado: hay
+  entradas que el script no puede clasificar (líneas `- [` sin la cabecera `[key:agente|TAG|…]`,
+  típicamente un `findings/*.md` editado a mano o escrito por una versión distinta) o el script no ha
+  podido ni arrancar. Haz esto, y nada más:
+  1. Muestra primero la línea literal
+     `- warn: modo degradado — swarm-findings.sh falló (exit <código>)`, seguida de lo que el script
+     sí llegó a imprimir.
+  2. Lee con `Read` **como mucho tres** ficheros de `.swarm/findings/` — si el usuario pasó un
+     filtro, el que lleve su nombre primero.
+  3. Lista las entradas **literalmente, sin reinterpretarlas** (≤8 líneas), y di cuáles no traen
+     metadatos y por eso no se pueden filtrar por agente ni por tag.
+  4. **No edites ningún fichero de hallazgos, no "normalices" ninguna entrada, no vuelvas a ejecutar
+     el script y no lances ningún subagente.**
 
 Argumento del usuario:
 
@@ -2187,6 +2998,17 @@ assert_eq "0" "$(has "$body" 'nunca a partir de un sí genérico')" "a bare yes 
 assert_eq "0" "$(has "$body" 'verde NO verificado')" "the unverified-green warning must reach the question text (ruling 4)"
 assert_eq "0" "$(has "$body" 'Agent` FRESCO')" "phase B is a fresh Agent launch, not a SendMessage resume (ruling 11)"
 
+# el bootstrap de remoto (ruling 3): el ÚNICO BLOCKED que abre una pregunta en vez de cerrar el run
+assert_eq "0" "$(has "$body" '### 12.2bis')" "root has the no-remote decision point as its own section"
+assert_eq "0" "$(has "$body" 'operation: configure-remote')" "root documents the remote-bootstrap operation"
+assert_eq "0" "$(has "$body" 'approved-remote: action=create name=')" "root builds the create approval with its exact shape"
+assert_eq "0" "$(has "$body" 'approved-remote: action=use url=')" "…and the use-an-existing-remote one too"
+assert_eq "0" "$(has "$body" 'remoto propuesto')" "the preview reaches the question text before the owner decides"
+assert_eq "0" "$(has "$body" 'no encadenas la entrega')" "creating the remote never chains straight into the push (ruling 3)"
+assert_eq "0" "$(has "$body" 'BLOCKED url de remoto malformada')" "a hostile or malformed pasted URL closes the run, it is not sanitised"
+# y la frase que la versión anterior tenía y ahora sería FALSA
+assert_eq "1" "$(has "$body" 'No hay pregunta que hacer sobre una publicación que no se puede preparar')" "the old 'no question to ask' blanket rule is gone (it is false for the no-remote case)"
+
 # la lección 4 del handoff: el párrafo de exención de saneado, LITERAL, una vez por sección de reenvío
 assert_eq "0" "$(has "$body" 'Esa exención NO cubre el `summary --line` del cierre.')" "the sanitisation exemption paragraph is present verbatim"
 occurrences="$(grep -cF 'Esa exención NO cubre el `summary --line` del cierre.' "$F")"
@@ -2230,10 +3052,12 @@ mergean— es la menos reversible. Lanzas `delivery-orchestrator` solo cuando el
 pide explícitamente ("publica la rama X", "abre el PR de Y", "prepara la entrega de Z"), nunca como
 continuación de otro dominio.
 
-Dos operaciones, dos invocaciones distintas, con el owner decidiendo en medio:
+Tres operaciones, tres invocaciones distintas, con el owner decidiendo en medio:
 
 - `operation: prepare-release` — la primera vez, siempre. No sale nada de la máquina del owner.
 - `operation: publish-release` — solo DESPUÉS del gate de §12.2, y solo si el owner aprobó.
+- `operation: configure-remote` — solo DESPUÉS del gate de §12.2bis, y solo si `prepare-release`
+  devolvió `BLOCKED sin remoto configurado` y el owner eligió crear o apuntar un remoto.
 
 ### 12.2 Gate de aprobación de push — nunca autorizas una publicación por tu cuenta
 
@@ -2243,8 +3067,11 @@ abstracto ("saca esto ya") y ni siquiera en `tier: full`.** El camino es siempre
 
 1. Lanza `operation: prepare-release` y quédate con sus líneas de preview
    (`- preview push:`, `- preview pr:`, `- remote:`, `- commits:`, `- verde:` y cualquier `- warn:`).
-   Si vuelve `BLOCKED`/`KO`, ahí termina: propaga su veredicto (§12.3) y cierra el run. **No hay
-   pregunta que hacer sobre una publicación que no se puede preparar.**
+   Si vuelve `BLOCKED`/`KO`, ahí termina: propaga su veredicto (§12.3) y cierra el run — **con una
+   sola excepción, `BLOCKED sin remoto configurado`, que no es un fallo sino una precondición que el
+   owner puede resolver ahora mismo: ese caso va a §12.2bis, no a este cierre.** Para todos los
+   demás, no hay pregunta que hacer sobre una publicación que no se puede preparar: un árbol sucio,
+   una suite en rojo o un `HEAD` en rama protegida los arregla el owner en su repo, no una pregunta.
 2. Presenta al owner UNA sola pregunta con `AskUserQuestion` (**single-select**, `multiSelect: false`
    — hay una sola decisión: se publica o no; §11.2 usa `true` porque allí el owner marca varios
    paquetes). Eres el ÚNICO agente del plugin con `AskUserQuestion` (spec §3.2 regla 7). El texto de
@@ -2273,16 +3100,68 @@ abstracto ("saca esto ya") y ni siquiera en `tier: full`.** El camino es siempre
    de entrada, y un relanzamiento limpio garantiza que `release-manager` re-ejecuta TODAS sus
    validaciones contra el estado real en vez de confiar en lo que alguien creía tener.
 
+### 12.2bis Sin remoto configurado — el único `BLOCKED` que abre una decisión
+
+Cuando `delivery-orchestrator` devuelve `BLOCKED sin remoto configurado`, **no cierras el run**. No es
+un error del owner ni un fallo del enjambre: es una precondición que falta y que él puede resolver en
+diez segundos si se lo preguntas bien. Es el mismo patrón de §12.2 —preview primero, aprobación que
+NOMBRA el destino después— aplicado a la otra mutación externa del dominio.
+
+1. **El preview ya te lo ha dado la hoja.** Su `BLOCKED` trae `- cuenta gh: <login> (activa) · último
+   commit firmado por: <email>` y `- remoto propuesto: gh repo create <login>/<repo> --private
+   --source=. --remote=origin --push`. **Tú no lo recalculas**: no tienes `gh` en tu allowlist y no
+   ejecutas trabajo de hoja (spec §3.2 regla 4). Si por lo que sea esas dos líneas no vienen,
+   entonces sí cierras el run propagando el `BLOCKED` — sin preview no hay pregunta honesta que
+   hacer.
+2. **UNA sola llamada a `AskUserQuestion`** (`multiSelect: false`), con el nombre exacto del repo, la
+   cuenta bajo la que se crearía y el comando literal DENTRO del texto — nunca "¿creo un repo?" a
+   secas. Cuatro opciones:
+   - **A)** `Crear <login>/<repo> PRIVADO en GitHub y usarlo como origin` *(Recommended)*
+   - **B)** `Crear <login>/<repo> PÚBLICO en GitHub y usarlo como origin`
+   - **C)** `Ya tengo un remoto: pego la URL` — el owner la escribe en "Other"
+   - **D)** `Nada: lo configuro yo a mano`
+   Si `- cuenta gh:` dice `sin gh autenticado`, A y B no son ofrecibles: la pregunta se queda en C y
+   D, y el texto lo explica. Si `- cuenta gh:` muestra una cuenta y un email que no casan entre sí,
+   **esa discrepancia va DENTRO del texto de la pregunta**, igual que el `verde NO verificado` de
+   §12.2: el owner aprueba con los ojos abiertos o no aprueba.
+3. **Traduces la respuesta a una línea literal**, tomando los valores del preview y no de la prosa
+   del owner:
+   ```
+   approved-remote: action=create name=<login>/<repo> visibility=private
+   approved-remote: action=use url=<la URL que pegó el owner>
+   ```
+   (`visibility=public` con la opción B.) Antes de construir la forma `use`, **valida la URL**: tiene
+   que empezar por `https://`, `git@`, `ssh://` o `file://` y no contener espacios ni ninguno de
+   `; | & $ ` ( ) < > \`. Si no cumple, **no la sanees y no vuelvas a preguntar** (una tanda, §5.3):
+   tu veredicto es `BLOCKED url de remoto malformada` y cierras el run como cualquier otro camino
+   terminal (§12.3). Una URL que hay que limpiar para poder ejecutarla no es la que el owner quiso.
+4. Con la opción **D**, o si el owner cancela el diálogo: no lanzas nada, propagas el
+   `BLOCKED sin remoto configurado` original y cierras con
+   `- run cerrado: BLOCKED sin remoto configurado` (§12.4). Que el owner diga "ya lo hago yo" es una
+   respuesta válida, no un fallo.
+5. Con **A**, **B** o **C**: lanza `operation: configure-remote` con un **tool `Agent` FRESCO**
+   (mismo motivo que en §12.2: la aprobación viaja como cabecera de lanzamiento verificable), la
+   línea `approved-remote:` y **sin** `approved-push:` — una aprobación no vale por la otra.
+6. **Cuando `configure-remote` vuelve en `DONE`, no encadenas la entrega.** Cierras el run con
+   `- run cerrado: DONE · remoto configurado, entrega pendiente de relanzar` y le dices al owner, con
+   la línea `- siguiente:` de la hoja, que vuelva a lanzar la entrega. No es prudencia genérica: una
+   `approved-push:` NOMBRA remoto, rama y base, y cuando el owner aprobó el remoto **la base todavía
+   no existía**; encadenar exigiría fabricar una aprobación para un destino que él no ha visto, que
+   es exactamente lo que §12.2 prohíbe.
+
 ### 12.3 Lanzamiento y reenvío del resultado
 
 ```
 Agent(subagent_type: "swarm:delivery-orchestrator", name: "delivery-orchestrator", prompt:
   run-id: <run-id>
   swarm-root: <ruta absoluta de .swarm>
-  operation: prepare-release | publish-release
+  operation: prepare-release | publish-release | configure-remote
   base: <rama base, solo si el owner la nombró explícitamente>
-  approved-push: <la línea literal de §12.2 — SOLO en operation: publish-release>)
+  approved-push: <la línea literal de §12.2 — SOLO en operation: publish-release>
+  approved-remote: <la línea literal de §12.2bis — SOLO en operation: configure-remote>)
 ```
+
+Las dos líneas de aprobación **nunca viajan juntas**: cada operación lleva la suya y solo la suya.
 
 Regístralo antes en el manifest:
 ```bash
@@ -2290,7 +3169,8 @@ Regístralo antes en el manifest:
 ```
 
 Reenvía sus líneas (`- preview push:`, `- preview pr:`, `- remote:`, `- commits:`, `- verde:`,
-`- pushed:`, `- pr:`, `- pr manual:`, `- pr comando:`, `- notas:`, `- handoff:`) tal cual a tu propia
+`- pushed:`, `- pr:`, `- pr manual:`, `- pr comando:`, `- notas:`, `- handoff:`, `- cuenta gh:`,
+`- remoto propuesto:`, `- remoto creado:`, `- siguiente:`, `- hint:`) tal cual a tu propia
 salida (§7) — igual mecanismo que §8.3/§9.3/§10.3/§11.3 para analysis/design/implementation/
 requirements, SIN pasarlas por el saneado de §5.0 — esa exención vale únicamente para las líneas que
 van a tu OUTPUT de turno (lo que lee `hooks/validate-output.py`), que nunca pasa por un shell, así
@@ -2314,6 +3194,10 @@ devolver el veredicto).
 - publicado: `- run cerrado: DONE · rama publicada y PR abierto`
 - publicado sin PR (sin `gh`): `- run cerrado: DONE · rama publicada, PR pendiente de abrir a mano`
 - owner no autorizó: `- run cerrado: DONE · publicación no autorizada por el owner`
+- remoto configurado (§12.2bis): `- run cerrado: DONE · remoto configurado, entrega pendiente de relanzar`
+- owner eligió configurar el remoto a mano (§12.2bis, opción D o diálogo cancelado):
+  `- run cerrado: BLOCKED sin remoto configurado`
+- URL pegada inválida (§12.2bis): `- run cerrado: BLOCKED url de remoto malformada`
 - `BLOCKED`/`KO` propagado (§12.3): `- run cerrado: <veredicto literal de delivery-orchestrator>`
 ````
 
@@ -2358,7 +3242,15 @@ dominio **delivery** con las tres propiedades que el usuario necesita saber ante
 
 1. no se encadena nunca — hay que pedirlo explícitamente;
 2. son dos pasos con una pregunta en medio, y la aprobación nombra remoto/rama/base;
-3. el swarm **nunca mergea el PR**: lo abre y lo deja para una persona.
+3. el swarm **nunca mergea el PR**: lo abre y lo deja para una persona;
+4. si el repo **no tiene remoto**, el swarm no se queda ahí: pregunta si crear uno nuevo en tu cuenta
+   de GitHub (privado por defecto) o usar uno que ya tengas, te enseña el `gh repo create …` exacto
+   ANTES de que decidas, y tras configurarlo **te pide que relances la entrega** — no encadena el
+   push por su cuenta.
+
+Y en las dos subsecciones nuevas de comandos, una línea sobre el modo degradado: si el script no
+puede interpretar algún dato de `.swarm/`, el comando lo dice con `- warn: modo degradado …` y da un
+resumen best-effort; nunca presenta un resultado incompleto como si fuera el normal.
 
 Replica los mismos cambios en `docs/USAGE.es.md` (mismo contenido, en español; los dos ficheros son
 traducciones el uno del otro, no versiones distintas).
@@ -2404,8 +3296,10 @@ git commit -m "feat(delivery): integra el dominio delivery en la raiz (12) con g
 cat > docs/superpowers/plans/2026-09-03-phase6-smoke-checklist.md <<'EOF'
 # Checklist de smoke — Fase 6 (dominio delivery + /swarm:status + /swarm:findings)
 
-Gate. **Ninguna parte de este checklist toca un remoto real.** Todo el ejercicio de push corre contra
-un repo bare local desechable.
+Gate. **Ninguna parte AUTOMÁTICA de este checklist toca un remoto real.** Todo el ejercicio de push
+corre contra un repo bare local desechable. La única excepción está marcada como tal y es
+**opcional**: el `action=create` del ítem 10, que crea un repositorio real en la cuenta del owner y
+solo se ejecuta si él lo pide expresamente (y se borra después).
 
 ## Fixture (montarlo ANTES de nada, y borrarlo al final)
 
@@ -2423,12 +3317,20 @@ echo "cambio" >> README.md && git add README.md && git commit -m "feat: cambio d
 
 Limpieza al terminar: `rm -rf "$SMOKE"`. Anota la ruta usada:
 
-## 1. Sin remoto → `BLOCKED`, cero mutaciones
+## 1. Sin remoto → `BLOCKED` **con preview**, cero mutaciones
 
 Contra un segundo fixture SIN `git remote add`: `release-manager` en adhoc con
 `operation: prepare-release` → `BLOCKED sin remoto configurado` + línea de hint, y **nada escrito**
-(comprobar que no existe `release-notes.md`). Este es el caso real del propio repo del plugin, que
-sigue sin remoto (`git remote -v` vacío, verificado 2026-09-03).
+(comprobar que no existe `release-notes.md`). Comprobar además las dos líneas de preview del
+ruling 3, sin las cuales la raíz no puede preguntar nada: `- cuenta gh: <login> (activa) · último
+commit firmado por: <email>` y `- remoto propuesto: gh repo create <login>/<basename> --private
+--source=. --remote=origin --push`. Y que **el comando propuesto NO se ha ejecutado** (`gh repo list`
+a mano, o simplemente que `git remote -v` del fixture sigue vacío).
+
+*(Nota de contexto: hasta el 2026-09-03 el propio repo del plugin era este caso — `git remote -v`
+vacío. Ese mismo día se le creó su remoto a mano, `origin
+git@github-personal-david:davidgarciagordo/swarm.git`, y de ahí salió el ruling 14. El caso "sin
+remoto" ya solo se reproduce con un fixture.)*
 Evidencia:
 
 ## 2. Árbol sucio y rama protegida → `KO`/`BLOCKED` antes de tocar el remoto
@@ -2497,10 +3399,49 @@ desde ningún otro dominio, que la pregunta muestra remoto/rama/base/commits/ver
 intacto.
 Evidencia:
 
-## 10. Nada del repo del plugin se ha publicado
+## 10. `configure-remote` — gate, `action=use` contra el bare, y el `create` MANUAL y opcional
 
-En el checkout real del plugin: `git remote -v` sigue vacío y `git log --all --oneline | head -5` no
-muestra commits inesperados. El fixture está borrado (`rm -rf "$SMOKE"`).
+Los tres primeros son automáticos y no tocan la red; el cuarto es opcional y lo decide el owner.
+
+- **Gate sin cabecera**: `operation: configure-remote` sin línea `approved-remote:` →
+  `BLOCKED sin aprobación de remoto`, `cmds=0`, y `git remote -v` del fixture sigue vacío.
+- **Gate malformado**: `approved-remote: sí`, `approved-remote: action=create name=x` (sin
+  `visibility=`), `approved-remote: action=use url=x y` (con espacio) y
+  `approved-remote: action=use url=https://a.b/c;id` → los cuatro,
+  `BLOCKED aprobación de remoto malformada`, sin ejecutar nada.
+- **`action=use` real contra el bare**: `approved-remote: action=use url=file://$SMOKE/remote.git` en
+  un fixture sin remoto → `DONE` con `- remote:` y `- siguiente:`, `git remote -v` lista `origin`,
+  `remote-setup.md` existe con el comando literal, y **el bare NO ha recibido ninguna rama nueva**
+  (`git -C "$SMOKE/remote.git" branch --list` igual que antes): configurar no es publicar.
+- **Remoto ya existente**: repetir el paso anterior sobre el mismo fixture →
+  `BLOCKED ya hay remoto configurado: origin file://…`, y la URL **no** se ha reescrito.
+- **`action=create` (MANUAL, opcional, crea un repo real)**: solo si el owner quiere ejercitarlo.
+  Comprobar antes que `gh auth status` da la cuenta personal (`davidgarciagordo`) y que
+  `git log -1 --format=%ae` da `garcia.gordo.david@gmail.com` (ruling 14). Si el push inicial falla
+  con `denied to <otra cuenta>`, el veredicto tiene que ser
+  `BLOCKED remoto creado pero push rechazado:` **con el stderr literal íntegro** y la línea de hint
+  del alias SSH — no un `KO` genérico ni un mensaje recortado. Borrar el repo de prueba después.
+Evidencia:
+
+## 11. Modo degradado de `/swarm:status` y `/swarm:findings` (ruling 12)
+
+Sobre una copia desechable de `.swarm/`: truncar `run/<id>/run.json` a la mitad → el script sale con
+`exit 2`, imprime `no interpretable: …` y todo lo que sí pudo leer, y el comando **antepone**
+`- warn: modo degradado — swarm-status.sh falló (exit 2)` antes del resumen best-effort. Mismo
+ejercicio con una línea `- [algo]` sin cabecera `[key:…]` en `findings/*.md` para
+`/swarm:findings`. Verificar las dos propiedades que hacen que el fallback no sea un agujero de
+coste: con `exit 0`, `1` y `64` **no se lee ni un fichero extra**, y en el degradado **no se lanza
+ningún subagente** (no aparece agente nuevo en el manifest).
+Evidencia:
+
+## 12. Nada del repo del plugin se ha publicado, y el fixture está borrado
+
+En el checkout real del plugin: `git remote -v` sigue mostrando **exactamente** el remoto que ya
+tenía (`origin git@github-personal-david:davidgarciagordo/swarm.git` — el que se creó a mano el
+2026-09-03), sin remotos añadidos ni URLs reescritas por ningún agente; y
+`git log --all --oneline | head -5` no muestra commits inesperados. **Comprobar también que ninguna
+rama del plugin ha llegado a ese remoto por accidente durante el smoke**
+(`git ls-remote --heads origin`). Y el fixture borrado: `rm -rf "$SMOKE"`.
 Evidencia:
 
 ## Firma
@@ -2512,7 +3453,9 @@ EOF
 - [ ] **Step 2: Ejecutar el smoke EN VIVO**
 
 Metodología headless (`claude -p --plugin-dir <este worktree> --permission-mode bypassPermissions`)
-contra el fixture desechable, salvo el ítem 9, que necesita sesión interactiva real. Si aparece un
+contra el fixture desechable, salvo el ítem 9 (necesita sesión interactiva real: `AskUserQuestion` no
+se simula) y el `action=create` opcional del ítem 10 (lo lanza el owner, a mano, sobre su cuenta
+real). Si aparece un
 bug real, **se arregla en el momento** (regla del owner: "arregla todos los bugs que encuentres
 siempre") y se anota en el checklist qué se arregló — en CADA fase anterior el smoke en vivo encontró
 bugs que ninguna review de lectura pilló.
@@ -2520,12 +3463,19 @@ bugs que ninguna review de lectura pilló.
 - [ ] **Step 3: Review final de rama (Opus, sobre TODO el diff de la fase)**
 
 Mismo patrón que fases 1-5b. Foco explícito, además de lo habitual:
-1. **Que no exista NINGUNA vía de push que no pase por el gate `approved-push:`** — incluida la
-   posibilidad de que `delivery-orchestrator` construya la línea él mismo, o de que la reconstruya a
-   partir del preview en vez de copiarla de su cabecera.
+1. **Que no exista NINGUNA vía de push que no pase por el gate `approved-push:`, ni ninguna vía de
+   crear/añadir un remoto que no pase por `approved-remote:`** — incluida la posibilidad de que
+   `delivery-orchestrator` construya cualquiera de las dos líneas él mismo, de que la reconstruya a
+   partir del preview en vez de copiarla de su cabecera, o de que **use una aprobación como si fuera
+   la otra**.
 2. **Que el backstop de `hooks/bash-guard.py` no tenga un agujero de forma** (refspecs, flags
-   pegados, clusters, `refs/heads/`, `+`, `:dst`) — y que no haya un SEGUNDO punto del fichero que
-   trate `git push` sin pasar por él (lección 8).
+   pegados, clusters, `refs/heads/`, `+`, `:dst`; y en las reglas nuevas: flags fuera del conjunto
+   cerrado de `gh repo create`, un flag colado ANTES del subcomando —`git remote -v set-url`—, y
+   cualquier `gh repo` que no sea `create`) — y que no haya un SEGUNDO punto del fichero que trate
+   `git push`, `git remote` o `gh repo` sin pasar por él (lección 8).
+2bis. **Que `release-manager` no reescriba ni fabrique NUNCA una URL de remoto** (ruling 14): ni
+   `git remote set-url`, ni parseo de `~/.ssh/config`, ni una URL construida a mano; y que los
+   errores de `git`/`gh` viajen literales hasta el veredicto de la raíz, sin recortar.
 3. Que las líneas de salida de las tres piezas nuevas casen EXACTAMENTE entre agente emisor,
    orquestador que reenvía y raíz que cierra (nombres de operación, forma de `approved-push:`, rutas).
 4. Que ninguna plantilla de veredicto nueva use `DONE · <detalle>` (lección 7) — más allá de lo que
@@ -2552,9 +3502,13 @@ fase siguiente": apunta a **la decisión de v1**. Debe incluir:
   `ls agents/*.md`, no darlo por bueno de memoria) y 5 comandos.
 - El **backlog completo acumulado** de las reviews de fases 1-6, con lo nuevo de esta fase:
   `hooks/bash-guard.py` sigue sin inspeccionar `$(...)` dentro de argumentos sin comillas (ahora más
-  relevante: hay un agente con `git push`); `release-manager` no crea tags ni edita `CHANGELOG.md`
-  (ruling 7); la lista de ramas protegidas es de 4 nombres fijos, no la base real del remoto;
-  `release-manager` publica la rama actual y no crea `release/<slug>` (ruling 5).
+  relevante: hay un agente con `git push` y con `gh repo create`); `release-manager` no crea tags ni
+  edita `CHANGELOG.md` (ruling 7); la lista de ramas protegidas es de 4 nombres fijos, no la base
+  real del remoto; `release-manager` publica la rama actual y no crea `release/<slug>` (ruling 5);
+  el modo de fallo de identidad SSH se **reporta** pero no se detecta de forma estructurada (ruling
+  14, opción (b) deliberada — si algún día duele, la opción (a) queda como backlog explícito); el
+  `action=create` de `configure-remote` no tiene cobertura automática de extremo a extremo (crea un
+  repo real), solo gates y guard.
 - Qué se arregla ANTES de declarar v1 y qué queda como backlog post-v1 documentado — esa es la
   decisión que el owner tiene que tomar, y el handoff debe presentársela, no tomarla.
 
@@ -2581,6 +3535,20 @@ fase siguiente": apunta a **la decisión de v1**. Debe incluir:
 | §6 contrato de evidencia en los 3 agentes nuevos | Global Constraints + `tests/test_verdict_templates_valid.sh` extendido en Tasks 2, 3, 4 |
 | §14 (smoke tests en `tests/`) | Task 7, con fixture bare-repo nuevo |
 | §14bis (gate `swarm:verifier`, v2.2) | **fuera de alcance declarado** — sin fase asignada en §15, lo lleva la sesión peer; §12.3 se escribe para heredarlo vía §4 sin cambios |
+| §7 "Entrega" — bootstrap del remoto (`configure-remote`) | Task 2b + Task 6 §12.2bis. **No está en el spec**: es una decisión del owner del 2026-09-03 (ruling 3), y se implementa DENTRO del dominio delivery, no como dominio nuevo — ver "¿es esto delivery o requisitos?" más abajo |
+
+**¿El bootstrap de remoto es "delivery" o se cuela en "requisitos"?** Es una pregunta legítima:
+`requirements-orchestrator` es el dominio que comprueba y arregla precondiciones del entorno
+(`env-checker`, `dependency-installer`), y "no hay remoto" suena a precondición. La decisión es
+**delivery**, por tres razones verificables contra el diseño existente: (a) el dato que falta solo
+existe en el vocabulario de delivery —remoto, rama, base, PR—, y `requirements` no sabe nada de
+publicación; (b) quien detecta la falta es `release-manager`, en su propia secuencia de validaciones,
+y mover la reparación a otro dominio partiría en dos un flujo con un único gate humano; (c) el
+precedente de `dependency-installer` no es "requisitos arregla cualquier precondición" sino "quien
+muta algo del entorno lo hace con aprobación itemizada del owner" — y eso es exactamente lo que hace
+`configure-remote`, en su propio dominio. Consecuencia asumida: el dominio delivery deja de tocar
+solo el repo y pasa a poder crear un recurso en una cuenta externa; por eso el ruling 2e le exige la
+misma disciplina que al push, y por eso el guard lo acota a `gh repo create` y a `git remote add`.
 
 **Huecos conscientes, todos marcados como rulings revisables:** "changelog" se implementa como notas
 de release en `.swarm/`, no editando el `CHANGELOG.md` del repo (ruling 7); "rama" se implementa como
@@ -2591,22 +3559,33 @@ expone (§16 excluye telemetría de coste de v1).
 
 **2. Escaneo de placeholders.** Ninguna tarea contiene "TBD", "similar a la Task N", "añadir manejo
 de errores apropiado" ni un paso de código sin su bloque. El contenido de los 3 agentes, los 2
-scripts, los 2 comandos y los 6 tests va literal y completo. Los `<placeholders>` angulares que
+scripts, los 2 comandos y los 7 tests va literal y completo. Los `<placeholders>` angulares que
 aparecen (`<remote>`, `<branch>`, `<base>`, `<pack>`, `<repo-root>`, `<run-id>`) son parte deliberada
 del contrato de prompt y están definidos donde se usan.
 
 **3. Consistencia de tipos e interfaces entre tareas.**
 
-- **La línea de aprobación** es el interfaz crítico de toda la fase, y aparece con la MISMA forma
-  literal en cinco sitios: `agents/release-manager.md` (quien la exige y la parsea, Task 2),
+- **Las DOS líneas de aprobación** son el interfaz crítico de toda la fase, tienen la misma forma
+  (cabecera `clave=valor` que NOMBRA el destino) y cada una aparece idéntica en cinco sitios:
+  `agents/release-manager.md` (quien la exige y la parsea, Tasks 2 y 2b),
   `agents/delivery-orchestrator.md` (quien la reenvía literal, Task 4), `agents/orchestrator.md`
-  §12.2 (quien la CONSTRUYE, Task 6), y los tests `test_delivery_agents.sh` /
-  `test_delivery_orchestrator_spawns.sh` / `test_orchestrator_delivery.sh` que la fijan con
-  `grep -F 'approved-push: remote='`. Forma única:
-  `approved-push: remote=<remote> branch=<branch> base=<base>`.
-- **Nombres de operación**: `prepare-release` y `publish-release` viajan sin traducción desde la raíz
-  (§12.3) → `delivery-orchestrator` → `release-manager`; `handoff` es el único de `handoff-writer`.
-  Cada cadena aparece idéntica en el emisor, el receptor y el test.
+  §12.2 / §12.2bis (quien las CONSTRUYE, Task 6), y los tests `test_delivery_agents.sh` /
+  `test_delivery_orchestrator_spawns.sh` / `test_orchestrator_delivery.sh`, que las fijan con
+  `grep -F 'approved-push: remote='` y `grep -F 'approved-remote: action='`. Formas únicas:
+  `approved-push: remote=<remote> branch=<branch> base=<base>`,
+  `approved-remote: action=create name=<owner>/<repo> visibility=<public|private>` y
+  `approved-remote: action=use url=<url>`. **Ninguna de las dos vale por la otra**, y esa frase está
+  escrita explícitamente en los tres ficheros que las manejan.
+- **Nombres de operación**: `prepare-release`, `publish-release` y `configure-remote` viajan sin
+  traducción desde la raíz (§12.3) → `delivery-orchestrator` → `release-manager`; `handoff` es el
+  único de `handoff-writer`. Cada cadena aparece idéntica en el emisor, el receptor y el test.
+- **El camino "sin remoto" es coherente de punta a punta**, y esa coherencia es lo que la revisión
+  del owner rompió y hubo que rehacer: la hoja bloquea CON preview (Task 2), el orquestador de
+  dominio reenvía el preview sin evaluarlo (Task 4), la raíz es la única que pregunta y la única que
+  construye la aprobación (Task 6 §12.2bis), la hoja ejecuta bajo gate (Task 2b) y nadie encadena la
+  entrega después. La frase que la versión anterior tenía en §12.2 —"no hay pregunta que hacer sobre
+  una publicación que no se puede preparar"— habría contradicho todo esto, y por eso el test
+  `test_orchestrator_delivery.sh` comprueba explícitamente que **ya no está** en el fichero.
 - **Líneas de salida reenviadas**: `- preview push:`, `- preview pr:`, `- remote:`, `- commits:`,
   `- verde:`, `- pushed:`, `- pr:`, `- pr manual:`, `- pr comando:`, `- notas:`, `- handoff:`,
   `- warn: …`. Definidas en Task 2/Task 3 (`Produces`), reenviadas sin reformular en Task 4 y Task 6.
@@ -2616,8 +3595,25 @@ del contrato de prompt y están definidos donde se usan.
   `BLOCKED base indeterminada`, `BLOCKED sin aprobación de push`,
   `BLOCKED aprobación de push malformada`, `BLOCKED aprobación no coincide con el estado real`,
   `BLOCKED árbol sucio: <n> ficheros sin commitear`, `KO tests en rojo: <motivo>`,
-  `KO push rechazado: <motivo>`, `BLOCKED sin contexto de entrega`. Todos con sufijo tras `KO`/
-  `BLOCKED` (permitido) y **ningún `DONE`/`OK` con sufijo** (lección 7).
+  `KO push rechazado: <stderr literal>`, `BLOCKED sin contexto de entrega`, y los de Task 2b:
+  `BLOCKED sin aprobación de remoto`, `BLOCKED aprobación de remoto malformada`,
+  `BLOCKED ya hay remoto configurado: <nombre> <url>`, `BLOCKED sin gh autenticado`,
+  `BLOCKED remoto creado pero push rechazado: <stderr literal>`,
+  `KO no se pudo crear el repositorio: <stderr literal>`,
+  `KO no se pudo añadir el remoto: <stderr literal>`, más el de la raíz
+  `BLOCKED url de remoto malformada`. Todos con sufijo tras `KO`/`BLOCKED` (permitido) y **ningún
+  `DONE`/`OK` con sufijo** (lección 7).
+- **Recorte del motivo: dos reglas distintas, a propósito.** `KO tests en rojo:` recorta a ≤60
+  caracteres (la primera línea de fallo es representativa); todo lo que venga de `git`/`gh` va
+  **íntegro y literal** (ruling 14). La distinción está escrita en `agents/release-manager.md`
+  ("Errores de `git`/`gh`") y repetida en el reenvío de `delivery-orchestrator`, que es donde se
+  perdería si alguien la recortara "por limpieza".
+- **Líneas largas y `hooks/validate-output.py`**: las nuevas (`- remoto propuesto:`,
+  `- remoto creado:`, `- cuenta gh:`, `- hint:`, `- siguiente:`, `- discrepancia:`) pasan de 120
+  caracteres y están exentas **por forma** en `DELIVERY_LONG_RE` (Task 2 Step 4), no por llevar
+  `- ` delante. Sin esa extensión, el `- hint:` del ruling 14 (~150 caracteres) sería rechazado por
+  el hook justo en el camino de error donde más falta hace — es la cuarta aparición del mismo bug de
+  fondo (C1 de fase 2, Important #1 de fase 4, preview de esta fase).
 - **Ruta del artefacto de notas**: `<swarm-root>/run/<run-id|adhoc>/release-notes.md`, idéntica en
   Task 2 (quien la escribe), en la línea `- notas:` que reenvían Tasks 4 y 6, y en el ítem 3 del
   smoke (Task 7).
@@ -2631,6 +3627,23 @@ del contrato de prompt y están definidos donde se usan.
   `test_bash_allowlist_delivery.sh`, `test_delivery_agents.sh`,
   `test_delivery_orchestrator_spawns.sh`, `test_swarm_status.sh`, `test_swarm_findings.sh`,
   `test_orchestrator_delivery.sh`) = **49** al cerrar la fase. Los `Expected: files: N` de cada tarea
-  siguen esa progresión: 44 (T1), 45 (T2), 45 (T3), 46 (T4), 48 (T5), 49 (T6).
+  siguen esa progresión: 44 (T1), 45 (T2), **45 (T2b)**, 45 (T3), 46 (T4), 48 (T5), 49 (T6). La Task
+  2b no crea ficheros de test: extiende `tests/test_delivery_agents.sh`, igual que la Task 3.
+- **Contrato de salida de los dos scripts de visibilidad**: 0 / 1 / 64 / **2**, idéntico en los dos,
+  definido en Task 5 (`Produces`), implementado en los dos scripts, ejercitado por
+  `test_swarm_status.sh` (caso 4) y `test_swarm_findings.sh` (caso 6), y consumido con esos mismos
+  cuatro códigos por `commands/status.md` y `commands/findings.md`. El fallback se dispara con
+  **exit ∉ {0,1,64}** en los dos ficheros de comando, con la misma redacción.
+
+**4. Tamaño de las tareas tras la revisión del owner.** El bootstrap de remoto es alcance NUEVO y
+real: una segunda mutación externa completa. Se decidió **partirla en la Task 2b** en vez de
+engordar la Task 2 (que ya escribe un fichero de agente de ~300 líneas) — así la Task 2 sigue siendo
+una unidad verificable por sí sola ("publicar una rama que ya existe") y el owner puede revertir el
+bootstrap entero con un `git revert` si cambia de idea. Las otras tres tareas tocadas crecen sin
+dejar de ser una unidad: **Task 1** suma dos mecanismos de guard (`SUBCOMMAND_ALLOWED_ARGS` y los dos
+verificadores de forma) y ~20 aserciones, y sigue siendo "el backstop determinista"; **Task 6** suma
+§12.2bis, que es una sección más en el fichero que ya iba a editar; **Task 5** suma el `exit 2` a los
+dos scripts y el fallback a los dos comandos. Ninguna de ellas cambia de fichero-objetivo ni de
+commit.
 - **Conteo del párrafo de exención de saneado** en `agents/orchestrator.md`: 4 hoy → **5** tras Task
   6, aserción explícita en `tests/test_orchestrator_delivery.sh`.
