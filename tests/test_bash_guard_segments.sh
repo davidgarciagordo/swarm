@@ -105,5 +105,88 @@ assert_eq "0" "$(echo "$out_quoted_chain" | grep -q '"permissionDecision": "deny
 assert_eq "0" "$(echo "$out_quoted_chain" | grep -qF 'git commit -m \"a && b\"' && echo 0 || echo 1)" \
   "deny reason cites the FULL unsplit segment (git commit -m \"a && b\"), confirming the quoted && was not treated as a separator"
 
+# ═════════════════════════════════════════════════════════════════════════════════════════════════
+# Round 2 de la review adversarial: cinco fallos del PARSER (no de las reglas de push/gh).
+#
+# Todos se prueban con una carga que NO dispara el gate estructural de formas canónicas
+# (`rm -rf /tmp/zzz`, que no está en el allowlist de nadie), justamente para que lo que se verifique
+# aquí sea el parser en sí y no la capa de encima. Los mismos ataques en su forma original
+# (`git push --force origin master`) están en tests/test_push_guard_canonical.sh.
+# ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+PAYLOAD='rm -rf /tmp/zzz'
+
+# ---------- sustitución de PROCESO `<(...)` / `>(...)`: se escanea igual que `$(...)` ----------
+# Era el agujero más barato de todo el fichero: el segmento visible empieza por `ls`/`cat`, que está
+# en el allowlist de casi todos los agentes del plugin, y el comando real vivía dentro del paréntesis
+# sin que nadie lo mirase. `>(...)` además se ejecuta de forma asíncrona.
+assert_eq "deny" "$(decision "$(json "$M" "ls <($PAYLOAD)")")" \
+  "<(...) process substitution body is checked as its own segment (round 2 — was completely unscanned)"
+assert_eq "deny" "$(decision "$(json "$M" "ls > >($PAYLOAD)")")" \
+  ">(...) output process substitution body is checked too"
+assert_eq "deny" "$(decision "$(json "$M" "cat <(ls) <($PAYLOAD)")")" \
+  "a second process substitution is scanned too, not just the first"
+assert_eq "allow" "$(decision "$(json "$M" 'cat <(git status)')")" \
+  "a process substitution whose body is ALLOWED does not cause a false deny"
+
+# ---------- desincronización del rastreador de comillas (tres bugs distintos, round 2) ----------
+# En los tres el shell real está FUERA de comillas donde el rastreador creía estar DENTRO, así que el
+# `;` siguiente no se veía como separador y todo lo de detrás quedaba pegado a un primer palabro
+# permitido.
+out_bs_quote="$(_run_hook <<'EOF'
+{"agent_type": "swarm:memory-orchestrator", "tool_name": "Bash", "tool_input": {"command": "cat \\\" ; rm -rf /tmp/zzz"}}
+EOF
+)"
+assert_eq "0" "$(echo "$out_bs_quote" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" \
+  "backslash-escaped double quote OUTSIDE quotes does not open a string: the ; after it still splits (round 2 bug 1)"
+
+out_ansi_c="$(_run_hook <<'EOF'
+{"agent_type": "swarm:memory-orchestrator", "tool_name": "Bash", "tool_input": {"command": "cat $'a\\'b' ; rm -rf /tmp/zzz"}}
+EOF
+)"
+assert_eq "0" "$(echo "$out_ansi_c" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" \
+  "ANSI-C quoting \$'a\\'b': the escaped quote does not close the string, so the ; after it still splits (round 2 bug 2)"
+
+out_esc_in_dq="$(_run_hook <<'EOF'
+{"agent_type": "swarm:memory-orchestrator", "tool_name": "Bash", "tool_input": {"command": "cat \"a\\\"\" ; rm -rf /tmp/zzz"}}
+EOF
+)"
+assert_eq "0" "$(echo "$out_esc_in_dq" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" \
+  "escaped quote INSIDE double quotes does not close them early: the ; after the real close still splits (round 2 bug 3)"
+
+# y el contrario: una comilla real sigue protegiendo su contenido (sin falsos positivos)
+assert_eq "allow" "$(decision "$(json "$M" 'cat \"a;b\"')")" \
+  "a genuinely quoted ; is still not a separator (the state machine did not become over-eager)"
+assert_eq "allow" "$(decision "$(json "$M" "cat 'a;b'")")" \
+  "a ; inside single quotes is still not a separator"
+
+# ---------- tope de recursión: FALLA CERRADO ----------
+# Antes, a partir de la profundidad 9 el generador hacía `return` — dejaba de mirar y el comando
+# quedaba PERMITIDO. Diez `$(...)` anidados eran una llave maestra.
+deep="$PAYLOAD"
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do deep="ls \$($deep)"; done
+assert_eq "deny" "$(decision "$(json "$M" "$deep")")" \
+  "12 nested \$(...) with a disallowed command at the bottom is DENIED (the depth cap fails closed, not open)"
+
+# ---------- REGRESIÓN de round 1: `&` de redirección no es el `&` de fondo ----------
+# El fix de C5 añadió `&` al conjunto de separadores sin excluir las redirecciones, y `2>&1` pasó a
+# partirse en `2>` + `1`. Eso denegaba comandos de lectura perfectamente legítimos para TODOS los
+# agentes: no era un agujero, pero sí una regresión de comportamiento que no debía llegar a merge.
+assert_eq "allow" "$(decision "$(json "$M" 'git status 2>&1')")" \
+  "2>&1 is a redirection, not the background & separator (round 1 regression, fixed)"
+assert_eq "allow" "$(decision "$(json "$M" 'git log --oneline 2>&1 | head -5')")" \
+  "2>&1 combined with a pipe still allows"
+assert_eq "allow" "$(decision "$(json "$M" 'git diff &> /dev/null')")" \
+  "&> (bash stdout+stderr redirection) is not a separator either"
+assert_eq "allow" "$(decision "$(json "$M" 'git status 1>&2')")" \
+  "1>&2 allows"
+assert_eq "allow" "$(decision "$(json "$M" 'git status 2>/dev/null')")" \
+  "2>/dev/null (no & at all) allows"
+# …y el `&` de fondo DE VERDAD sigue partiendo, incluso pegado a una redirección
+assert_eq "deny" "$(decision "$(json "$M" "git status 1>&2& $PAYLOAD")")" \
+  "a real background & immediately after a redirection still splits (the exclusion needs adjacency to < or >)"
+assert_eq "deny" "$(decision "$(json "$M" "git status & $PAYLOAD")")" \
+  "the plain background & still splits (round 1 fix preserved)"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

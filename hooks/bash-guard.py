@@ -60,9 +60,17 @@ BARE_TWO_WORD_DENIED = {
 # Un merge local se deshace; un push a un remoto compartido, o un PR que otra persona mergea, no
 # siempre. La prosa de agents/release-manager.md dice qué forma usar; esto hace imposible el resto,
 # para CUALQUIER agent_type (presente o futuro), igual que BARE_TWO_WORD_DENIED con `composer update`.
+#
+# `--receive-pack`/`--exec`/`--upload-pack` (round 2, review adversarial): NO son flags "destructivos"
+# sino EJECUCIÓN DE CÓDIGO. `--receive-pack=<ruta>` nombra el programa que se ejecuta en el "otro
+# lado" del push; cuando el remoto es una ruta local —forma que este diseño permite explícitamente
+# (`git remote add origin /ruta`)— el otro lado es ESTA máquina, así que `git push
+# --receive-pack=/tmp/evil.sh origin rama` corre `/tmp/evil.sh` localmente. `--exec` es su alias.
+# `--repo=<url>` reescribe el destino real del push, que es justo lo que el owner previsualizó.
 PUSH_DENIED_FLAGS = (
     '--force', '-f', '--force-with-lease', '--force-if-includes',
     '--delete', '-d', '--mirror', '--all', '--prune', '--tags', '--follow-tags',
+    '--receive-pack', '--exec', '--upload-pack', '--repo',
 )
 
 # Ramas cuyo destino NUNCA se empuja desde el enjambre. Extiende la guarda de 2 nombres que
@@ -72,7 +80,8 @@ PROTECTED_REFS = ('master', 'main', 'develop', 'trunk')
 # C2 (fase 6, review adversarial): `HEAD` y `@` son alias AMBIGUOS del commit actual — no dicen a
 # simple vista qué rama del remoto se toca, y con el checkout equivocado apuntan a `master`/`main`
 # tan fácilmente como a una feature branch. La única forma permitida es un nombre de rama EXPLÍCITO.
-PUSH_AMBIGUOUS_DST = ('HEAD', '@')
+# En MINÚSCULAS: `push_dst_denied` compara siempre `dst.lower()` (ver allí el porqué).
+PUSH_AMBIGUOUS_DST = ('head', '@')
 
 # C3/I1 (fase 6, review adversarial): whitelist de FORMA, no blacklist de alias. `heads/<rama>` y
 # `refs/heads/<rama>` resuelven al MISMO destino real que `<rama>` a secas vía DWIM de git — una
@@ -125,14 +134,183 @@ GH_REPO_CREATE_ALLOWED_FLAGS = (
 GH_REPO_CREATE_VALUE_FLAGS = ('--source', '--remote', '--description')
 
 
+# ─────────────────────────────────────────────────────────────────────────────────────────────────
+# GATE ESTRUCTURAL: allowlist de FORMAS CANÓNICAS (round 3, fase 6)
+# ─────────────────────────────────────────────────────────────────────────────────────────────────
+# Cambio ARQUITECTÓNICO, no un parche más. Dos rondas de review adversarial encontraron 11 bypasses
+# del parser de shell hecho a mano (`split_segments`, `_find_command_substitutions`,
+# `subcommand_and_rest`): sustitución de proceso `<(...)`/`>(...)` no escaneada, tres desincronizados
+# distintos del rastreador de comillas (`\"`, `$'...'` ANSI-C, comilla escapada dentro de comillas
+# dobles), un tope de recursión que fallaba ABIERTO, y `--receive-pack=<ruta>` (ejecución de código
+# local). El patrón es claro: perseguir features del shell una a una es una carrera que el parser
+# pierde.
+#
+# La defensa estructural invierte la carga de la prueba. Para las familias de comando que MUTAN algo
+# irreversible (`git push`, `git remote add`/`set-url`, `gh repo create`, `gh pr create`, `gh pr
+# merge`), el string CRUDO COMPLETO —antes de partir en segmentos, antes de cualquier sub-parseo—
+# tiene que casar ENTERO (`re.fullmatch`) contra una de un puñado de formas canónicas cuyos charsets
+# NO CONTIENEN ningún metacarácter de shell: nada de `$`, backtick, `\`, `<`, `>`, `(`, `)`, `;`,
+# `&`, `|`, `*`, `?`, `{`, `}`, `~`, ni espacios dentro de un token. Un fullmatch contra ese charset
+# DEMUESTRA que esos caracteres no están en el string; no hay que razonar sobre qué feature del shell
+# podría esconderse dentro, porque un string que contiene la feature es más largo/distinto que la
+# forma canónica y por tanto NO casa. Los once bypasses conocidos mueren de golpe, y también los que
+# nadie ha inventado todavía.
+#
+# El gate es GLOBAL (cualquier `agent_type` de swarm): un `git push` escondido dentro de `<(...)`
+# nunca llegaba al parser de segmentos, así que un agente con solo `ls` en su allowlist lo colaba.
+# Aquí se deniega antes de mirar el allowlist siquiera.
+#
+# Es una capa ADICIONAL, no un reemplazo: los chequeos de segmento de la ronda 1 y 2 siguen corriendo
+# después (cinturón y tirantes). Consecuencia deliberada de diseño: **un comando mutante se emite
+# SOLO, sin encadenar** (`cd x && git push …` se deniega) — la acción más consecuente del enjambre no
+# comparte línea con nada.
+
+_SP = r'[ \t]+'
+_ENV = r'(?:SWARM_ROOT=[A-Za-z0-9_./-]+[ \t]+)?'
+
+# Nombre de remoto: sin `/` (un remoto no es una ruta; `git push /tmp/evil rama` quedaría fuera).
+_REMOTE = r'[A-Za-z0-9][A-Za-z0-9._-]*'
+# Nombre de rama LISO. Primer carácter alfanumérico: un `-` inicial lo leería git como flag
+# (inyección de argumentos clásica) y un `/` inicial no es un nombre de rama.
+_BRANCH = r'[A-Za-z0-9][A-Za-z0-9._/-]*'
+_REFSPEC = r'%s(?::%s)?' % (_BRANCH, _BRANCH)
+_PATH = r'[A-Za-z0-9._/-]+'
+_OWNER_REPO = r'[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)?'
+
+# URL de remoto: lista CERRADA de esquemas. El charset de la parte de ruta no incluye `:`, así que
+# los transport helpers de git (`ext::<comando>`, `fd::…`) —que ejecutan un comando arbitrario en
+# cuanto alguien hace fetch/push contra ese remoto— no pueden expresarse aquí. Hallazgo propio de
+# esta ronda: `git remote add o ext::sh` + un push posterior es RCE, y el parser general lo permitía
+# por ser "dos posicionales sin flags".
+_URL = (
+    r'(?:'
+    r'https?://[A-Za-z0-9._-]+(?::[0-9]+)?(?:/[A-Za-z0-9._/-]*)?'
+    r'|ssh://(?:[A-Za-z0-9._-]+@)?[A-Za-z0-9._-]+(?::[0-9]+)?(?:/[A-Za-z0-9._/-]*)?'
+    r'|git://[A-Za-z0-9._-]+(?::[0-9]+)?(?:/[A-Za-z0-9._/-]*)?'
+    r'|file:///[A-Za-z0-9._/-]*'
+    r'|[A-Za-z0-9._-]+@[A-Za-z0-9._-]+:[A-Za-z0-9._/-]+'
+    r'|/[A-Za-z0-9._/-]*'
+    r'|\.{1,2}/[A-Za-z0-9._/-]*'
+    r')'
+)
+
+# Texto libre (título/descripción). Sin comillas: charset de token. Entre comillas: cualquier cosa
+# MENOS la propia comilla, `$`, backtick, `\` y caracteres de control. Como el fullmatch prueba que
+# no hay una comilla dentro, el texto NO puede salirse de las comillas; y sin `$`/backtick/`\` no
+# puede sustituir ni escapar nada. Un `;` o un `|` ahí dentro son literales inertes.
+_TEXT = r'(?:[A-Za-z0-9._/-]+|"[^"$`\\\x00-\x1f]*"|\'[^\'\x00-\x1f]*\')'
+
+
+def _q(inner):
+    """El token `inner`, opcionalmente entrecomillado. Como `inner` nunca contiene comillas ni `\\`,
+    las comillas solo pueden estar en los extremos y el token sigue siendo un único argumento."""
+    return r'(?:%s|"%s"|\'%s\')' % (inner, inner, inner)
+
+
+def _unquote(word):
+    if len(word) >= 2 and word[0] == word[-1] and word[0] in ('"', "'"):
+        return word[1:-1]
+    return word
+
+
+# `git push [-u|--set-upstream] <remote> <refspec>` — y nada más. Ni redirecciones, ni encadenado,
+# ni flags fuera de `-u`.
+_GIT_PUSH_RE = re.compile(
+    _ENV + r'git' + _SP + r'push'
+    + r'(?:' + _SP + r'(?:-u|--set-upstream))?'
+    + _SP + r'(?P<remote>' + _q(_REMOTE) + r')'
+    + _SP + r'(?P<ref>' + _q(_REFSPEC) + r')'
+)
+
+_GIT_REMOTE_ADD_RE = re.compile(
+    _ENV + r'git' + _SP + r'remote' + _SP + r'add'
+    + _SP + r'(?P<name>' + _q(_REMOTE) + r')'
+    + _SP + r'(?P<url>' + _q(_URL) + r')'
+)
+
+_GH_REPO_CREATE_FLAG = (
+    r'(?:'
+    r'--public|--private|--push'
+    # `--source` SOLO `.`: es el único valor que el diseño usa ("publica ESTE repo"). Con un valor
+    # libre, `gh repo create x --public --source=/ruta/con/secretos --push` publicaría en internet un
+    # directorio que nadie aprobó — el flag estaba en el conjunto cerrado, pero su VALOR no lo estaba.
+    r'|--source(?:=|[ \t]+)' + _q(r'\.') +
+    r'|--remote(?:=|[ \t]+)' + _q(_REMOTE) +
+    r'|--description(?:=|[ \t]+)' + _TEXT +
+    r')'
+)
+_GH_REPO_CREATE_RE = re.compile(
+    _ENV + r'gh' + _SP + r'repo' + _SP + r'create'
+    + _SP + _q(_OWNER_REPO)
+    + r'(?:' + _SP + _GH_REPO_CREATE_FLAG + r')*'
+)
+
+_GH_PR_CREATE_FLAG = (
+    r'(?:'
+    r'--draft'
+    r'|--base(?:=|[ \t]+)' + _q(_BRANCH) +
+    r'|--head(?:=|[ \t]+)' + _q(_BRANCH) +
+    r'|--repo(?:=|[ \t]+)' + _q(_OWNER_REPO) +
+    r'|--title(?:=|[ \t]+)' + _TEXT +
+    r'|--body-file(?:=|[ \t]+)' + _q(_PATH) +
+    r')'
+)
+_GH_PR_CREATE_RE = re.compile(
+    _ENV + r'gh' + _SP + r'pr' + _SP + r'create'
+    + r'(?:' + _SP + _GH_PR_CREATE_FLAG + r')+'
+)
+
+# Disparadores: si el string CRUDO contiene una de estas familias EN CUALQUIER SITIO (dentro de
+# comillas, dentro de `<(...)`, tras un `;`… da igual: es una búsqueda sobre el texto, no un parseo),
+# el comando entero tiene que casar una de las formas canónicas de esa familia. Las familias con
+# lista de formas VACÍA no tienen ninguna forma legítima: mencionarlas deniega, punto.
+#
+# `\b` antes de `git`/`gh` deja que la ruta absoluta (`/usr/bin/git push`) también dispare, y no
+# confunde `mygit`/`highlight` (no hay frontera de palabra ahí). `(?:-[^ \t]+[ \t]+)*` absorbe flags
+# globales (`git -C /otro/repo push …`, `gh --repo o/r pr merge`) para que no escondan el verbo.
+# El separador del DISPARADOR admite además la continuación de línea (`\` + salto), que bash borra
+# antes de ejecutar: `git \<salto>push --force origin master` es un push real y no debe escaparse del
+# gate por una diferencia de texto que el shell ya ha resuelto.
+_TSP = r'(?:[ \t]|\\\n)+'
+_TRIGGER_FLAGS = r'(?:-[^ \t]+' + _TSP + r')*'
+MUTATION_FAMILIES = (
+    ('git push', re.compile(r'\bgit' + _TSP + _TRIGGER_FLAGS + r'push\b'), (_GIT_PUSH_RE,)),
+    ('git remote add', re.compile(r'\bgit' + _TSP + _TRIGGER_FLAGS + r'remote' + _TSP + _TRIGGER_FLAGS + r'add\b'), (_GIT_REMOTE_ADD_RE,)),
+    ('git remote set-url', re.compile(r'\bgit' + _TSP + _TRIGGER_FLAGS + r'remote' + _TSP + _TRIGGER_FLAGS + r'set-url\b'), ()),
+    ('gh repo create', re.compile(r'\bgh' + _TSP + _TRIGGER_FLAGS + r'repo' + _TSP + _TRIGGER_FLAGS + r'create\b'), (_GH_REPO_CREATE_RE,)),
+    ('gh pr create', re.compile(r'\bgh' + _TSP + _TRIGGER_FLAGS + r'pr' + _TSP + _TRIGGER_FLAGS + r'create\b'), (_GH_PR_CREATE_RE,)),
+    ('gh pr merge', re.compile(r'\bgh' + _TSP + _TRIGGER_FLAGS + r'pr' + _TSP + _TRIGGER_FLAGS + r'merge\b'), ()),
+)
+
+
 def load_allowlist():
     with open(ALLOWLIST_PATH) as f:
         return json.load(f)
 
 
+def _is_redirection_amp(command, i):
+    """True si el `&` de la posición `i` forma parte de una REDIRECCIÓN, no del operador de fondo.
+
+    Regresión introducida por el fix de C5 (round 1) y detectada en la review de round 2: al añadir
+    `&` al conjunto de separadores, `2>&1` pasó a partirse en `2>` + `1`, y el segundo trozo (`1`,
+    `/dev/null`, `2`…) no está en ningún allowlist — así que `git status 2>&1`, `git log … 2>&1 |
+    head` y `git diff &> /dev/null` empezaron a denegarse para TODOS los agentes. No era un agujero
+    de seguridad, pero sí una regresión de comportamiento real.
+
+    Las dos formas que hay que respetar:
+      - `N>&M` / `>&file` / `<&N` / `>&-` → el `&` viene PEGADO detrás de un `>` o un `<`;
+      - `&>file` / `&>>file` (bash: stdout+stderr) → el `&` va PEGADO delante de un `>`.
+    Nótese que ambas exigen ADYACENCIA: `cmd & > x cmd2` (con espacio) sigue siendo un separador.
+    """
+    if i > 0 and command[i - 1] in '<>':
+        return True
+    if i + 1 < len(command) and command[i + 1] == '>':
+        return True
+    return False
+
+
 def split_segments(command):
-    """Divide `command` en &&, ||, ;, |, salto de línea y `&` simple, FUERA de comillas (estado de
-    comilla char a char).
+    """Divide `command` en &&, ||, ;, |, salto de línea y `&` simple, FUERA de comillas.
 
     C5 (fase 6, review adversarial): el salto de línea y el `&` simple (operador de fondo, no el
     `&&` de encadenado) faltaban en el conjunto de separadores — un comando benigno en una línea/
@@ -140,23 +318,58 @@ def split_segments(command):
     analizaba como UN solo segmento y el comando peligroso nunca se comprobaba por su cuenta
     (`git status\ngit push --force origin master`, `git status & git push --force origin master`).
     El chequeo de `&&`/`||` (2 caracteres) va SIEMPRE antes que el de `&` simple, así que un `&&`
-    nunca se parte por la mitad.
+    nunca se parte por la mitad, y `_is_redirection_amp` protege las redirecciones (`2>&1`, `&>`).
+
+    RASTREADOR DE COMILLAS (round 2, tres bugs distintos de desincronización, todos con el mismo
+    efecto: el rastreador creía estar DENTRO de comillas donde el shell real estaba FUERA, así que
+    el `;` siguiente no se veía como separador y el `git push --force` que iba detrás se colaba
+    entero dentro de un segmento que empezaba por un comando inocuo):
+      1. `\\"` FUERA de comillas — la barra escapa la comilla y el shell NO abre string;
+      2. `$'…'` (ANSI-C quoting) — dentro, `\\'` es una comilla escapada y NO cierra;
+      3. `"…\\"…"` — dentro de comillas dobles, `\\"` tampoco cierra.
+    Se modela con un autómata explícito de cuatro estados (fuera / `'…'` / `"…"` / `$'…'`) donde la
+    barra escapa el carácter siguiente en todos MENOS dentro de comillas simples, que es exactamente
+    la regla de bash.
     """
     segments = []
     current = []
     i = 0
     n = len(command)
-    quote = None
+    state = None  # None | "'" (literal) | '"' | "$'" (ANSI-C)
     while i < n:
         ch = command[i]
-        if quote:
+        if state == "'":
             current.append(ch)
-            if ch == quote:
-                quote = None
+            if ch == "'":
+                state = None
             i += 1
             continue
+        if state in ('"', "$'"):
+            # dentro de comillas dobles y de $'…' la barra escapa el carácter siguiente
+            if ch == '\\' and i + 1 < n:
+                current.append(ch)
+                current.append(command[i + 1])
+                i += 2
+                continue
+            current.append(ch)
+            if (state == '"' and ch == '"') or (state == "$'" and ch == "'"):
+                state = None
+            i += 1
+            continue
+        # fuera de comillas
+        if ch == '\\' and i + 1 < n:
+            current.append(ch)
+            current.append(command[i + 1])
+            i += 2
+            continue
+        if command[i:i + 2] == "$'":
+            state = "$'"
+            current.append(ch)
+            current.append("'")
+            i += 2
+            continue
         if ch in ('"', "'"):
-            quote = ch
+            state = ch
             current.append(ch)
             i += 1
             continue
@@ -164,6 +377,10 @@ def split_segments(command):
             segments.append(''.join(current))
             current = []
             i += 2
+            continue
+        if ch == '&' and _is_redirection_amp(command, i):
+            current.append(ch)
+            i += 1
             continue
         if ch in (';', '|', '\n', '&'):
             segments.append(''.join(current))
@@ -177,16 +394,25 @@ def split_segments(command):
 
 
 def _find_command_substitutions(text):
-    """Cuerpos de sustitución de comandos ($(...) balanceado en paréntesis, y `...`) que aparecen
-    en `text`, en cualquier posición (dentro o fuera de comillas: en bash, `"$(...)"` SÍ se evalúa,
-    así que ignorar el estado de comilla aquí solo puede llevar a comprobar un segmento de más —
-    dirección segura — nunca a dejar de comprobar uno real).
+    """Cuerpos de sustitución de comandos que aparecen en `text`, en cualquier posición (dentro o
+    fuera de comillas: en bash, `"$(...)"` SÍ se evalúa, así que ignorar el estado de comilla aquí
+    solo puede llevar a comprobar un segmento de más —dirección segura— nunca a dejar de comprobar
+    uno real).
+
+    Tres aperturas, todas con el mismo tratamiento (paréntesis balanceados / backtick de cierre):
+      - `$(...)` — sustitución de comando;
+      - `` `...` `` — su forma antigua;
+      - `<(...)` y `>(...)` — SUSTITUCIÓN DE PROCESO (round 2, review adversarial). Faltaban por
+        completo: `ls <(git push --force origin master)` ejecuta el push igual que `$(...)` —y el
+        `>(...)` además de forma asíncrona— pero el parser solo veía el segmento `ls <(git`, cuyo
+        primer palabro (`ls`) está en el allowlist de CASI TODOS los agentes, no solo del
+        release-manager. Era la vía más barata para colar un push desde cualquier agente del plugin.
     """
     bodies = []
     i = 0
     n = len(text)
     while i < n:
-        if text[i:i + 2] == '$(':
+        if text[i:i + 2] in ('$(', '<(', '>('):
             depth = 1
             j = i + 2
             while j < n and depth > 0:
@@ -209,6 +435,10 @@ def _find_command_substitutions(text):
     return bodies
 
 
+class SubstitutionTooDeep(Exception):
+    """Tope de recursión alcanzado al desenrollar sustituciones anidadas: se DENIEGA."""
+
+
 def all_segments(command, _depth=0):
     """Todos los segmentos a comprobar: los de `split_segments`, más —recursivamente— el CUERPO de
     cualquier sustitución de comando ($(...) / backticks) que aparezca dentro de cada uno (C5).
@@ -220,11 +450,16 @@ def all_segments(command, _depth=0):
     `cd "$(git rev-parse --show-toplevel)"` (agents/orchestrator.md §2.0) — el cuerpo,
     `git rev-parse --show-toplevel`, está en el allowlist — mientras deniega
     `git status $(git push --force origin master)`, cuyo cuerpo SÍ es un push destructivo, aunque
-    el comando exterior (`git status`) sea inocuo por sí solo. Tope de profundidad como cinturón de
-    seguridad ante una sustitución que se referenciase a sí misma.
+    el comando exterior (`git status`) sea inocuo por sí solo.
+
+    El tope de profundidad FALLA CERRADO (round 2, review adversarial): antes se hacía `return` a
+    partir de la profundidad 9, es decir, el guard dejaba de mirar y el comando quedaba PERMITIDO —
+    bastaba con anidar diez `$(...)` para colar cualquier cosa en el fondo. Ahora lanza
+    `SubstitutionTooDeep`, que `main()` convierte en denegación: nada legítimo de este plugin anida
+    sustituciones a más de un par de niveles.
     """
     if _depth > 8:
-        return
+        raise SubstitutionTooDeep()
     for segment in split_segments(command):
         yield segment
         for body in _find_command_substitutions(segment):
@@ -296,6 +531,39 @@ def _has_unresolvable_substitution(word):
     return '$(' in word or '`' in word or '${' in word
 
 
+# Forma de un token de remoto/rama que el guard acepta en un `git push`. Cerrar el charset aquí, y
+# no solo en el gate estructural, cierra a nivel de parser general una clase que las dos rondas
+# anteriores no vieron y que encontré en el barrido adversarial de esta ronda: la EXPANSIÓN DE BRACE
+# y el GLOB en el refspec. `git push origin {master,feature}` es UN solo palabro para `shlex` (dos
+# posicionales, destino `{master,feature}` que no está en PROTECTED_REFS → se permitía), pero bash lo
+# expande a DOS refspecs y el push toca `master` de verdad. Igual con `git push origin ma{s,}ter` y
+# con `git push origin *` en un directorio donde exista un fichero llamado `master`.
+PLAIN_PUSH_TOKEN_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._/-]*$')
+
+
+def push_dst_denied(dst):
+    """True si `dst` no es un destino de push aceptable.
+
+    Comparaciones en MINÚSCULAS (round 2): el chequeo era sensible a mayúsculas mientras la
+    resolución de refs de git en esta máquina (macOS, sistema de ficheros case-insensitive) no lo es
+    — `git push origin head` / `Head` / `hEaD` esquivaban la comprobación de destino ambiguo, y
+    `origin MASTER` escribía `refs/heads/MASTER`, que en un remoto bare sobre un FS case-insensitive
+    es EL MISMO FICHERO que `refs/heads/master`.
+    """
+    if not dst:
+        return True
+    low = dst.lower()
+    if low in PUSH_AMBIGUOUS_DST:
+        return True
+    if low in PROTECTED_REFS:
+        return True
+    if low.startswith('head~') or low.startswith('head^') or low.startswith('@{'):
+        return True
+    if any(low.startswith(p) for p in PUSH_DENIED_DST_PREFIXES):
+        return True
+    return False
+
+
 def push_segment_denied(words):
     """True si este `git push` cae fuera de la ÚNICA forma permitida.
 
@@ -323,18 +591,15 @@ def push_segment_denied(words):
     # sola no lo detecta (solo mira el `dst`), así que se comprueba el `src` aquí explícitamente.
     if ':' in ref and ref.split(':', 1)[0] == '':
         return True
-    dst = _push_dst(ref)
-    if not dst:
+    # Forma LISA de remoto y de cada mitad del refspec: nada de brace expansion, glob, `~`, ni
+    # ningún otro carácter que bash expandiría a MÁS de un refspec (ver PLAIN_PUSH_TOKEN_RE).
+    if not PLAIN_PUSH_TOKEN_RE.match(remote):
         return True
-    if dst in PROTECTED_REFS:
+    if any(not PLAIN_PUSH_TOKEN_RE.match(part) for part in ref.split(':', 1)):
         return True
-    # C2: destino ambiguo (`HEAD`, `@`, y sus formas de historial `HEAD~N`/`HEAD^N`/`@{...}`) — no
-    # dice a simple vista qué rama del remoto se toca. Solo un nombre de rama EXPLÍCITO vale.
-    if dst in PUSH_AMBIGUOUS_DST or dst.startswith('HEAD~') or dst.startswith('HEAD^') or dst.startswith('@{'):
-        return True
-    # C3/I1: whitelist de forma — cualquier prefijo de ref (`refs/`, `heads/`, `tags/`) deniega,
-    # sea o no protegido el nombre que lleve detrás (ver _push_dst).
-    if any(dst.startswith(p) for p in PUSH_DENIED_DST_PREFIXES):
+    # C2/C3/I1: destino protegido, ambiguo (`HEAD`/`@` y sus formas de historial) o con prefijo de
+    # ref (`refs/`, `heads/`, `tags/`) — todo ello sin distinguir mayúsculas.
+    if push_dst_denied(_push_dst(ref)):
         return True
     return False
 
@@ -440,6 +705,53 @@ def gh_repo_create_denied(rest):
             positional.append(word)
         i += 1
     return len(positional) != 1
+
+
+def canonical_shape_reason(command):
+    """Motivo de denegación si `command` MENCIONA una familia mutante y no casa ENTERO con ninguna
+    de sus formas canónicas; None si no hay nada que objetar.
+
+    Es el gate estructural descrito arriba, y es lo PRIMERO que corre en `main()`: antes de partir
+    en segmentos, antes de resolver sustituciones, antes de mirar el allowlist. Trabaja sobre el
+    string crudo (solo `strip()` de los extremos, inertes), así que ninguna astucia de parseo puede
+    llegar antes que él.
+    """
+    # `strip()` a secas recorta TAMBIÉN el espacio unicode (U+00A0, U+2028…), que para bash NO es un
+    # separador sino parte de la palabra: `git push origin feature/x ` casaría la forma canónica
+    # tras recortar, pero el shell empujaría a una rama distinta de la aprobada. Se recorta solo el
+    # blanco ASCII, que es el único que el shell trata como blanco.
+    raw = command.strip(' \t\r\n')
+    for family, trigger, patterns in MUTATION_FAMILIES:
+        if not trigger.search(raw):
+            continue
+        if not patterns:
+            return ('`%s` no tiene ninguna forma permitida en el enjambre; el comando se deniega '
+                    'entero: %s' % (family, raw))
+        matched = None
+        for pattern in patterns:
+            matched = pattern.fullmatch(raw)
+            if matched:
+                break
+        if not matched:
+            return ('`%s` solo se permite en su forma canónica EXACTA (un único comando, sin '
+                    'encadenar, sin redirecciones, sin metacaracteres de shell): %s' % (family, raw))
+        if family == 'git push':
+            remote = _unquote(matched.group('remote'))
+            ref = _unquote(matched.group('ref'))
+            if not remote:
+                return 'remoto vacío en `git push`: %s' % raw
+            if ref.startswith(':') or push_dst_denied(_push_dst(ref)):
+                return ('destino de `git push` no permitido (rama protegida, ambigua o con prefijo '
+                        'de ref): %s' % raw)
+        if family == 'git remote add':
+            if not _unquote(matched.group('name')) or not _unquote(matched.group('url')):
+                return '`git remote add` incompleto: %s' % raw
+        if family == 'gh pr create':
+            # Un PR sin `--base`/`--head` explícitos lo abre contra lo que haya de ambiente — la
+            # misma ambigüedad que hace que `git push` a secas esté denegado.
+            if not re.search(r'--base(?:=|[ \t])', raw) or not re.search(r'--head(?:=|[ \t])', raw):
+                return '`gh pr create` exige `--base` y `--head` explícitos: %s' % raw
+    return None
 
 
 def segment_allowed(segment, allowlist):
@@ -549,10 +861,25 @@ def main():
     if not command.strip():
         sys.exit(0)
 
+    # CAPA 1 — gate estructural de formas canónicas. Va ANTES de cualquier partición en segmentos:
+    # es lo único que no depende del parser de shell hecho a mano, y por tanto lo único inmune a los
+    # bypasses de ese parser. Aplica a cualquier agent_type, tenga o no el prefijo en su allowlist.
+    reason = canonical_shape_reason(command)
+    if reason:
+        deny(reason)
+        return
+
     allowlists = load_allowlist()
     agent_allowlist = allowlists.get('agents', {}).get(agent_type, allowlists.get('default', []))
 
-    for segment in all_segments(command):
+    # CAPA 2 — allowlist por segmento (cinturón Y tirantes: los chequeos de las rondas 1 y 2 siguen
+    # aquí; el gate solo añade una puerta anterior y más estricta).
+    try:
+        segments = list(all_segments(command))
+    except SubstitutionTooDeep:
+        deny('sustituciones de comando anidadas más allá del límite del guard: %s' % command.strip())
+        return
+    for segment in segments:
         if not segment_allowed(segment, agent_allowlist):
             deny('%s no está en el allowlist de %s' % (segment, agent_type))
             return
