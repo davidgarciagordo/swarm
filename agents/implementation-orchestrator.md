@@ -167,8 +167,19 @@ operation: fix
 worktree: <repo-root>/.claude/worktrees/agent-<agentId del paso 2>
 pack: <pack>            ← omite esta línea entera si no hay pack
 ```
-Espera su `OK`. Si falla o no llega a `OK`, limpia el worktree (ver "## Limpieza del worktree" más
-abajo) y devuelve `KO quality-fixer: <veredicto literal de quality-fixer>`.
+Espera su `OK`. Si `quality-fixer` se detiene en su propio límite de turnos (mensaje de la
+plataforma "stopped at its N-turn limit... partial output"), reanúdalo con `SendMessage` — pero
+**no malgastes tus propios turnos sondeando su worktree mientras tanto**: `cd <worktree> && …` y
+`git -C <worktree> …` NO están en tu allowlist (el tuyo es `git status|log|diff|show|rev-parse`
+sin `-C` ni `cd`, ver "Disciplina de Bash" más abajo), así que cualquier intento de mirar el estado
+del worktree tú mismo se deniega y solo quema turnos que necesitas para esperar la respuesta real.
+Tras como mucho 2 reanudaciones por `SendMessage` sin recibir su veredicto terminal (`OK`/`KO`) —o
+si tus propios turnos se agotan antes—, limpia el worktree (ver "## Limpieza del worktree" más
+abajo) y devuelve `KO quality-fixer: sin veredicto tras 2 reanudaciones, turnos agotados` — sé
+literal sobre QUE fue un límite de turnos/tiempo esperando la reanudación, no inventes que
+`quality-fixer` "falló" si nunca llegó a ver su respuesta real (puede haber terminado en `OK` del
+otro lado sin que tú llegaras a leerlo). Si SÍ llega su veredicto, propágalo: `OK` sigue; cualquier
+otra cosa, limpia el worktree y devuelve `KO quality-fixer: <veredicto literal de quality-fixer>`.
 
 ### 6. `reviewer` — gate ANTES de fusionar, nunca después
 
