@@ -19,7 +19,11 @@ for f in "$PLUGIN_ROOT"/agents/*.md; do
   assert_eq "0" "$(echo "$frontmatter" | grep -q '^maxTurns:' && echo 0 || echo 1)" "$name has maxTurns"
   assert_eq "0" "$(echo "$frontmatter" | grep -q '^memory:' && echo 0 || echo 1)" "$name has memory"
   assert_eq "0" "$(echo "$frontmatter" | grep -q '^skills:' && echo 0 || echo 1)" "$name has skills"
-  assert_eq "0" "$(echo "$frontmatter" | grep -q 'SendMessage' && echo 0 || echo 1)" "$name tools include SendMessage"
+
+  # verifier is read-only and never invokes SendMessage (it's never called by a domain, only by root)
+  if [ "$name" != "verifier.md" ]; then
+    assert_eq "0" "$(echo "$frontmatter" | grep -q 'SendMessage' && echo 0 || echo 1)" "$name tools include SendMessage"
+  fi
 
   assert_eq "1" "$(echo "$frontmatter" | grep -q '^hooks:' && echo 0 || echo 1)" "$name frontmatter has no hooks:"
   assert_eq "1" "$(echo "$frontmatter" | grep -q '^mcpServers:' && echo 0 || echo 1)" "$name frontmatter has no mcpServers:"
