@@ -15,7 +15,7 @@
 # Method: for each agent file, take its `name:` frontmatter field as `swarm:<name>`, extract every
 # fenced ```bash block from the body, join backslash-continued lines into one logical command
 # (mem-files.sh/mem-manifest.sh calls span several physical lines), skip blank/comment lines, and
-# assert hooks/bash-guard.py allows that exact line for that agent_type. No block in these 5 files
+# assert hooks/bash-guard.py allows that exact line for that agent_type. No block in these files
 # is a documented intentional deny, so every extracted line must allow.
 set -u
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,9 +23,9 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$DIR/.." && pwd)"
 HOOK="$PLUGIN_ROOT/hooks/bash-guard.py"
 
-# The 5 implementation-domain agent files (spec §7 "Implementación", fase 5a). Add future agents
-# here to extend the same coverage — no other change needed.
-AGENT_FILES="test-writer implementer quality-fixer reviewer implementation-orchestrator"
+# The agents listed in AGENT_FILES (implementation, fase 5a + requirements/pack, fase 5b). Add
+# future agents here to extend the same coverage — no other change needed.
+AGENT_FILES="test-writer implementer quality-fixer reviewer implementation-orchestrator dependency-auditor"
 
 guard() { # guard <agent_type> <command> -> "allow" | "deny"
   local out
