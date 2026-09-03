@@ -24,11 +24,21 @@ tú mismo, delegas siempre.
    `.swarm/`. `operation:` es `implement-phase`. `plan:` es la ruta absoluta del fichero de plan.
    `phase:` es la fase concreta a implementar (si viene vacía, elige la primera fase del plan con
    algún `- [ ]` Step sin marcar — `Read` el plan y busca el primer `- [ ]` desde el principio).
-2. Lee tu buzón:
+2. Ánclate a la raíz absoluta del repo (mismo motivo que `agents/orchestrator.md` §2.0): sin esto,
+   cualquier ruta de worktree que construyas más abajo para `quality-fixer`/`reviewer` (pasos 3-4 de
+   la secuencia) sería relativa a tu cwd, no la absoluta que ambos exigen por contrato propio.
+   ```bash
+   git rev-parse --show-toplevel
+   ```
+   (cuenta para `cmds=`). Guarda el resultado como `<repo-root>`: de aquí en adelante, CUALQUIER
+   ruta de worktree que uses — la que pasas a `quality-fixer`/`reviewer`, y la del `git worktree
+   remove` de la limpieza — se construye como `<repo-root>/.claude/worktrees/agent-<agentId>`, nunca
+   la forma relativa `.claude/worktrees/agent-<agentId>` a secas.
+3. Lee tu buzón:
    ```bash
    cat "$SWARM_ROOT/run/${RUN:-adhoc}/mailbox/implementation-orchestrator.md" 2>/dev/null
    ```
-3. Lee con `Read` (cuenta para `files=`): el fichero de plan completo, confirma que la fase elegida
+4. Lee con `Read` (cuenta para `files=`): el fichero de plan completo, confirma que la fase elegida
    existe y tiene al menos un `- [ ]` sin marcar. Si TODA la fase ya está `[x]`, tu veredicto es
    `DONE · fase ya implementada` sin lanzar a nadie.
 
@@ -64,11 +74,21 @@ plan: <ruta absoluta del plan>
 phase: <la misma fase>
 ```
 Espera su `DONE`. **Anota el `agentId` del spawn** (línea `agentId: <id>` del resultado del
-lanzamiento) — necesitas la ruta `.claude/worktrees/agent-<agentId>` para `quality-fixer`,
-`reviewer`, el merge final, y la limpieza. **Desde este punto tienes `agentId`: cualquier
-veredicto final que devuelvas a partir de aquí — éxito o fallo — limpia primero el worktree (ver
-"## Limpieza del worktree" más abajo).** Si `BLOCKED`, limpia y luego propaga su motivo — es una
-pregunta real para el owner, no relances a nadie más.
+lanzamiento) — necesitas la ruta ABSOLUTA `<repo-root>/.claude/worktrees/agent-<agentId>`
+(`<repo-root>` del paso 2 del arranque, nunca la forma relativa `.claude/worktrees/agent-<agentId>`
+a secas) para `quality-fixer`, `reviewer`, el merge final, y la limpieza. **Desde este punto tienes
+`agentId`: cualquier veredicto final que devuelvas a partir de aquí — éxito o fallo — limpia primero
+el worktree (ver "## Limpieza del worktree" más abajo).** Si `BLOCKED`, limpia y luego propaga su
+motivo — es una pregunta real para el owner, no relances a nadie más.
+
+**Regla de corte** (mismo mecanismo que `discovery-orchestrator` con `feasibility-spiker` sin
+respuesta, fase 2): si `implementer` no ha devuelto veredicto y tus propios turnos se acercan al
+límite de `maxTurns: 25` (te quedan ≤3), no te quedes esperando en silencio hasta agotarlos — un run
+que termina sin devolver ningún veredicto y sin limpiar es peor que uno con un `KO` explícito. Ya
+tienes su `agentId` (lo anotaste arriba): intenta la limpieza del worktree igual que en cualquier
+otro camino terminal (ver "## Limpieza del worktree" más abajo, mismo fallo blando — `- warn:
+worktree de implementer no borrado: <motivo>` si falla) y tu veredicto final es `KO implementer:
+sin respuesta, límite de turnos agotado` — nunca `DONE`, nunca un run colgado sin veredicto.
 
 ### 3. `quality-fixer` (apunta al worktree de `implementer`, sin isolation propia)
 
@@ -76,10 +96,10 @@ pregunta real para el owner, no relances a nadie más.
 run-id: <RUN>
 swarm-root: <ruta absoluta de .swarm>
 operation: fix
-worktree: <ruta absoluta, .claude/worktrees/agent-<agentId del paso 2>>
+worktree: <repo-root>/.claude/worktrees/agent-<agentId del paso 2>
 ```
 Espera su `OK`. Si falla o no llega a `OK`, limpia el worktree (ver "## Limpieza del worktree" más
-abajo) y devuelve `KO quality-fixer BLOCKED: <motivo>`.
+abajo) y devuelve `KO quality-fixer: <veredicto literal de quality-fixer>`.
 
 ### 4. `reviewer` — gate ANTES de fusionar, nunca después
 
@@ -87,7 +107,7 @@ abajo) y devuelve `KO quality-fixer BLOCKED: <motivo>`.
 run-id: <RUN>
 swarm-root: <ruta absoluta de .swarm>
 operation: review
-worktree: <la misma ruta absoluta>
+worktree: <la misma ruta absoluta del paso 3>
 base: <el SHA que anotaste en el paso 1>
 ```
 Espera su veredicto. Si trae hallazgos `Critical`/`Important`: relanza `implementer` (MISMO
@@ -99,7 +119,7 @@ sigue habiendo `Critical`/`Important`, adjudica tú mismo (mismo patrón de brea
 fusionar nada; si no es load-bearing, procede a fusionar igualmente (ver "## Merge" abajo) y anota
 `- riesgo aparcado: <hallazgo>` en tu salida — nunca fusiones en silencio un hallazgo Critical sin
 decidir explícitamente qué hiciste con él. Hallazgos `Minor` nunca bloquean el merge. Si `reviewer`
-falla sin veredicto utilizable, limpia el worktree y devuelve `KO reviewer BLOCKED: <motivo>`.
+falla sin veredicto utilizable, limpia el worktree y devuelve `KO reviewer: <veredicto literal de reviewer>`.
 
 ## Merge — SIEMPRE local, a la rama ACTUAL del run, NUNCA a `master`/una rama compartida
 
@@ -119,16 +139,29 @@ Es una fusión LOCAL a la rama donde corre este run — nunca `git push`, nunca 
 nunca una rama remota. Empujar o abrir PR es responsabilidad exclusiva de `delivery-orchestrator`/
 `release-manager` (fase 6, todavía sin construir); este dominio nunca toca remoto.
 
+**Si `git merge` termina con código de salida distinto de cero (conflicto real, no un `fast-forward`
+limpio):** no lo dejes a medias ni sigas como si hubiera fusionado. Aborta la fusión en su PROPIA
+llamada (mismo prefijo `git merge` que ya tienes en tu allowlist, no hace falta ampliar nada):
+```bash
+git merge --abort
+```
+y después sigue el camino normal de "## Limpieza del worktree" más abajo (el worktree de
+`implementer` ya no sirve — el conflicto no se resuelve reintentando el merge sin ayuda). Tu
+veredicto final es `KO merge con conflicto: <ficheros>` (los ficheros que reportó `git merge`/`git
+status` en conflicto) — nunca `DONE`, nunca dejes la rama del run con un merge a medio resolver.
+
 ## Limpieza del worktree — SIEMPRE, en CUALQUIER salida terminal desde que tienes `agentId`
 
 Mismo patrón que `discovery-orchestrator` con `feasibility-spiker` en fase 2: limpia "en cuanto
 reporte `DONE` o `BLOCKED` — con cualquiera de los dos su trabajo ha terminado". Aquí eso
 significa: en CUALQUIER camino de salida a partir del paso 2 — merge con éxito, `BLOCKED
-<hallazgo>` en el tope de 2 rondas, `BLOCKED merge en master detectado`, o `KO <hoja> BLOCKED:
-<motivo>` si `implementer`/`quality-fixer`/`reviewer` falló sin arreglo — intenta esto justo ANTES
-de devolver el veredicto (nunca después, nunca condicionado al éxito del merge):
+<hallazgo>` en el tope de 2 rondas, `BLOCKED merge en master detectado`, `KO merge con conflicto`
+(tras el `git merge --abort` de arriba), `KO implementer: sin respuesta` (regla de corte), o
+`KO <hoja>: <motivo>` si `implementer`/`quality-fixer`/`reviewer` falló sin arreglo — intenta esto
+justo ANTES de devolver el veredicto (nunca después, nunca condicionado al éxito del merge). La ruta
+es la ABSOLUTA que construiste en el paso 2 del arranque, nunca la forma relativa:
 ```bash
-git worktree remove .claude/worktrees/agent-<agentId del paso 2> --force
+git worktree remove <repo-root>/.claude/worktrees/agent-<agentId del paso 2> --force
 ```
 Fallo blando: si falla, NUNCA cambia tu veredicto — añade `- warn: worktree de implementer no
 borrado: <motivo en ≤8 palabras>` a tu salida (mismo prefijo exento `- warn:` que usa
@@ -151,10 +184,16 @@ evidence: files=2 cmds=6 turns=18/25
 ```
 
 `BLOCKED <hallazgo>` si `reviewer` sigue Critical tras 2 rondas. `BLOCKED merge en master
-detectado, no fusiono` si `HEAD` no está en la rama esperada del run justo antes de fusionar.
-`KO <hoja> BLOCKED: <motivo>` si `test-writer`/`implementer`/`quality-fixer`/`reviewer` no pudo
-completar su parte. `DONE · fase ya implementada` si todos los steps de la fase ya estaban `[x]`,
-sin lanzar a nadie. `OK`/`DONE` con `files=0` se rechaza siempre. La limpieza del worktree (ver
-"## Limpieza del worktree") se intenta justo ANTES de cualquiera de estos veredictos, desde que
-existe `agentId` — nunca solo en el camino de éxito; si falla, añade `- warn: worktree de
-implementer no borrado: <motivo>` sin cambiar el veredicto.
+detectado, no fusiono` si `HEAD` es literalmente `master` o `main` justo antes de fusionar (el
+guard de "## Merge" solo comprueba esos dos nombres exactos, no "la rama esperada del run" en
+general). `KO merge con conflicto: <ficheros>` si `git merge` termina en conflicto (tras el `git
+merge --abort` de "## Merge" y la limpieza normal). `KO implementer: sin respuesta, límite de
+turnos agotado` si la regla de corte del paso 2 de la secuencia se activó. `KO <hoja>: <motivo>` si
+`test-writer`/`implementer`/`quality-fixer`/`reviewer` no pudo completar su parte — `<motivo>` es el
+veredicto literal que devolvió la hoja (puede ser su propio `BLOCKED …` o, solo en el caso de
+`implementer`, su propio `KO …` de test en rojo; no fuerces la palabra `BLOCKED` cuando la hoja dijo
+`KO`). `DONE · fase ya implementada` si todos los steps de la fase ya estaban `[x]`, sin lanzar a
+nadie. `OK`/`DONE` con `files=0` se rechaza siempre. La limpieza del worktree (ver "## Limpieza del
+worktree") se intenta justo ANTES de cualquiera de estos veredictos, desde que existe `agentId` —
+nunca solo en el camino de éxito; si falla, añade `- warn: worktree de implementer no borrado:
+<motivo>` sin cambiar el veredicto.
