@@ -70,7 +70,7 @@ denegación por segmento (`&&`, `||`, `;`, `|`). No cierres con `; echo $?`.
 OK
 evidence: files=3 cmds=1 turns=6/15
 MODEL · src/App/Foo.php:1 · Invoice agregado, VO Money para total → invariante: total nunca negativo
-MODEL · src/App/Foo.php:1 · TenantId VO para aislamiento → invariante: toda query filtra por tenant
+MODEL · src/App/TenantId.php:1 · TenantId VO para aislamiento → invariante: toda query filtra por tenant
 ```
 
 `OK` con `files=0` se rechaza siempre. Si el objetivo no introduce ningún concepto de dominio

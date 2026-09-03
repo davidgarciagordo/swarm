@@ -1,6 +1,6 @@
 # swarm
 
-Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Construido hasta ahora: fases 1, 1b, 2 y 3** — subsistema de memoria, orquestador raíz, dominio de requisitos, dominio discovery (batch de preguntas presentado al owner con `AskUserQuestion`) y dominio de análisis (auditoría read-only del código en 6 lentes).
+Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Construido hasta ahora: fases 1, 1b, 2, 3 y 4** — subsistema de memoria, orquestador raíz, dominio de requisitos, dominio discovery (batch de preguntas presentado al owner con `AskUserQuestion`), dominio de análisis (auditoría read-only del código en 6 lentes) y dominio de diseño (escribe un plan de implementación real, revisado adversarialmente por grill×3, arbitrado por el propio `design-orchestrator`).
 
 ## Instalación
 
@@ -40,6 +40,10 @@ flowchart TD
     VS["vulnerability-scanner (haiku)"]
     PA["performance-analyst (sonnet)"]
     DMA["data-model-auditor (sonnet)"]
+    DGO["design-orchestrator (sonnet)"]
+    PADV["pattern-advisor (sonnet)"]
+    DM["domain-modeler (opus)"]
+    PL["planner (opus)"]
 
     O --> MO
     MO --> MB
@@ -57,10 +61,13 @@ flowchart TD
     AO --> VS
     AO --> PA
     AO --> DMA
+    O --> DGO
+    DGO --> PADV
+    DGO --> DM
+    DGO --> PL
 
-    subgraph planned["planeado, no construido (spec §15, fases 4-6)"]
+    subgraph planned["planeado, no construido (spec §15, fases 5-6)"]
         direction TB
-        DGO["design-orchestrator"]
         IO["implementation-orchestrator"]
         DLO["delivery-orchestrator"]
     end
@@ -68,11 +75,11 @@ flowchart TD
     O -.-> planned
 
     classDef planned fill:#eee,stroke:#999,color:#888,stroke-dasharray: 5 5;
-    class DGO,IO,DLO planned
+    class IO,DLO planned
     class planned planned
 ```
 
-El `orchestrator` raíz (opus) clasifica el tier del run y habla con tres dominios hoy: `memory-orchestrator`, que dirige a `memory-builder` (construye/refresca el context-pack) y `memory-curator` (compacta hallazgos, GC); `discovery-orchestrator`, que dirige las cuatro hojas de discovery y devuelve UN batch de preguntas que la raíz presenta con `AskUserQuestion`; y `analysis-orchestrator`, que selecciona un subconjunto de sus 6 lentes read-only según el objetivo y reenvía sus hallazgos directamente. `requirements-orchestrator` (con `env-checker`) es un cuarto dominio, invocado por `/swarm:doctor` y no dentro de un run. Los dominios restantes — diseño, implementación, entrega — están especificados pero no implementados (ver estado más abajo).
+El `orchestrator` raíz (opus) clasifica el tier del run y habla con cuatro dominios hoy: `memory-orchestrator`, que dirige a `memory-builder` (construye/refresca el context-pack) y `memory-curator` (compacta hallazgos, GC); `discovery-orchestrator`, que dirige las cuatro hojas de discovery y devuelve UN batch de preguntas que la raíz presenta con `AskUserQuestion`; `analysis-orchestrator`, que selecciona un subconjunto de sus 6 lentes read-only según el objetivo y reenvía sus hallazgos directamente; y `design-orchestrator`, que corre tras discovery (solo `tier: full`) — `pattern-advisor` + `domain-modeler` en una tanda, luego `planner` escribe el plan real, luego (también `tier: full`) grill×3 lo revisa adversarialmente y `design-orchestrator` arbitra los hallazgos él mismo, sin preguntar nunca al owner. `requirements-orchestrator` (con `env-checker`) es un quinto dominio, invocado por `/swarm:doctor` y no dentro de un run. Los dominios restantes — implementación, entrega — están especificados pero no implementados (ver estado más abajo).
 
 ### Flujo de `/swarm:run`
 
@@ -152,9 +159,17 @@ Fases según spec §15:
 1b. **Requisitos (construido).** `requirements-orchestrator`, `env-checker`, `req-check.sh`, `requirements.json`, `/swarm:doctor`.
 2. **Discovery (construido).** `discovery-orchestrator` + `value-critic`, `research-analyst`, `options-generator`, `feasibility-spiker`; la raíz presenta UN batch de preguntas con `AskUserQuestion` y registra cada respuesta en `.swarm/decisions.md`.
 3. **Análisis (construido).** `analysis-orchestrator` + `opportunity-analyst`, `architecture-auditor`, `security-auditor`, `vulnerability-scanner`, `performance-analyst`, `data-model-auditor`; la raíz reenvía sus hallazgos (`TAG · fichero:línea · problema → fix`) directamente, sin `AskUserQuestion` de por medio.
-4. **Diseño (planeado).** `design-orchestrator`, `planner`, `pattern-advisor`, `domain-modeler`, integración grill×3.
+4. **Diseño (construido).** `design-orchestrator` + `pattern-advisor`, `domain-modeler`, `planner`; corre tras discovery en `tier: full`, grill×3 (`working-methods:grill-architect/operator/engineer`) revisa adversarialmente el plan que escribe `planner`, y `design-orchestrator` arbitra los hallazgos él mismo — sin `AskUserQuestion` de por medio.
 5. **Implementación (planeado).** 7 agentes + `dependency-auditor`/`dependency-installer` + el stack pack `php-ddd-symfony8`.
 6. **Entrega (planeado).** 3 agentes + `/swarm:status`, `/swarm:findings`.
+
+## Ledger de documentación
+
+- 2026-09-03: esta tanda solo cierra el hueco de precisión "construido/planeado" (dominio de diseño
+  de fase 4 marcado correctamente arriba, diagrama mermaid actualizado). La petición aparte y
+  explícita del owner de una **pasada completa de documentación de uso** (qué es el plugin, cómo se
+  instala y cómo se usa cada comando con ejemplos reales) **sigue abierta** — este fix estructural
+  no la satisface.
 
 ## Convención de nombres
 

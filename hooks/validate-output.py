@@ -48,8 +48,12 @@ DISCOVERY_Q_RE = re.compile(r'^- Q\d+ \[[^\]]{1,12}\] .+ · [A-D]\) .+ · rec: [
 # `architecture-auditor`...) y supera con normalidad los 120 chars cuando casan varias — mismo
 # bug de fondo que C1, confirmado en vivo con líneas de hasta 174 chars. `- sin hallazgos: <hoja>
 # no encontró...` (OK con cero hallazgos) es corta por construcción, pero es el mismo vocabulario
-# fijo por FORMA, no por "- " — se incluye aquí por localidad.
-DISCOVERY_OTHER_RE = re.compile(r'^- (warn|findings|lentes|sin hallazgos): .+$')
+# fijo por FORMA, no por "- " — se incluye aquí por localidad. `- grill: N P1 incorporados (...),
+# M P2/P3 anotados como riesgo en el plan` es el vocabulario fijo de design-orchestrator (spec §7
+# "Diseño", agents/design-orchestrator.md "## Salida", sección "Arbitraje") — mismo bug de fondo
+# otra vez: una línea real con el resumen del arbitraje (qué P1 se incorporaron, entre paréntesis)
+# supera con normalidad los 120 chars (review final de fase 4, finding Important #1).
+DISCOVERY_OTHER_RE = re.compile(r'^- (warn|findings|lentes|sin hallazgos|grill): .+$')
 # Las otras dos líneas fijas de analysis-orchestrator llevan un prefijo DINÁMICO (el número de
 # hallazgos truncados, el nombre de la hoja) y no caben en el `(a|b|c):` de arriba, así que van en
 # regexes aparte, cada una anclada a su forma exacta documentada en "## Espera y fusión" puntos 3

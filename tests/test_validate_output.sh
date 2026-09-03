@@ -150,6 +150,19 @@ EOF
 )"
 assert_eq "" "$out" "the two dynamic-prefix analysis lines (N hallazgos adicionales / hoja BLOCKED) are accepted"
 
+# Diseño (fix Important #1, review final de fase 4): una línea `- grill: ...` real con el resumen
+# del arbitraje de design-orchestrator (agents/design-orchestrator.md "## Salida"/"## Arbitraje")
+# supera con normalidad los 120 chars -- mismo bug de fondo que C1/lentes, confirmado en vivo con
+# líneas de 150+ chars (shape del checklist de smoke, docs/superpowers/plans/
+# 2026-09-03-phase4-smoke-checklist.md item 1). Debe seguir aceptándose SOLO por reconocer el
+# vocabulario fijo `- grill: ...` (DISCOVERY_OTHER_RE ampliada), no por venir con "- " delante.
+long_real_grill="- grill: 2 P1 incorporados (BOM UTF-8 para Excel, truncado de StreamedResponse tras headers 200), 3 P2/P3 anotados como riesgo en el plan"
+out="$(python3 "$HOOK" <<EOF
+{"agent_type": "swarm:design-orchestrator", "last_assistant_message": "DONE\nevidence: files=5 cmds=7 turns=15/20\n$long_real_grill"}
+EOF
+)"
+assert_eq "" "$out" "a real 150+ char - grill: line with arbitration summary is accepted"
+
 rm -rf "$fixture"
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
