@@ -46,6 +46,11 @@
       "ls", "cat", "head", "tail", "wc", "grep",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
+    "swarm:verifier": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
     "swarm:options-generator": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",

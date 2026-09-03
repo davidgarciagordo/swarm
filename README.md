@@ -56,6 +56,7 @@ flowchart TD
     DW["doc-writer (sonnet)"]
     QF["quality-fixer (haiku)"]
     RV["reviewer (opus)"]
+    VER["verifier (opus)"]
 
     O --> MO
     MO --> MB
@@ -87,6 +88,7 @@ flowchart TD
     IO --> DW
     IO --> QF
     IO --> RV
+    O -. verify gate, before every green close .-> VER
 
     subgraph planned["planned, not built (spec §15, phase 6)"]
         direction TB
@@ -100,7 +102,7 @@ flowchart TD
     class planned planned
 ```
 
-The root `orchestrator` (opus) classifies the run tier and talks to six domains today: `memory-orchestrator`, which owns `memory-builder` (builds/refreshes the context-pack) and `memory-curator` (compacts findings, GC); `requirements-orchestrator`, which owns `env-checker` (OS/project tool check, `/swarm:doctor`'s `operation: check`), `dependency-auditor` (read-only CVE/outdated/license audit, `operation: audit-deps`) and `dependency-installer` (mutating, `operation: install`, launched only with an itemised owner approval the root collects via `AskUserQuestion` — see `agents/orchestrator.md` §11); `discovery-orchestrator`, which owns the four discovery leaves and returns ONE batch of questions the root presents with `AskUserQuestion`; `analysis-orchestrator`, which selects a subset of its 6 read-only lenses by objective and forwards their findings directly; `design-orchestrator`, which runs after discovery (tier `full` only) — `pattern-advisor` + `domain-modeler` in one batch, then `planner` writes the real plan file, then (also tier `full`) grill×3 adversarially reviews it and `design-orchestrator` arbitrates the findings itself, never asking the owner; and `implementation-orchestrator`, which sequences `test-writer` (RED) → `implementer` (isolated worktree, GREEN) → `migration-engineer` (conditional, schema-touching phases only) → `doc-writer` (conditional, observable-behavior phases only, turns allowing) → `quality-fixer` (deterministic `--fix` + residual) → `reviewer` (severity-tagged gate BEFORE merge) → a local merge to the run's branch, for ONE phase of an already-arbitrado plan per invocation — only when the owner asks explicitly, never auto-chained after discovery/design. `/swarm:doctor` also invokes `requirements-orchestrator` directly, adhoc, outside any run, for a plain environment check. The remaining domain — delivery — is spec'd but not implemented (see status below).
+The root `orchestrator` (opus) classifies the run tier and talks to six domains today: `memory-orchestrator`, which owns `memory-builder` (builds/refreshes the context-pack) and `memory-curator` (compacts findings, GC); `requirements-orchestrator`, which owns `env-checker` (OS/project tool check, `/swarm:doctor`'s `operation: check`), `dependency-auditor` (read-only CVE/outdated/license audit, `operation: audit-deps`) and `dependency-installer` (mutating, `operation: install`, launched only with an itemised owner approval the root collects via `AskUserQuestion` — see `agents/orchestrator.md` §11); `discovery-orchestrator`, which owns the four discovery leaves and returns ONE batch of questions the root presents with `AskUserQuestion`; `analysis-orchestrator`, which selects a subset of its 6 read-only lenses by objective and forwards their findings directly; `design-orchestrator`, which runs after discovery (tier `full` only) — `pattern-advisor` + `domain-modeler` in one batch, then `planner` writes the real plan file, then (also tier `full`) grill×3 adversarially reviews it and `design-orchestrator` arbitrates the findings itself, never asking the owner; and `implementation-orchestrator`, which sequences `test-writer` (RED) → `implementer` (isolated worktree, GREEN) → `migration-engineer` (conditional, schema-touching phases only) → `doc-writer` (conditional, observable-behavior phases only, turns allowing) → `quality-fixer` (deterministic `--fix` + residual) → `reviewer` (severity-tagged gate BEFORE merge) → a local merge to the run's branch, for ONE phase of an already-arbitrado plan per invocation — only when the owner asks explicitly, never auto-chained after discovery/design. `/swarm:doctor` also invokes `requirements-orchestrator` directly, adhoc, outside any run, for a plain environment check. Before any green close of a run — normal close, analysis, design, implementation, or a requirements audit/install — the root launches `verifier` (opus, read-only), a single generic gate (spec §14bis) that independently checks the closing domain's verdict traces to real persisted findings and satisfies its own `## Salida` contract; a `KO` sends the domain one chance to correct, a second `KO` closes the run `BLOCKED` instead of in a false green. The remaining domain — delivery — is spec'd but not implemented (see status below).
 
 ### `/swarm:run` flow
 
@@ -184,6 +186,7 @@ Phases from spec §15:
 5. **Implementation — core (built, fase 5a).** `implementation-orchestrator` + `test-writer`, `implementer`, `quality-fixer`, `reviewer`; runs ONE phase of an already-`arbitrado` plan per invocation (RED→GREEN TDD in `implementer`'s isolated worktree, `quality-fixer` `--fix`s the residual, `reviewer` gates severity-tagged findings BEFORE a local merge to the run's branch); only by explicit owner invocation, never auto-chained after discovery/design.
 5b. **Requirements — dependency audit/install + stack pack (built).** `dependency-auditor` (read-only CVE/outdated/license audit, `requirements-orchestrator`'s `operation: audit-deps`) and `dependency-installer` (mutating, `operation: install`, only with an itemised owner approval collected by the root via `AskUserQuestion` — `agents/orchestrator.md` §11); `migration-engineer` and `doc-writer` join `implementation-orchestrator`'s sequence (both conditional — schema-touching and observable-behavior phases respectively); the first stack pack, `php-ddd-symfony8` (`skills/pack-php-ddd-symfony8/`), auto-detected from a `composer.json` with a `symfony/*` requirement.
 6. **Delivery (planned).** 3 agents + `/swarm:status`, `/swarm:findings`.
+14bis. **Independent verify gate (built).** `verifier` (opus, read-only, generic — no domain-specific knowledge); the root launches it before every green close of any domain (spec §14bis) to check the closing verdict's claims trace to real persisted findings and its own contract's required lines are present; two-strike: a `KO` sends the domain back to correct once, a second `KO` closes the run `BLOCKED` instead of a false green.
 
 ## Naming convention
 

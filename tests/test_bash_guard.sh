@@ -198,5 +198,29 @@ EOF
 )"
 assert_eq "0" "$(echo "$out" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" "a binary whose basename merely starts with mem- is not a scripts/mem-*.sh"
 
+# swarm:verifier — read-only puro, mismo perfil que value-critic (sin git worktree, sin req-check,
+# sin find — a diferencia del fallback "default", que sí trae find)
+assert_eq "0" "$(grep -q '"swarm:verifier": \[' "$PLUGIN_ROOT/hooks/bash-allowlist.json" && echo 0 || echo 1)" "bash-allowlist.json has an explicit swarm:verifier entry"
+out="$(_run_hook <<'EOF'
+{"agent_type": "swarm:verifier", "tool_name": "Bash", "tool_input": {"command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh\" query \"[run:abc]\" --scope findings"}}
+EOF
+)"
+assert_eq "" "$out" "swarm:verifier can query mem-files.sh"
+out="$(_run_hook <<'EOF'
+{"agent_type": "swarm:verifier", "tool_name": "Bash", "tool_input": {"command": "git worktree list"}}
+EOF
+)"
+assert_eq "0" "$(echo "$out" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" "swarm:verifier cannot use git worktree (spiker-only)"
+out="$(_run_hook <<'EOF'
+{"agent_type": "swarm:verifier", "tool_name": "Bash", "tool_input": {"command": "rm -rf /tmp/x"}}
+EOF
+)"
+assert_eq "0" "$(echo "$out" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" "swarm:verifier cannot rm (read-only)"
+out="$(_run_hook <<'EOF'
+{"agent_type": "swarm:verifier", "tool_name": "Bash", "tool_input": {"command": "find . -name \"*.md\""}}
+EOF
+)"
+assert_eq "0" "$(echo "$out" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" "swarm:verifier cannot find (default fallback has it, verifier's explicit profile does not)"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
