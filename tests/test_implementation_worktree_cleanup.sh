@@ -49,8 +49,10 @@ for path_marker in \
 do
   assert_eq "0" "$(has "$b" "$path_marker")" "terminal path references the shared cleanup section: ${path_marker:0:40}…"
 done
-# 6 references + 1 section header = 7 total mentions of the section name
-assert_eq "7" "$(grep -cF 'Limpieza del worktree' "$F")" "cleanup section is named exactly 7 times: 1 header + 6 terminal-path pointers (implementer BLOCKED, cut-rule timeout, quality-fixer KO, reviewer KO/breaker-BLOCKED, master-guard trip, merge-conflict)"
+# 8 references + 1 section header = 9 total mentions of the section name (task-7 pack-wiring added
+# two new conditional terminal paths — migration-engineer KO and doc-writer KO — each pointing at
+# this same shared section, on top of the original 6)
+assert_eq "9" "$(grep -cF 'Limpieza del worktree' "$F")" "cleanup section is named exactly 9 times: 1 header + 8 terminal-path pointers (implementer BLOCKED, cut-rule timeout, migration-engineer KO, doc-writer KO, quality-fixer KO, reviewer KO/breaker-BLOCKED, master-guard trip, merge-conflict)"
 
 # ---------- 3. I3: repo root resolved once, absolute paths built from it ----------
 assert_eq "0" "$(has "$b" 'git rev-parse --show-toplevel')" "orchestrator resolves the repo root via git rev-parse --show-toplevel (I3)"
