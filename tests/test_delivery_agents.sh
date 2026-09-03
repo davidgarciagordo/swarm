@@ -79,5 +79,23 @@ assert_eq "accept" "$(hook_says swarm:release-manager "$(python3 -c 'import json
 narr='DONE\nevidence: files=2 cmds=6 turns=7/15\n- he terminado de preparar la entrega y creo que lo mejor sería revisar con calma el resultado antes de seguir adelante con el push'
 assert_eq "reject" "$(hook_says swarm:release-manager "$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1].replace("\\n", chr(10))))' "$narr")")" "plain long prose with a '- ' prefix is STILL rejected (the exemption is by form, not by dash)"
 
+# ─────────────────────────── handoff-writer ───────────────────────────
+F="$PLUGIN_ROOT/agents/handoff-writer.md"
+assert_eq "0" "$([ -f "$F" ] && echo 0 || echo 1)" "agents/handoff-writer.md exists"
+front="$(front_of "$F")"; body="$(body_of "$F")"
+
+assert_eq "0" "$(echo "$front" | grep -q '^model: haiku$' && echo 0 || echo 1)" "handoff-writer is haiku (spec §7 and §7.0 mechanical leaf)"
+assert_eq "0" "$(echo "$front" | grep -q '^maxTurns: 8$' && echo 0 || echo 1)" "handoff-writer has maxTurns 8 (spec §7)"
+assert_eq "0" "$(has "$front" 'Write')" "handoff-writer writes the MD with Write, never through a shell"
+assert_eq "1" "$(has "$front" 'AskUserQuestion')" "handoff-writer cannot ask the owner"
+
+assert_eq "0" "$(has "$body" 'Prompt copy-paste para la sesión nueva')" "the handoff keeps the established section shape"
+assert_eq "0" "$(has "$body" 'Dónde está todo')" "the handoff keeps the 'where everything is' section"
+assert_eq "0" "$(has "$body" 'Siguiente paso')" "the handoff keeps the 'next step' section"
+assert_eq "0" "$(has "$body" 'docs/superpowers/handoffs')" "prefers the repo's existing handoffs directory"
+assert_eq "0" "$(has "$body" 'docs/handoffs')" "falls back to docs/handoffs when the superpowers tree is absent"
+assert_eq "0" "$(has "$body" 'No commiteas')" "never commits the handoff (ruling 9)"
+assert_eq "1" "$(has "$body" 'DONE ·')" "no 'DONE · detalle' anywhere"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

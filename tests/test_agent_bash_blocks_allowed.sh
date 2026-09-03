@@ -25,7 +25,7 @@ HOOK="$PLUGIN_ROOT/hooks/bash-guard.py"
 
 # The agents listed in AGENT_FILES (implementation, fase 5a + requirements/pack, fase 5b). Add
 # future agents here to extend the same coverage — no other change needed.
-AGENT_FILES="test-writer implementer quality-fixer reviewer implementation-orchestrator dependency-auditor dependency-installer migration-engineer doc-writer analysis-orchestrator vulnerability-scanner data-model-auditor requirements-orchestrator env-checker verifier release-manager"
+AGENT_FILES="test-writer implementer quality-fixer reviewer implementation-orchestrator dependency-auditor dependency-installer migration-engineer doc-writer analysis-orchestrator vulnerability-scanner data-model-auditor requirements-orchestrator env-checker verifier release-manager handoff-writer"
 
 guard() { # guard <agent_type> <command> -> "allow" | "deny"
   local out
