@@ -421,6 +421,19 @@ de verificación independiente, `swarm:verifier`) NO se construye en este plan**
     - `gh repo create <nombre> [flags de un conjunto cerrado]` (Task 2b).
     Todo lo demás de `git remote` y de `gh repo` sigue denegado para cualquier agente.
 
+  - **Añadido tras la 3ª ronda de review adversarial (2026-09-03):** por encima de todo lo anterior
+    hay un **gate estructural de formas canónicas** (`canonical_shape_reason`, constantes
+    `MUTATION_FAMILIES`). Para las familias que mutan algo irreversible (`git push`,
+    `git remote add`/`set-url`, `gh repo create`, `gh pr create`, `gh pr merge`), el string CRUDO
+    COMPLETO tiene que casar (`re.fullmatch`) contra una forma canónica cuyo charset no contiene
+    ningún metacarácter de shell — y se comprueba ANTES de trocear en segmentos, para CUALQUIER
+    `agent_type`. Consecuencia que **Task 2 y Task 2b tienen que respetar al redactar los briefs**:
+    - un comando mutante se emite **SOLO**, un comando por turno: nada de `cd x && git push …`, ni
+      redirecciones (`> log`), ni `&` de fondo, ni `;` encadenando — el gate lo deniega;
+    - `gh pr create` lleva SIEMPRE `--base` y `--head` explícitos;
+    - `gh repo create` solo admite `--source=.` (no otra ruta);
+    - el título/descripción saneados por §4.4 caben tal cual dentro de `--title "…"`.
+
 - [ ] **Step 1: Escribir el test del guard (falla primero)**
 
 ```bash
