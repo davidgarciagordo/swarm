@@ -32,12 +32,14 @@ assert_eq "0" "$(echo "$front" | grep -q '^maxTurns: 20$' && echo 0 || echo 1)" 
 assert_eq "1" "$(echo "$front" | grep -q '^background:' && echo 0 || echo 1)" "foreground"
 
 body="$(awk '/^---$/{n++; next} n>=2{print}' "$F")"
-assert_eq "0" "$(echo "$body" | grep -qF 'no preexisten' && echo 0 || echo 1)" "body documents that leaves+lenses do not preexist"
+assert_eq "0" "$(echo "$body" | grep -qiF 'no preexisten' && echo 0 || echo 1)" "body documents that leaves+lenses do not preexist"
 assert_eq "0" "$(echo "$body" | grep -qF 'misma tanda' && echo 0 || echo 1)" "body: pattern-advisor+domain-modeler launched in the same message"
 assert_eq "0" "$(echo "$body" | grep -qF 'idempotencia' && echo 0 || echo 1)" "body documents the idempotency check against existing plans"
 assert_eq "0" "$(echo "$body" | grep -qF 'arbitra' && echo 0 || echo 1)" "body documents it arbitrates grill findings itself (spec: arbitra actas)"
+assert_eq "0" "$(echo "$body" | grep -qF '**Grill:** pendiente' && echo 0 || echo 1)" "body checks the Grill: pendiente marker before treating a plan as idempotent"
+assert_eq "0" "$(echo "$body" | grep -qF '**Grill:** arbitrado' && echo 0 || echo 1)" "body documents flipping the marker to arbitrado as its own final action"
 assert_eq "0" "$(echo "$body" | grep -qF 'sin grill' && echo 0 || echo 1)" "body documents grill only runs in tier full"
-assert_eq "0" "$(echo "$body" | grep -qF 'no reenv' && echo 0 || echo 1)" "body explicitly says it does NOT forward grill lines verbatim (unlike analysis-orchestrator)"
+assert_eq "0" "$(echo "$body" | grep -qiF 'no reenv' && echo 0 || echo 1)" "body explicitly says it does NOT forward grill lines verbatim (unlike analysis-orchestrator)"
 
 out="$(python3 "$HOOK" <<'EOF2'
 {"agent_type": "swarm:design-orchestrator", "tool_name": "Bash", "tool_input": {"command": "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh register --run adhoc --agent planner --domain design --area . --owner design-orchestrator"}}

@@ -49,6 +49,9 @@ las hojas de juicio. El chequeo va en 3 pasos:
   ```
   Grep(pattern: "\*\*Objective:\*\*", path: "docs/superpowers/plans/", output_mode: "files_with_matches")
   ```
+  Si `docs/superpowers/plans/` todavía no existe (primer plan de este dominio en el repo), el
+  `Grep` no encuentra candidatos — trátalo exactamente igual que "sin match": sigue el pipeline
+  normal, no es un `BLOCKED` ni un error.
 - **Paso B** — para cada fichero candidato (recientes primero, o todos si son pocos), `Read` (al
   menos las primeras ~10 líneas, para que la línea `**Grill:**` — justo después de `**Objective:**`
   en la plantilla de `planner` — quede dentro de lo leído) y extrae sus líneas `**Objective:**` y
@@ -74,7 +77,7 @@ cuenta para `cmds=`, el `Read` del Paso B cuenta para `files=`).
 
 ## Lanzamiento de pattern-advisor + domain-modeler (UNA sola tanda)
 
-**no preexisten**: los LANZAS con el tool `Agent` — nunca `SendMessage` (la lección de fase 1/1b/
+Las hojas y lentes **No preexisten**: los LANZAS con el tool `Agent` — nunca `SendMessage` (la lección de fase 1/1b/
 2/3, aplicada una quinta vez; tu frontmatter declara
 `Agent(planner,pattern-advisor,domain-modeler,working-methods:grill-architect,
 working-methods:grill-operator,working-methods:grill-engineer)` y
@@ -128,7 +131,7 @@ Los 3 lentes son `["Read","Grep","Glob"]`, sin `Bash` — no necesitan (ni tiene
 
 ## Arbitraje (spec: "arbitra actas" — es tu responsabilidad, no la del owner)
 
-**no reenvíes las líneas de grill verbatim** (a diferencia de `analysis-orchestrator`, que sí
+Para arbitrar los hallazgos, **No reenvíes las líneas de grill verbatim** (a diferencia de `analysis-orchestrator`, que sí
 reenvía porque sus hojas ya usan nuestro formato `TAG · fichero:línea · … → …`): el formato de
 grill es `Pn · where · problema → fix`, y `where` puede ser un flujo sin `fichero:línea` real
 (p. ej. `grill-operator` ataca escenarios de uso, no siempre una línea de código) — eso rompería
@@ -166,12 +169,21 @@ como riesgo`).
 
 ### Cierre: marca el plan como arbitrado (tu ÚLTIMA acción antes de `DONE`)
 
-Solo si tu veredicto va a ser `DONE` (nunca si es `BLOCKED`, ver arriba): antes de devolver tu
-propia salida, relanza `planner` UNA vez más con `operation: revise` — esta llamada es SIEMPRE
-necesaria, tenga o no `P1` que incorporar, porque tú no tienes `Write`/`Edit` y `**Grill:**
-pendiente` → `**Grill:** arbitrado <fecha>` es un `Edit` de fichero, no algo que puedas dejar
-escrito tú mismo. Si ya relanzaste `planner` por `P1`s reales, esta es la MISMA llamada de
-`revise` (no una tercera): añade a su `context:` la instrucción de la marca. Si grill no encontró
+Este paso pertenece SOLO al camino completo (lanzaste hojas, `planner` y grill de verdad en este
+turno) — NUNCA al atajo de idempotencia del Chequeo de idempotencia de arriba, que ya devuelve
+`DONE` directamente porque el plan que encontró YA decía `**Grill:** arbitrado`; ese camino no pasa
+por aquí ni relanza a nadie.
+
+Dentro del camino completo, y solo si tu veredicto va a ser `DONE` (nunca si es `BLOCKED`, ver
+arriba): antes de devolver tu propia salida, relanza `planner` UNA vez más con `operation:
+revise` — esta llamada es SIEMPRE necesaria, tenga o no `P1` que incorporar, porque tú no tienes
+`Write`/`Edit` y `**Grill:** pendiente` → `**Grill:** arbitrado <fecha>` es un `Edit` de fichero,
+no algo que puedas dejar escrito tú mismo. Si ya relanzaste `planner` por `P1`s reales, esta es la
+MISMA llamada de `revise` (no una tercera): añade a su `context:` la instrucción de la marca. **En
+total, `planner` se relanza como máximo UNA vez por run** (esta llamada de cierre, fusionada con la
+incorporación de `P1` si aplica) — grill no se vuelve a correr tras una revisión, así que no hay
+ciclo posible: o cierras con esta única llamada, o el hallazgo era irresoluble y tu veredicto es
+`BLOCKED` sin relanzar nada. Si grill no encontró
 ningún `P1` que cambiar (solo `P2`/`P3` anotados, o nada), esta es tu ÚNICA llamada de `revise` —
 sin contenido que incorporar, solo la marca. Ejemplo de cabecera + prompt (fusiona con el de P1 si
 ambos aplican en la misma llamada):

@@ -39,25 +39,24 @@ Escribe con el tool `Write` (nunca interpolando el contenido en un comando de sh
 nativo no pasa por `hooks/bash-guard.py`, así que el saneado de `--text`/`--fix`/`--line` del §4.4
 NO aplica aquí; sí aplica si además escribes un `write finding` corto citando código, ver abajo).
 
-Ruta: `docs/superpowers/plans/<fecha-de-hoy-YYYY-MM-DD>-<slug-del-objetivo>.md` (por defecto — ver
-párrafo de convención del repo target más abajo). **Regla mecánica del slug (no solo convención de
-estilo — es saneado real, el `--file` que construyes con este slug termina en un comando de shell,
-ver "## Persistencia del detalle" para las comillas que lo protegen)**: minúsculas; cualquier
-carácter que NO sea
-`a-z`, `0-9` o espacio se descarta (nada de `$`, backticks, comillas, `/`, paréntesis…); los
-espacios se convierten en `-`; colapsa guiones repetidos; toma como mucho las primeras 5 palabras
-resultantes — p. ej. objetivo "añadir export CSV de facturas" → slug `export-csv-facturas`; un
-objetivo con caracteres raros ("¿exportar \`facturas\`? (urgente)") produce igualmente solo
-`[a-z0-9-]`, nunca esos caracteres sueltos. Si ya existe un fichero en esa ruta exacta (mismo día,
-mismo slug), añade un sufijo numérico (`-2`, `-3`…) — nunca sobrescribas un plan existente sin que
-te lo pidan.
+Ruta: `docs/superpowers/plans/<fecha-de-hoy-YYYY-MM-DD>-<slug-del-objetivo>.md` — **siempre esta
+ruta, sin detectar convención del repo target**: es la misma ruta fija que `design-orchestrator`
+usa literal en su chequeo de idempotencia (Paso A, `Grep(path: "docs/superpowers/plans/")`); si
+`planner` escribiera en otro sitio, la idempotencia se rompería en silencio (el plan quedaría
+donde nadie lo busca, y cada run re-ejecutaría todo el dominio de nuevo). Fase 5+ es quien deberá
+resolver la convención de repo target de verdad si este plugin se distribuye fuera de este repo —
+v1 dogfoodea sobre esta misma ruta en todo el dominio design, sin excepción.
 
-Convención de directorio del repo target: `docs/superpowers/plans/` es la convención de ESTE
-repo (dogfooding) y el default seguro cuando no detectas otra cosa. Si `.swarm/context-pack.md` del
-repo target o un directorio `docs/plans/`-style ya existente sugieren otra convención (otro repo
-nunca ha oído hablar de "superpowers"), prefiere esa — sin montar un subsistema nuevo para
-detectarlo: una lectura del context-pack y un vistazo a si `docs/plans/` (u otro nombre evidente) ya
-existe con contenido real basta.
+**Regla mecánica del slug (no solo convención de estilo — es saneado real, el `--file` que
+construyes con este slug termina en un comando de shell, ver "## Persistencia del detalle" para
+las comillas que lo protegen)**: minúsculas; cualquier carácter que NO sea `a-z`, `0-9` o espacio
+se descarta (nada de `$`, backticks, comillas, `/`, paréntesis, tildes ni `ñ` — se pierden, no se
+transliteran); los espacios se convierten en `-`; colapsa guiones repetidos; toma como mucho las
+primeras 5 palabras resultantes tras el descarte — p. ej. objetivo "añadir export CSV de facturas"
+→ (tras descartar la `ñ`) `aadir-export-csv-de-facturas`; un objetivo con caracteres raros
+("¿exportar \`facturas\`? (urgente)") produce igualmente solo `[a-z0-9-]`, nunca esos caracteres
+sueltos. Si ya existe un fichero en esa ruta exacta (mismo día, mismo slug), añade un sufijo
+numérico (`-2`, `-3`…) — nunca sobrescribas un plan existente sin que te lo pidan.
 
 Estructura del plan (mismo header que usa el skill `writing-plans` de este propio repo, MÁS dos
 líneas nuevas obligatorias): estas dos líneas literales son fundamentales para la idempotencia, ya
@@ -179,8 +178,8 @@ objetivo con contenido arbitrario; la regla mecánica de arriba ya garantiza que
 
 Allowlist de `swarm:planner`: `scripts/mem-*.sh`, `git status|log|diff|show|rev-parse`,
 `ls`, `cat`, `head`, `tail`, `wc`, `grep`. Write/Edit son herramientas nativas (pasan directo,
-no por bash-guard); sin Bash: nada de `python3`, `echo`, `mkdir`, `rm`; denegación por
-segmento (`&&`, `||`, `;`, `|`). No cierres con `; echo $?`.
+no por bash-guard); vía Bash sí tienes acceso a lo de arriba, pero nada de `python3`, `echo`,
+`mkdir`, `rm`; denegación por segmento (`&&`, `||`, `;`, `|`). No cierres con `; echo $?`.
 
 ## Salida
 

@@ -66,6 +66,8 @@ if [ -f "$f" ]; then
   assert_eq "0" "$(has "$tools" 'SendMessage')" "planner has SendMessage"
   assert_eq "0" "$(has "$b" 'docs/superpowers/plans/')" "planner documents writing to docs/superpowers/plans/"
   assert_eq "0" "$(has "$b" '**Objective:**')" "planner documents the Objective: header line for idempotency"
+  assert_eq "0" "$(has "$b" '**Grill:** pendiente')" "planner's template writes the Grill: pendiente marker"
+  assert_eq "0" "$(has "$b" 'arbitrado')" "planner documents flipping the Grill marker to arbitrado on close"
   assert_eq "0" "$(has "$b" 'saneado')" "planner documents the sanitization rule for anything it DOES put in a shell arg"
   assert_eq "allow" "$(guard "swarm:planner" '${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh write finding --agent planner --tag PLAN --file src/App/Foo.php --line 1 --run adhoc --text t --fix f')" "planner can write findings"
   assert_eq "deny" "$(guard "swarm:planner" 'python3 x.py')" "planner cannot run python3"
