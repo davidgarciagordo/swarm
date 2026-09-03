@@ -228,7 +228,7 @@ git merge worktree-agent-<agentId del paso 2>
 ```
 Es una fusión LOCAL a la rama donde corre este run — nunca `git push`, nunca `master` directo,
 nunca una rama remota. Empujar o abrir PR es responsabilidad exclusiva de `delivery-orchestrator`/
-`release-manager` (fase 6, todavía sin construir); este dominio nunca toca remoto.
+`release-manager` (fase 6); este dominio nunca toca remoto.
 
 **Si `git merge` termina con código de salida distinto de cero (conflicto real, no un `fast-forward`
 limpio):** no lo dejes a medias ni sigas como si hubiera fusionado. Aborta la fusión en su PROPIA

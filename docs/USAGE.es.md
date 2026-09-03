@@ -38,12 +38,11 @@ Si algún día este plugin se publica en un marketplace, la instalación pasarí
 marketplace de plugins de Claude Code (`/plugin install swarm` o equivalente) — pero esa vía todavía
 no existe, así que no sigas instrucciones que la den por hecha.
 
-## 3. Los 3 comandos
+## 3. Los 5 comandos
 
-Estos son los *únicos* tres comandos de barra que define este plugin — ficheros reales bajo
-`commands/`: `commands/init.md`, `commands/run.md`, `commands/doctor.md`. Nada más
-(`/swarm:status`, `/swarm:findings`, etc.) está implementado todavía, aunque el spec de diseño los
-esboza para una fase posterior — no los escribas esperando que funcionen.
+Estos son los *únicos* cinco comandos de barra que define este plugin — ficheros reales bajo
+`commands/`: `commands/init.md`, `commands/run.md`, `commands/doctor.md`, `commands/status.md`,
+`commands/findings.md`. Nada más está implementado — no escribas otra cosa esperando que funcione.
 
 ### `/swarm:init`
 
@@ -161,6 +160,46 @@ nunca `SendMessage`) y el veredicto final es `OK`. Si falta una herramienta requ
 es `BLOCKED <tool>` con el hint de instalación de `requirements.json` (comando `brew`/`apt`),
 propagado literalmente desde `env-checker` hasta lo que ves — verificado directamente contra el
 script en el ítem 2 de ese mismo checklist.
+
+### `/swarm:status`
+
+Muestra el estado del enjambre en este repo — run actual, tier, agentes registrados, su summary y
+hallazgos abiertos. No toma argumentos; cualquier texto que escribas después del comando se ignora.
+
+```
+/swarm:status
+```
+
+Determinista primero: en el camino normal ejecuta
+`${CLAUDE_PLUGIN_ROOT}/scripts/swarm-status.sh` y reporta su salida en texto plano tal cual — **no
+lanza ningún subagente y no consume ningún turno de modelo** leyendo y formateando `.swarm/` (spec
+§11, principio 4: herramienta determinista antes que modelo). Si `.swarm/` todavía no existe,
+muestra la línea de stderr propia del script que apunta a `/swarm:init`, en vez de fallar en
+silencio. Si el script no puede interpretar lo que hay en disco (un `run.json` truncado por un run
+interrumpido, o entradas de `findings/*.md` sin la cabecera que escribió otra versión del plugin),
+nunca presenta un resultado incompleto como si fuera el normal: muestra primero
+`- warn: modo degradado — swarm-status.sh falló (exit <código>)`, y después un resumen best-effort
+leído directamente de como mucho tres ficheros (`.swarm/run/current`, el `run.json` y el
+`summary.md` de ese run).
+
+### `/swarm:findings`
+
+Una consulta filtrada de los hallazgos del enjambre — por nombre de agente o por tag, solo los
+abiertos salvo que pidas todos.
+
+```
+/swarm:findings [agente|TAG] [--all]
+```
+
+Misma forma determinista-primero que `/swarm:status`: ejecuta
+`${CLAUDE_PLUGIN_ROOT}/scripts/swarm-findings.sh` con tu argumento y reporta su salida tal cual, sin
+subagente ni turno de modelo en el camino normal. El filtro es como mucho un nombre de agente o TAG
+más el flag opcional `--all`; cualquier cosa que no case con `[A-Za-z0-9_-]+` la rechaza el propio
+script con `exit 64`, antes de tocar nada. Mismo contrato de modo degradado que `/swarm:status`: si
+algunas entradas de `.swarm/findings/` no se pueden clasificar (un fichero editado a mano o de otra
+versión), empieza con `- warn: modo degradado — swarm-findings.sh falló (exit <código>)`, y luego un
+listado best-effort, sin reinterpretar, leído directamente de como mucho tres ficheros — nunca
+presentado en silencio como un resultado normal y completo.
 
 ## 4. Los dominios
 
@@ -361,10 +400,43 @@ evidence: files=9 cmds=17 turns=19/25
 Nunca toca `master` ni una rama compartida, y nunca ejecuta `git push` — ningún agente de este
 dominio tiene siquiera esa herramienta en su lista permitida.
 
-**Qué falta por construir:** el dominio `delivery` (automatización de release/PR/handoff) sigue
-planeado, no disponible. Consulta la sección "Estado actual" de `README.es.md` para el desglose
-exacto y actualizado de construido/planeado — este documento no lo duplica para no arriesgarse a que
-diverjan.
+### Entrega
+
+**Qué hace por ti:** publica trabajo ya fusionado localmente — empuja una rama, abre el PR y escribe
+un handoff de sesión. `delivery-orchestrator` secuencia `release-manager` (fase A previsualiza los
+comandos exactos de push/PR; fase B los ejecuta solo con tu aprobación itemizada) y, en cualquier
+camino terminal, `handoff-writer`.
+
+**Qué lo dispara:** solo una petición explícita y separada que nombre la entrega ("publica la rama
+X", "abre el PR de Y", "prepara la entrega de Z") — ver `agents/orchestrator.md` §12. Cuatro cosas
+que conviene saber antes de usarlo:
+
+1. **Nunca se encadena sola** — ni siquiera en `tier: full`, ni siquiera justo después de que
+   termine un run de implementación. Hay que pedirla explícitamente, cada vez.
+2. **Son dos pasos con una pregunta en medio.** La fase A (`prepare-release`) solo lee y
+   previsualiza — nada sale de tu máquina. Se te muestra el remoto exacto, la rama, la base, el
+   número de commits y el estado del verde, y solo después de que apruebas vía `AskUserQuestion`
+   corre la fase B (`publish-release`), con tu aprobación traducida a una línea literal
+   `approved-push: remote=<remote> branch=<branch> base=<base>` — nunca a partir de un sí genérico,
+   nunca de memoria.
+3. **El enjambre nunca mergea el PR.** Lo abre (o, sin `gh`, te da el comando exacto para abrirlo tú)
+   y deja el merge para una persona.
+4. **Si el repo no tiene remoto, el enjambre no se queda ahí.** Pregunta si crear uno nuevo en tu
+   cuenta de GitHub (privado por defecto) o usar uno que ya tengas, te enseña el `gh repo create …`
+   exacto ANTES de que decidas y, una vez configurado, te pide que **relances la entrega**: nunca
+   encadena el push por su cuenta tras configurar un remoto para un destino que todavía no has visto.
+
+**Qué recibes:** un preview (`- remote:`, `- commits:`, `- verde:`, `- preview push:`,
+`- preview pr:`) esperando tu aprobación, o, una vez publicado, `- pushed:` / `- pr:` más
+`- handoff: <ruta>` apuntando al fichero de handoff de sesión que escribió (dejado sin commitear a
+propósito). Un `BLOCKED`/`KO` de la hoja se te propaga literal, incluido el `stderr` crudo de
+`git`/`gh` cuando ese es el fallo.
+
+**Modo degradado:** si `release-manager` no puede determinar el estado de la suite local (ningún
+comando de test reconocido para el stack activo), nunca presenta "desconocido" como "verde" —
+reporta `- warn: sin suite ejecutable — verde NO verificado`, y esa advertencia exacta se pliega
+dentro del texto de la pregunta de aprobación, así que apruebas sabiendo que el verde no está
+comprobado de verdad.
 
 ### Stack packs
 
