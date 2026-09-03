@@ -206,6 +206,34 @@ Firma real (`scripts/mem-manifest.sh`, `_summary`): solo `--run` y `--line`, los
 (§2.1, nunca `"$RUN"`), y la `<línea>` va por el saneado de §5.0 si lleva texto ajeno (objetivo,
 pregunta, respuesta del owner).
 
+**Antes de cualquier línea de cierre EN VERDE** (cierre normal §5.4, análisis completado §8.4,
+diseño completado §9.4, implementación completada §10.4, auditoría/instalación de dependencias
+completada §11.4 — NUNCA antes de `BLOCKED`/`KO` propagado ni de una línea "omitido": esos caminos
+ya no cierran en verde, no necesitan gate), lanza el gate de verificación independiente
+(spec §14bis):
+
+```
+Agent(subagent_type: "swarm:verifier", name: "verifier", prompt:
+"run-id: <run-id>
+swarm-root: <ruta absoluta de .swarm>
+operation: verify
+domain: <nombre del orquestador de dominio que acaba de cerrar>
+verdict: <su veredicto literal completo>")
+```
+
+- **`OK`** → sigue con la línea de cierre EN VERDE que corresponda (lista de abajo) y `curate`
+  normal, sin cambios.
+- **`KO <motivo>`** (1er intento): `SendMessage(to: "<nombre del dominio>", "verify KO: <motivo> —
+  corrige y devuelve tu veredicto otra vez")` — el dominio sigue vivo/resumible (§2bis), su
+  respuesta te llega como mensaje en un turno posterior, igual que cualquier `SendMessage` a un
+  agente ya lanzado. Cuando llegue, relanza `Agent(subagent_type: "swarm:verifier", ...)` una
+  SEGUNDA vez con el veredicto corregido — es una instancia nueva bajo el mismo nombre, no hay
+  estado que arrastrar entre los dos intentos (el verificador es puro read-only).
+- **`KO` la segunda vez** (mismo motivo o no): two-strike, igual que
+  `hooks/validate-output.py` — NO cures nada: la línea de cierre pasa a ser
+  `- run cerrado: BLOCKED verificación fallida de <dominio>: <motivo del verifier>` y sigues con
+  `curate` normal (el run se cierra `BLOCKED`, nunca en falso verde).
+
 Línea por camino terminal (una sola llamada, la que corresponda):
 
 - cierre normal (§5.4): `- run cerrado: DONE · discovery respondido, <n> decisiones guardadas`
