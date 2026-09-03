@@ -11,7 +11,8 @@ F="$PLUGIN_ROOT/agents/orchestrator.md"
 assert_eq "0" "$([ -f "$F" ] && echo 0 || echo 1)" "agents/orchestrator.md exists"
 [ -f "$F" ] || exit 1
 
-body="$(cat "$F")"
+body="$(awk '/^## 4\. Cierre/{f=1} f && /^## 5\./{exit} f' "$F")"
+assert_eq "0" "$([ -n "$body" ] && echo 0 || echo 1)" "§4. Cierre section extracted (non-empty)"
 assert_eq "0" "$(echo "$body" | grep -qF 'swarm:verifier' && echo 0 || echo 1)" "§4 invokes swarm:verifier"
 assert_eq "0" "$(echo "$body" | grep -qF 'operation: verify' && echo 0 || echo 1)" "§4 passes operation: verify"
 assert_eq "0" "$(echo "$body" | grep -qF 'cierre EN VERDE' && echo 0 || echo 1)" "§4 scopes the gate to green closes only"
