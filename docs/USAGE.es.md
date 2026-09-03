@@ -378,10 +378,12 @@ genérica. Hoy hay exactamente uno: `skills/pack-php-ddd-symfony8/` (PHP + DDD +
 referencia a `symfony/` en cualquier parte del fichero; si es así, escribe
 `stack: php-ddd-symfony8` en el pack. Cada hoja que recibe una cabecera `pack:` ya resuelta
 (`quality-fixer`, `test-writer`, `implementer`, `migration-engineer`, `doc-writer`,
-`data-model-auditor`, `vulnerability-scanner`, `dependency-auditor`, `env-checker` vía
-`requirements-orchestrator`) resuelve su ruta absoluta a partir de esa línea y lee solo los ficheros
-que necesita. `pattern-advisor`/`domain-modeler` no reciben línea `pack:` — solo respetan el
-`stack:` declarado vía `.swarm/context-pack.md`.
+`data-model-auditor`, `vulnerability-scanner`, `dependency-auditor`) resuelve su ruta absoluta a
+partir de esa línea y lee solo los ficheros que necesita. `env-checker` recibe el chequeo de
+requisitos consciente del pack por otra vía, a través de `requirements-orchestrator`: le llega la
+ruta del `requirements.json` del pack ya resuelta como `--pack <fichero>` dentro de su propia línea
+`operation:`, no como una línea `pack:` separada. `pattern-advisor`/`domain-modeler` tampoco reciben
+línea `pack:` — solo respetan el `stack:` declarado vía `.swarm/context-pack.md`.
 
 **Qué pasa sin él:** nada se rompe. Un repo sin `composer.json`, o que no casa con ningún pack
 conocido, recibe `stack: generic` — nunca se envía una línea `pack:` a ninguna hoja, y cada una cae
