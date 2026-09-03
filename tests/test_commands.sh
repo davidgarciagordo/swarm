@@ -28,6 +28,20 @@ for c in data.get('commands', []):
   assert_eq "0" "$([ -f "$PLUGIN_ROOT/$rel" ] && echo 0 || echo 1)" "manifest command $rel exists"
 done
 
+# … y al revés: todo commands/*.md tiene que estar DECLARADO en el manifest. Un fichero de comando
+# sin declarar simplemente no existe para el usuario, y nada lo delata en tiempo de test.
+declared="$(python3 -c "
+import json, sys
+with open(sys.argv[1]) as fh:
+    data = json.load(fh)
+print(' '.join(c.lstrip('./') for c in data.get('commands', [])))
+" "$PLUGIN_ROOT/.claude-plugin/plugin.json")"
+for f in "$PLUGIN_ROOT"/commands/*.md; do
+  [ -f "$f" ] || continue
+  rel="commands/$(basename "$f")"
+  assert_eq "0" "$(echo " $declared " | grep -qF " $rel " && echo 0 || echo 1)" "$rel is declared in plugin.json"
+done
+
 # El punto de entrada raíz: /swarm:run debe invocar al agente orchestrator.
 assert_eq "0" "$([ -f "$PLUGIN_ROOT/agents/orchestrator.md" ] && echo 0 || echo 1)" "agents/orchestrator.md exists"
 assert_file_contains "$PLUGIN_ROOT/commands/run.md" "orchestrator" "run.md invoca al orchestrator"
