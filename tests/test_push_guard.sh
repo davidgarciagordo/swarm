@@ -71,6 +71,33 @@ assert_eq "deny"  "$(guard $A 'git push --mirror origin')" "--mirror is denied"
 assert_eq "deny"  "$(guard $A 'git push --all origin')" "--all is denied"
 assert_eq "deny"  "$(guard $A 'git push --tags origin feature/x')" "--tags is denied (v1 creates no tags)"
 
+# --- I1: refs/tags/* and tags/* (explicit tag refspec) is denied too, not just the --tags flag ---
+assert_eq "deny"  "$(guard $A 'git push origin refs/tags/v1')" "explicit refs/tags/ refspec is denied (I1 — not just the --tags flag form)"
+assert_eq "deny"  "$(guard $A 'git push origin tags/v1')" "explicit tags/ refspec is denied too"
+
+# --- C2: HEAD/@ are ambiguous destinations — only an explicit branch name is a valid dst ---
+assert_eq "deny"  "$(guard $A 'git push origin HEAD')" "git push origin HEAD is denied (C2 — ambiguous destination)"
+assert_eq "deny"  "$(guard $A 'git push origin @')" "git push origin @ is denied (C2 — @ is HEAD's alias)"
+assert_eq "deny"  "$(guard $A 'git push origin --set-upstream HEAD')" "git push origin --set-upstream HEAD is denied too"
+assert_eq "deny"  "$(guard $A 'git push origin HEAD~1')" "git push origin HEAD~1 is denied (history-relative alias)"
+assert_eq "deny"  "$(guard $A 'git push origin @{upstream}')" "git push origin @{upstream} is denied"
+
+# --- C3: heads/<rama> DWIM refspec resolves to the SAME dst as <rama> — closes it from ANY branch ---
+assert_eq "deny"  "$(guard $A 'git push origin HEAD:heads/main')" "HEAD:heads/main is denied (C3 — heads/ DWIM alias of a protected branch)"
+assert_eq "deny"  "$(guard $A 'git push origin heads/master')" "heads/master is denied"
+assert_eq "deny"  "$(guard $A 'git push origin heads/develop')" "heads/develop is denied"
+assert_eq "deny"  "$(guard $A 'git push origin HEAD:heads/trunk')" "HEAD:heads/trunk is denied"
+assert_eq "deny"  "$(guard $A 'git push origin heads/feature/x')" "even a non-protected name under heads/ is denied — shape whitelist, not a protected-name blacklist"
+assert_eq "deny"  "$(guard $A 'git push origin refs/heads/feature/x')" "a fully-qualified non-protected ref is denied too — only a PLAIN branch name is the allowed shape"
+
+# --- C4: a quoted \$(...) as the push destination or remote name is a static-analysis blind spot.
+# Quoted (not bare) so it survives shlex as ONE positional word — exercising the substitution
+# check itself, not just the too-many-positionals branch a bare/unquoted form would also trip. ---
+assert_eq "deny"  "$(guard $A 'git push origin \"$(git branch --show-current)\"')" "a quoted \$(...) substitution as the push destination is denied (C4 — cannot be statically resolved)"
+assert_eq "deny"  "$(guard $A 'git push \"origin\" \"$(git rev-parse --abbrev-ref HEAD)\"')" "another quoted \$(...) substitution form as the destination is denied"
+assert_eq "deny"  "$(guard $A 'git remote add origin \"$(gh repo view --json url -q .url)\"')" "a quoted \$(...) substitution as the git remote add URL is denied too"
+assert_eq "allow" "$(guard $A 'git push origin \"feature/x\"')" "a plain quoted literal (no substitution) as the destination still allows"
+
 # --- gh: crear/leer sí, mergear/cerrar/mover el árbol NO ---
 assert_eq "allow" "$(guard $A 'gh auth status')" "gh auth status is allowed (availability probe)"
 assert_eq "allow" "$(guard $A 'gh pr create --base master --head feature/x --title T --body-file /tmp/n.md')" "gh pr create is allowed"
@@ -81,6 +108,19 @@ assert_eq "deny"  "$(guard $A 'gh pr edit 12 --title x')" "gh pr edit is denied"
 assert_eq "deny"  "$(guard $A 'gh pr ready 12')" "gh pr ready is denied"
 assert_eq "deny"  "$(guard $A 'gh pr checkout 12')" "gh pr checkout is denied (never moves the working tree)"
 assert_eq "deny"  "$(guard $A 'gh auth login')" "gh auth login is denied (interactive, mutates credentials)"
+
+# --- C1: a value-taking flag BEFORE the real subcommand must not hide it from SUBCOMMAND_DENIED_ARGS ---
+assert_eq "deny"  "$(guard $A 'gh pr --repo o/r merge 12 --squash')" "gh pr --repo o/r merge is denied (C1 — --repo's value is not mistaken for the subcommand)"
+assert_eq "deny"  "$(guard $A 'gh pr -R o/r merge 12 --squash')" "gh pr -R o/r merge is denied (short form of --repo)"
+assert_eq "deny"  "$(guard $A 'gh pr --repo o/r close 12')" "gh pr --repo o/r close is denied"
+assert_eq "deny"  "$(guard $A 'gh pr --repo o/r edit 12 --title x')" "gh pr --repo o/r edit is denied"
+assert_eq "deny"  "$(guard $A 'gh pr --repo o/r checkout 12')" "gh pr --repo o/r checkout is denied"
+assert_eq "deny"  "$(guard $A 'gh auth --hostname github.com login')" "gh auth --hostname github.com login is denied"
+assert_eq "deny"  "$(guard $A 'gh auth -h github.com token')" "gh auth -h github.com token is denied"
+# legitimate forms with the same value-taking flag still work
+assert_eq "allow" "$(guard $A 'gh pr view 12')" "gh pr view 12 still allowed (sanity)"
+assert_eq "allow" "$(guard $A 'gh pr --repo o/r view 12')" "gh pr --repo o/r view is allowed — --repo does not block a legitimate subcommand"
+assert_eq "allow" "$(guard $A 'gh pr list')" "gh pr list still allowed"
 
 # --- gh repo: SOLO `create`, y solo con su conjunto cerrado de flags (ruling 3, Task 2b) ---
 assert_eq "allow" "$(guard $A 'gh repo create owner/repo --private --source=. --remote=origin --push')" "the one allowed gh repo form: create with closed flags"
