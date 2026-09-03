@@ -182,8 +182,11 @@ assert_eq "deny" "$(guard $A 'gh pr create --base master --head feature/x --titl
 # comandos de LECTURA de las mismas herramientas: el gate no los toca (no disparan ninguna familia)
 assert_eq "allow" "$(guard $A 'git remote -v')" "read-only git remote -v is untouched by the gate"
 assert_eq "allow" "$(guard $A 'git remote get-url origin')" "read-only git remote get-url is untouched"
-assert_eq "allow" "$(guard $A 'gh pr view 12')" "gh pr view is untouched"
-assert_eq "allow" "$(guard $A 'gh pr list')" "gh pr list is untouched"
+# gh pr view/list are NOT read-only exceptions here: gh pr became a closed allowlist (create only)
+# in the final-review fix (gh pr update-branch was a real reachable remote mutation), so they now
+# deny like any other gh pr subcommand outside that allowlist.
+assert_eq "deny" "$(guard $A 'gh pr view 12')" "gh pr view is denied — gh pr is a closed allowlist now"
+assert_eq "deny" "$(guard $A 'gh pr list')" "gh pr list is denied — same closed allowlist"
 assert_eq "allow" "$(guard $A 'gh auth status')" "gh auth status is untouched"
 assert_eq "allow" "$(guard $A 'git rev-parse --abbrev-ref HEAD 2>&1')" "a read-only command with 2>&1 is untouched"
 

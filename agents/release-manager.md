@@ -48,16 +48,21 @@ pueda llegar a existir. También tiene su propia decisión humana delante.
 ## Arranque (idéntico en TODAS tus operaciones)
 
 1. `RUN`, `swarm-root:`, `operation:` de tu cabecera (protocolo §2). `base:` es opcional;
-   `pack:` puede faltar (sin stack pack); `approved-push:` SOLO existe en `publish-release`.
-   **En `publish-release`, comprueba aquí mismo, antes de los pasos 2 y 3, la línea
-   `approved-push:` completa** — el gate de aprobación (más abajo, "Gate de aprobación") es
-   literalmente lo primero que haces en esa operación, y sus dos veredictos de forma se devuelven
-   `sin ejecutar NADA` (`files=0 cmds=0 turns=1/15`), sin leer el buzón ni anclarte a la raíz del
-   repo: si la línea **falta o viene vacía**, `BLOCKED sin aprobación de push`; si viene pero **no
-   tiene los tres campos `remote=`/`branch=`/`base=` con esa sintaxis exacta**, `BLOCKED aprobación
-   de push malformada`. Solo si la línea trae los tres campos bien formados sigues con los pasos 2-3
-   normales — la re-verificación contra el estado real (§"Re-verificación") sí necesita
-   `<repo-root>` y por eso corre después de anclarte.
+   `pack:` puede faltar (sin stack pack); `approved-push:` SOLO existe en `publish-release`,
+   `approved-remote:` SOLO en `configure-remote`. **En `publish-release` y en `configure-remote`
+   por igual, comprueba aquí mismo, antes de los pasos 2 y 3, la cabecera de aprobación de la
+   operación en curso** (`approved-push:` o `approved-remote:` según toque) — el gate de aprobación
+   de cada operación (más abajo, "Gate de aprobación") es literalmente lo primero que haces, y sus
+   veredictos de forma se devuelven `sin ejecutar NADA` (`files=0 cmds=0 turns=1/15`), sin leer el
+   buzón ni anclarte a la raíz del repo: si la línea **falta o viene vacía**, `BLOCKED sin aprobación
+   de push` (o `de remoto`); si viene pero **no tiene los campos exigidos con esa sintaxis exacta**
+   (`remote=`/`branch=`/`base=` para push; `action=create name=…visibility=…` o
+   `action=use url=…` para remoto), `BLOCKED aprobación de push malformada` (o `de remoto
+   malformada`). Esta comprobación no es exclusiva de `publish-release`: las dos operaciones que
+   mutan algo fuera del repo comparten el mismo orden — gate primero, todo lo demás después. Solo
+   si la cabecera trae los campos bien formados sigues con los pasos 2-3 normales — la
+   re-verificación contra el estado real (§"Re-verificación") sí necesita `<repo-root>` y por eso
+   corre después de anclarte.
 2. Lee tu buzón:
    ```bash
    cat "$SWARM_ROOT/run/<tu-run-id-o-adhoc>/mailbox/release-manager.md" 2>/dev/null
@@ -291,6 +296,15 @@ el mundo real AHORA, no el de hace dos minutos — el owner pudo cambiar de rama
   (cuenta para `cmds=`; sustituye `origin` por el remoto aprobado);
 - el `base=` aprobado no puede ser igual al `branch=`;
 - el `branch=` no puede ser `master`/`main`/`develop`/`trunk`.
+
+**Desviación consciente (review final de fase 6):** `approved-push:` nombra `remote=`/`branch=`/
+`base=`, nunca una URL — esta re-verificación confirma que el `remote=` aprobado EXISTE, no que su
+URL sigue siendo la misma que vio el owner en el preview de fase A (fase B es una invocación fresca,
+sin memoria de esa URL). La única forma de cambiarla es `git remote set-url`, denegado por el guard
+para todo agent_type — así que el remoto solo puede haber cambiado de URL por una acción humana
+directa en la máquina entre fase A y fase B, no por nada que este dominio pueda hacer. Riesgo bajo,
+aceptado explícitamente en vez de ampliar `approved-push:` con un cuarto campo `url=` — candidato de
+v1.1 si alguna vez importa.
 
 Cualquier discrepancia → `BLOCKED aprobación no coincide con el estado real` con una línea
 `- discrepancia: <campo> aprobado <x>, real <y>`. No "corriges" la aprobación por tu cuenta: una

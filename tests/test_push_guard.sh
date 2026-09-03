@@ -102,13 +102,16 @@ assert_eq "allow" "$(guard $A 'git push origin \"feature/x\"')" "a plain quoted 
 assert_eq "allow" "$(guard $A 'gh auth status')" "gh auth status is allowed (availability probe)"
 assert_eq "allow" "$(guard $A 'gh pr create --base master --head feature/x --title T --body-file .swarm/run/x/release-notes.md')" "gh pr create is allowed"
 assert_eq "deny" "$(guard $A 'gh pr create --base master --head feature/x --title T --body-file /tmp/n.md')" "gh pr create with an ABSOLUTE body-file is denied (C1: value-scoping, same class as --source)"
-assert_eq "allow" "$(guard $A 'gh pr view 12')" "gh pr view is allowed"
+assert_eq "deny"  "$(guard $A 'gh pr view 12')" "gh pr view is denied — gh pr is now a closed allowlist (create only), same class as gh repo"
 assert_eq "deny"  "$(guard $A 'gh pr merge 12 --squash')" "gh pr merge is DENIED — a human merges the PR (permanent design property)"
 assert_eq "deny"  "$(guard $A 'gh pr close 12')" "gh pr close is denied"
 assert_eq "deny"  "$(guard $A 'gh pr edit 12 --title x')" "gh pr edit is denied"
 assert_eq "deny"  "$(guard $A 'gh pr ready 12')" "gh pr ready is denied"
 assert_eq "deny"  "$(guard $A 'gh pr checkout 12')" "gh pr checkout is denied (never moves the working tree)"
+assert_eq "deny"  "$(guard $A 'gh pr update-branch 12')" "gh pr update-branch is denied (final-review finding: mutates a remote branch, no approval header, no canonical gate)"
 assert_eq "deny"  "$(guard $A 'gh auth login')" "gh auth login is denied (interactive, mutates credentials)"
+assert_eq "deny"  "$(guard $A 'gh auth switch --user other')" "gh auth switch is denied (final-review finding: changes active gh identity mid-run, ruling 14 blast radius)"
+assert_eq "allow" "$(guard $A 'gh auth status')" "gh auth status stays allowed (the only gh auth subcommand release-manager documents running)"
 
 # --- C1: a value-taking flag BEFORE the real subcommand must not hide it from SUBCOMMAND_DENIED_ARGS ---
 assert_eq "deny"  "$(guard $A 'gh pr --repo o/r merge 12 --squash')" "gh pr --repo o/r merge is denied (C1 — --repo's value is not mistaken for the subcommand)"
@@ -118,10 +121,11 @@ assert_eq "deny"  "$(guard $A 'gh pr --repo o/r edit 12 --title x')" "gh pr --re
 assert_eq "deny"  "$(guard $A 'gh pr --repo o/r checkout 12')" "gh pr --repo o/r checkout is denied"
 assert_eq "deny"  "$(guard $A 'gh auth --hostname github.com login')" "gh auth --hostname github.com login is denied"
 assert_eq "deny"  "$(guard $A 'gh auth -h github.com token')" "gh auth -h github.com token is denied"
-# legitimate forms with the same value-taking flag still work
-assert_eq "allow" "$(guard $A 'gh pr view 12')" "gh pr view 12 still allowed (sanity)"
-assert_eq "allow" "$(guard $A 'gh pr --repo o/r view 12')" "gh pr --repo o/r view is allowed — --repo does not block a legitimate subcommand"
-assert_eq "allow" "$(guard $A 'gh pr list')" "gh pr list still allowed"
+# legitimate forms with the same value-taking flag still work — gh pr view/list are no longer in
+# scope (gh pr is a closed allowlist, create-only, since the final-review gh-pr-update-branch fix).
+# release-manager never documents `--repo`/`-R` before `gh pr create` (it always runs from inside
+# the target repo), so the C1 sanity check is the canonical form itself, not a --repo variant.
+assert_eq "allow" "$(guard $A 'gh pr create --base master --head feature/x --title T --body-file .swarm/run/x/release-notes.md')" "gh pr create still allowed (sanity)"
 
 # --- gh repo: SOLO `create`, y solo con su conjunto cerrado de flags (ruling 3, Task 2b) ---
 assert_eq "allow" "$(guard $A 'gh repo create owner/repo --private --source=. --remote=origin --push')" "the one allowed gh repo form: create with closed flags"
