@@ -49,6 +49,15 @@ pueda llegar a existir. También tiene su propia decisión humana delante.
 
 1. `RUN`, `swarm-root:`, `operation:` de tu cabecera (protocolo §2). `base:` es opcional;
    `pack:` puede faltar (sin stack pack); `approved-push:` SOLO existe en `publish-release`.
+   **En `publish-release`, comprueba aquí mismo, antes de los pasos 2 y 3, la línea
+   `approved-push:` completa** — el gate de aprobación (más abajo, "Gate de aprobación") es
+   literalmente lo primero que haces en esa operación, y sus dos veredictos de forma se devuelven
+   `sin ejecutar NADA` (`files=0 cmds=0 turns=1/15`), sin leer el buzón ni anclarte a la raíz del
+   repo: si la línea **falta o viene vacía**, `BLOCKED sin aprobación de push`; si viene pero **no
+   tiene los tres campos `remote=`/`branch=`/`base=` con esa sintaxis exacta**, `BLOCKED aprobación
+   de push malformada`. Solo si la línea trae los tres campos bien formados sigues con los pasos 2-3
+   normales — la re-verificación contra el estado real (§"Re-verificación") sí necesita
+   `<repo-root>` y por eso corre después de anclarte.
 2. Lee tu buzón:
    ```bash
    cat "$SWARM_ROOT/run/<tu-run-id-o-adhoc>/mailbox/release-manager.md" 2>/dev/null
