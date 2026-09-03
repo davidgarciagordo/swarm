@@ -80,7 +80,10 @@
     "swarm:vulnerability-scanner": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
-      "scripts/mem-", "scripts/mem-lock.sh"
+      "scripts/mem-", "scripts/mem-lock.sh",
+      "composer audit", "composer outdated", "composer licenses",
+      "npm audit",
+      "php vendor/bin/deptrac", "php vendor/bin/phpmd"
     ],
     "swarm:performance-analyst": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
@@ -149,6 +152,35 @@
       "git merge", "git worktree",
       "ls", "cat", "head", "tail", "wc", "grep",
       "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:migration-engineer": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "git add", "git commit",
+      "cd",
+      "ls", "cat", "head", "tail", "wc", "grep", "find",
+      "scripts/mem-", "scripts/mem-lock.sh",
+      "php", "composer", "make"
+    ],
+    "swarm:doc-writer": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "git add", "git commit",
+      "cd",
+      "ls", "cat", "head", "tail", "wc", "grep", "find",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:dependency-auditor": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep", "find",
+      "scripts/mem-", "scripts/mem-lock.sh", "scripts/req-check.sh",
+      "composer audit", "composer outdated", "composer show", "composer licenses",
+      "npm audit", "npm outdated", "npm ls"
+    ],
+    "swarm:dependency-installer": [
+      "git status", "git diff", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh",
+      "composer install", "composer require", "composer update",
+      "npm install", "npm ci"
     ]
   }
 }
