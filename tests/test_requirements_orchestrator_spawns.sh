@@ -50,5 +50,21 @@ EOF
 )"
 assert_eq "0" "$(echo "$out" | grep -q '\"permissionDecision\": \"deny\"' && echo 0 || echo 1)" "env-checker cannot run rm -rf / (not in its allowlist)"
 
+front="$(awk '/^---$/{n++; next} n==1{print} n==2{exit}' "$PLUGIN_ROOT/agents/requirements-orchestrator.md")"
+tools="$(echo "$front" | grep '^tools:')"
+body="$(awk '/^---$/{n++; next} n>=2{print}' "$PLUGIN_ROOT/agents/requirements-orchestrator.md")"
+has() { echo "$1" | grep -qF -- "$2" && echo 0 || echo 1; }
+
+assert_eq "0" "$(has "$tools" 'dependency-auditor')" "requirements-orchestrator can spawn dependency-auditor"
+assert_eq "0" "$(has "$tools" 'dependency-installer')" "requirements-orchestrator can spawn dependency-installer"
+assert_eq "1" "$(has "$body" 'documentación de futuro')" "the requirements.json merge is no longer documented-as-future"
+assert_eq "1" "$(has "$body" 'no hay pack todavía')" "requirements-orchestrator no longer claims no pack exists"
+assert_eq "1" "$(has "$body" 'NO implementes lógica de fusión ahora')" "the inert merge instruction is gone"
+assert_eq "0" "$(has "$body" '--pack')" "requirements-orchestrator passes --pack to the deterministic check"
+assert_eq "0" "$(has "$body" 'approved:')" "requirements-orchestrator documents the approved: line it must forward"
+assert_eq "0" "$(has "$body" 'BLOCKED sin aprobación del owner')" "requirements-orchestrator refuses install without owner approval"
+assert_eq "1" "$(has "$body" 'dependency-installer no implementado aún')" "the phase-1b install stub is gone"
+assert_eq "0" "$(has "$body" 'operation: audit-deps')" "requirements-orchestrator documents the audit-deps operation"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
