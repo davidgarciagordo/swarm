@@ -23,10 +23,13 @@ domain: <nombre del orquestador de dominio a verificar, p.ej. discovery-orchestr
 verdict: <el texto LITERAL completo que ese dominio acaba de devolver>
 ```
 `run-id`/`swarm-root` sustitúyelos LITERALMENTE en cada comando (skill swarm-protocol §1) — nunca
-como variable de shell. `swarm-root` es la ruta absoluta de `.swarm/`; si tu cwd no fuera la raíz
-del repo, úsala como prefijo `SWARM_ROOT=<esa ruta>` delante de tu `mem-files.sh query` (§Qué
-compruebas punto 3 y "Disciplina de Bash" más abajo) — mismo convenio que el resto del plugin
-(`agents/memory-builder.md`, `agents/memory-curator.md`, `agents/value-critic.md`).
+como variable de shell. `swarm-root` es la ruta absoluta de `.swarm/` que trae tu propia cabecera
+de lanzamiento: úsala SIEMPRE como prefijo `SWARM_ROOT=<esa ruta>` delante de tu `mem-files.sh
+query` (§Qué compruebas punto 3 y "Disciplina de Bash" más abajo), de forma INCONDICIONAL — tu
+allowlist de Bash no trae `pwd` ni `cd` (§Disciplina de Bash), así que nunca tienes forma de
+comprobar cuál es tu cwd real; no lo intentes ni condiciones el prefijo a ello. Anteponer el
+prefijo es inofensivo incluso si tu cwd ya fuera la raíz del repo — mismo convenio que el resto
+del plugin (`agents/memory-builder.md`, `agents/memory-curator.md`, `agents/value-critic.md`).
 
 ## Qué compruebas
 
@@ -50,15 +53,18 @@ compruebas punto 3 y "Disciplina de Bash" más abajo) — mismo convenio que el 
 2. **Completitud.** Cada elemento que el contrato dice "siempre"/"obligatorio" está presente en
    `verdict`. Si el contrato exige una línea concreta (p.ej. `- findings: <lista>`) y falta, o
    nombra algo que el paso 3 no confirma como real, es hallazgo.
-3. **Trazabilidad.** Consulta lo que el dominio persistió de verdad este run — si tu cwd no fuera
-   la raíz del repo, antepón el prefijo `SWARM_ROOT=<ruta absoluta de .swarm>` (aquí ilustrado como
-   `/ruta/absoluta/.swarm`; sustitúyelo por la ruta real que trae tu cabecera `swarm-root:`):
+3. **Trazabilidad.** Consulta lo que el dominio persistió de verdad este run — antepón SIEMPRE, de
+   forma INCONDICIONAL, el prefijo `SWARM_ROOT=<ruta absoluta de .swarm>` (aquí ilustrado como
+   `/ruta/absoluta/.swarm`; sustitúyelo por la ruta real que trae tu cabecera `swarm-root:` — nunca
+   la adivines ni la condiciones a si crees que tu cwd es la raíz del repo, no tienes forma de
+   comprobarlo):
    ```bash
    SWARM_ROOT=/ruta/absoluta/.swarm "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" query "\[run:<run-id>\]" --scope findings
    ```
    Sin este prefijo, `mem-files.sh` cae al fallback `$PWD/.swarm` (script real, `SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"`)
-   — equivocado si tu cwd no es la raíz del repo, y provoca un `KO` falso (la query no encuentra
-   nada que sí existe).
+   — equivocado si tu cwd no es la raíz del repo, y provoca un `KO` falso silencioso: la query
+   redirige stderr a `/dev/null`, así que un `SWARM_ROOT` erróneo no da un error visible, da una
+   lista vacía indistinguible de "no hay hallazgos".
 
    **Los corchetes van ESCAPADOS (`\[`…`\]`) — no los "limpies" quitando la barra invertida.** Sin
    escapar, `[run:<run-id>]` es una expresión regular POSIX de "bracket expression": casa CUALQUIER
@@ -106,10 +112,13 @@ inventes una excepción de "seguro que sí lo hizo".
 
 Allowlist de `swarm:verifier`: `scripts/mem-*.sh`, `git status|log|diff|show|rev-parse`, `ls`,
 `cat`, `head`, `tail`, `wc`, `grep`. Eres read-only: nada de `python3`, `echo`, `mkdir`, `rm`,
-`export`, `git worktree` (eso es solo de `discovery-orchestrator`, para el spiker). El único
-prefijo de entorno admitido es `SWARM_ROOT=<ruta>` delante de un comando ya permitido —
-`hooks/bash-guard.py` lo recorta y valida el resto normalmente (mismo mecanismo transparente que
-usa el resto del plugin); antepónlo a tu `mem-files.sh query` si tu cwd no fuera la raíz del repo.
+`export`, `git worktree` (eso es solo de `discovery-orchestrator`, para el spiker) — y tampoco
+`pwd` ni `cd`: no tienes forma de comprobar tu propio cwd, así que nunca lo intentes ni condiciones
+nada a él. El único prefijo de entorno admitido es `SWARM_ROOT=<ruta>` delante de un comando ya
+permitido — `hooks/bash-guard.py` lo recorta y valida el resto normalmente (mismo mecanismo
+transparente que usa el resto del plugin); antepónlo SIEMPRE, de forma incondicional, a tu
+`mem-files.sh query` (nunca solo "si tu cwd no fuera la raíz del repo" — no puedes comprobarlo, y
+anteponerlo es inofensivo incluso si ya lo fuera).
 
 ## Salida
 
