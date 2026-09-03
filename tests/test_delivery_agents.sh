@@ -41,6 +41,19 @@ assert_eq "0" "$(has "$body" 'verde NO verificado')" "an unknown suite is report
 assert_eq "0" "$(has "$body" 'gh pr merge')" "explicitly names the forbidden auto-merge"
 assert_eq "0" "$(has "$body" 'Nunca commiteas')" "states it creates no commits (ruling 5)"
 
+# --- operación configure-remote (ruling 3): la SEGUNDA mutación externa, con su propio gate ---
+assert_eq "0" "$(has "$body" 'operation: configure-remote')" "documents the remote-bootstrap operation"
+assert_eq "0" "$(has "$body" 'approved-remote: action=create name=')" "documents the create approval line, verbatim"
+assert_eq "0" "$(has "$body" 'approved-remote: action=use url=')" "documents the use-an-existing-remote approval line"
+assert_eq "0" "$(has "$body" 'BLOCKED sin aprobación de remoto')" "refuses to configure a remote without the approval line"
+assert_eq "0" "$(has "$body" 'BLOCKED aprobación de remoto malformada')" "refuses a malformed remote approval"
+assert_eq "0" "$(has "$body" 'BLOCKED ya hay remoto configurado')" "never clobbers a remote that already exists"
+assert_eq "0" "$(has "$body" 'BLOCKED remoto creado pero push rechazado')" "distinguishes 'repo created, push failed' from 'nothing happened' (ruling 14)"
+assert_eq "0" "$(has "$body" 'approved-push:` NO vale como aprobación de remoto')" "one approval never stands in for the other (ruling 2e)"
+assert_eq "0" "$(has "$body" 'git remote set-url')" "names the command it must NOT run to 'fix' a URL (ruling 14)"
+assert_eq "0" "$(has "$body" '- siguiente:')" "closes by telling the owner to re-invoke, never by chaining the push itself (ruling 3)"
+assert_eq "1" "$(has "$body" 'gh repo delete')" "never mentions any gh repo subcommand other than create"
+
 # el veredicto DONE nunca lleva sufijo (lección 7 del handoff de fase 5b)
 assert_eq "1" "$(has "$body" 'DONE ·')" "no 'DONE · detalle' anywhere (validate-output.py rejects it)"
 
