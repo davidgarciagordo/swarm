@@ -55,7 +55,12 @@ Para saber si hay pack, `Read` de `.swarm/context-pack.md` y mira su línea `sta
 
 ## Operación `check`
 
-1. Lanza `env-checker` NOMBRADO exactamente `env-checker` (convención §2bis del skill
+1. Antes de lanzar, registra la hoja en el manifest del run (spec §5; en adhoc también, con
+   `--run adhoc`):
+   ```bash
+   "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register --run "${RUN:-adhoc}" --agent env-checker --domain requirements --area "." --owner requirements-orchestrator
+   ```
+   Lanza `env-checker` NOMBRADO exactamente `env-checker` (convención §2bis del skill
    `swarm-protocol`) con el tool `Agent` — **`env-checker` no preexiste, nunca lo alcanzas con
    `SendMessage`**. Esta es exactamente la causa del bug real de fase 1: `memory-orchestrator`
    intentaba `SendMessage(memory-builder, ...)` para reconstruir el pack, pero su frontmatter
@@ -85,6 +90,11 @@ Para saber si hay pack, `Read` de `.swarm/context-pack.md` y mira su línea `sta
 
 ## Operación `audit-deps` (fase 5b)
 
+Antes de lanzar, registra la hoja en el manifest del run (spec §5; en adhoc también, con
+`--run adhoc`):
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register --run "${RUN:-adhoc}" --agent dependency-auditor --domain requirements --area "." --owner requirements-orchestrator
+```
 Lanza `dependency-auditor` NOMBRADO exactamente `dependency-auditor` con el tool `Agent` (no
 preexiste; `SendMessage` no lo alcanza):
 ```
@@ -95,9 +105,7 @@ pack: <ruta absoluta del pack>      ← omite esta línea entera si no hay pack
 ```
 Espera su veredicto y **propágalo literal**, con sus hallazgos `DEP` tal cual: quien lee tu salida
 necesita el paquete y la versión exactos para poder decidir. Nunca reinterpretes su JSON ni repitas
-la auditoría tú mismo. (Nota: a diferencia de otros dominios, tu allowlist de Bash no incluye
-`scripts/mem-manifest.sh` — igual que en la operación `check`, no registras la hoja en el manifest
-del run; solo la lanzas, esperas y propagas.)
+la auditoría tú mismo.
 
 ## Operación `install` (mutante — solo con aprobación explícita del owner)
 
@@ -114,7 +122,12 @@ regla 7).
   ```
   BLOCKED sin aprobación del owner
   ```
-- Con lista válida, lanza `dependency-installer` NOMBRADO con el tool `Agent`, **copiando la línea
+- Con lista válida, antes de lanzar registra la hoja en el manifest del run (spec §5; en adhoc
+  también, con `--run adhoc`):
+  ```bash
+  "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register --run "${RUN:-adhoc}" --agent dependency-installer --domain requirements --area "." --owner requirements-orchestrator
+  ```
+  Lanza `dependency-installer` NOMBRADO con el tool `Agent`, **copiando la línea
   `approved:` LITERAL** (no la resumas, no la amplíes, no la reordenes: el installer instala
   exactamente lo que ahí ponga):
   ```
@@ -133,12 +146,13 @@ propagas ese hint. Instalar software en la máquina del owner queda fuera de v1 
 
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
-Allowlist de `swarm:requirements-orchestrator`: `scripts/req-check.sh`, `git status|log|diff|
-show|rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`. Todo lo demás se DENIEGA, segmento a
-segmento (mismas reglas que el resto del enjambre — ver `agents/memory-orchestrator.md`
-"Disciplina de Bash" para el detalle completo de por qué `; echo $?` rompe un comando entero y
-cómo funciona el prefijo `SWARM_ROOT=`). En la práctica casi no usas Bash directamente: el
-chequeo real lo hace `env-checker` vía `req-check.sh`; tú solo lo lanzas y lees tu buzón.
+Allowlist de `swarm:requirements-orchestrator`: `scripts/req-check.sh`, `scripts/mem-`,
+`scripts/mem-lock.sh` (fase 5b — registro en el manifest antes de cada lanzamiento, igual que el
+resto de dominios), `git status|log|diff|show|rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`.
+Todo lo demás se DENIEGA, segmento a segmento (mismas reglas que el resto del enjambre — ver
+`agents/memory-orchestrator.md` "Disciplina de Bash" para el detalle completo de por qué
+`; echo $?` rompe un comando entero y cómo funciona el prefijo `SWARM_ROOT=`). El chequeo real lo
+hace `env-checker` vía `req-check.sh`; tú registras, lanzas, esperas y propagas.
 
 ## Salida
 

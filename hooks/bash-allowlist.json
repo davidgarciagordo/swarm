@@ -28,7 +28,7 @@
     "swarm:requirements-orchestrator": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
-      "scripts/req-check.sh"
+      "scripts/req-check.sh", "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:env-checker": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
