@@ -22,7 +22,7 @@ assert_eq "0" "$(has "$body" 'multi-select')" "root asks with a multi-select, on
 # el saneado: el §11.3 tiene que llevar el mismo parrafo literal que §8.3/§9.3/§10.3
 assert_eq "0" "$(has "$body" 'Esa exención NO cubre el `summary --line` del cierre.')" "the sanitisation exemption paragraph is present verbatim"
 occurrences="$(grep -cF 'Esa exención NO cubre el `summary --line` del cierre.' "$F")"
-assert_eq "4" "$occurrences" "the paragraph appears once per forwarding section (§8.3, §9.3, §10.3, §11.3)"
+assert_eq "5" "$occurrences" "the paragraph appears once per forwarding section (§8.3, §9.3, §10.3, §11.3, §12.3)"
 # la raiz ya no puede seguir diciendo que requirements solo lo invoca /swarm:doctor
 # (fragmento de una sola línea: el original envolvía "tú no lo lanzas en un run" en dos líneas,
 # lo que hacía que grep -F -- línea a línea nunca pudiera fallar contra ESTE fragmento concreto)

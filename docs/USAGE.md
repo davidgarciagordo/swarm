@@ -38,12 +38,12 @@ If this plugin is ever published to a marketplace, installation would instead go
 Code's normal plugin-marketplace flow (`/plugin install swarm` or equivalent) — but that path does
 not exist yet, so don't follow instructions that assume it does.
 
-## 3. The 3 commands
+## 3. The 5 commands
 
-These are the *only* three slash commands this plugin defines — real files under `commands/`:
-`commands/init.md`, `commands/run.md`, `commands/doctor.md`. Nothing else (`/swarm:status`,
-`/swarm:findings`, etc.) is implemented yet, even though the design spec sketches them for a later
-phase — don't type them expecting them to work.
+These are the *only* five slash commands this plugin defines — real files under `commands/`:
+`commands/init.md`, `commands/run.md`, `commands/doctor.md`, `commands/status.md`,
+`commands/findings.md`. Nothing else is implemented — don't type anything else expecting it to
+work.
 
 ### `/swarm:init`
 
@@ -156,6 +156,44 @@ worked example, run against the plugin's own checkout (which has all three requi
 verdict is `BLOCKED <tool>` with the install hint from `requirements.json` (`brew`/`apt` command),
 propagated literally from `env-checker` up to what you see — verified against the script directly
 in item 2 of that same checklist.
+
+### `/swarm:status`
+
+Shows the swarm's state in this repo — current run, tier, registered agents, its summary, and open
+findings. Takes no arguments; any text you type after the command is ignored.
+
+```
+/swarm:status
+```
+
+Deterministic first: in the normal path it runs `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-status.sh` and
+reports its plain-text output verbatim — **no subagent is launched and no model turn is spent**
+reading and formatting `.swarm/` (spec §11, principle 4: a deterministic tool before a model). If
+`.swarm/` doesn't exist yet, it shows the script's own stderr line pointing you at `/swarm:init`
+instead of failing silently. If the script can't interpret what's on disk (a `run.json` truncated by
+an interrupted run, or `findings/*.md` entries missing the header a different plugin version wrote),
+it never presents an incomplete result as if it were normal: it shows
+`- warn: modo degradado — swarm-status.sh falló (exit <code>)` first, then a best-effort summary read
+directly from at most three files (`.swarm/run/current`, that run's `run.json` and `summary.md`).
+
+### `/swarm:findings`
+
+A filtered read of the swarm's findings — by agent name or by tag, open ones only unless you ask for
+everything.
+
+```
+/swarm:findings [agent|TAG] [--all]
+```
+
+Same deterministic-first shape as `/swarm:status`: it runs
+`${CLAUDE_PLUGIN_ROOT}/scripts/swarm-findings.sh` with your argument and reports its output verbatim,
+no subagent, no model turn in the normal path. The filter is at most one agent name or TAG plus the
+optional `--all` flag; anything that doesn't match `[A-Za-z0-9_-]+` is rejected by the script itself
+with `exit 64`, before it touches anything. Same degraded-mode contract as `/swarm:status`: if some
+entries in `.swarm/findings/` can't be classified (a hand-edited or differently-versioned file), it
+leads with `- warn: modo degradado — swarm-findings.sh falló (exit <code>)`, then a best-effort,
+unreinterpreted listing from at most three files read directly — never silently presented as a
+normal, complete result.
 
 ## 4. The domains
 
@@ -346,9 +384,43 @@ evidence: files=9 cmds=17 turns=19/25
 It never touches `master` or a shared branch, and never runs `git push` — no agent in this domain
 even has that tool in its allowlist.
 
-**What's not built yet:** the `delivery` domain (release/PR/handoff automation) is still planned,
-not available. See `README.md`'s "Current status" section for the exact, up-to-date built/planned
-breakdown — this doc won't duplicate and risk drifting from that list.
+### Delivery
+
+**What it does for you:** publishes work implementation already merged locally — pushes a branch,
+opens the PR, and writes a session handoff. `delivery-orchestrator` sequences `release-manager`
+(phase A previews the exact push/PR commands; phase B executes them only with your itemised
+approval) and, on every terminal path, `handoff-writer`.
+
+**What triggers it:** only an explicit, separate request naming delivery ("publish branch X", "open
+the PR for Y", "prepare the delivery of Z") — see `agents/orchestrator.md` §12. Four things worth
+knowing before you use it:
+
+1. **It never auto-chains** — not even in `tier: full`, not even right after an implementation run
+   finishes. You have to ask for it explicitly, every time.
+2. **It's two steps with a question in between.** Phase A (`prepare-release`) only reads and
+   previews — nothing leaves your machine. You get shown the exact remote, branch, base, commit
+   count, and green/verde status, and only after you approve via `AskUserQuestion` does phase B
+   (`publish-release`) run, with your approval translated into a literal
+   `approved-push: remote=<remote> branch=<branch> base=<base>` line — never from a bare "yes",
+   never from memory.
+3. **The swarm never merges the PR.** It opens it (or, without `gh`, gives you the exact command to
+   open it yourself) and leaves the merge to a person.
+4. **If the repo has no remote, the swarm doesn't get stuck.** It asks whether to create a new one
+   on your GitHub account (private by default) or use one you already have, shows you the exact
+   `gh repo create …` command *before* you decide, and — once you've configured it — asks you to
+   **relaunch the delivery**; it never chains the push on its own after configuring a remote you
+   hadn't seen a real destination for yet.
+
+**What you get back:** a preview (`- remote:`, `- commits:`, `- verde:`, `- preview push:`,
+`- preview pr:`) waiting on your approval, or, once published, `- pushed:` / `- pr:` plus
+`- handoff: <path>` pointing at the session-handoff file it wrote (left uncommitted on purpose). A
+`BLOCKED`/`KO` from the leaf is propagated to you literally, including raw `git`/`gh` stderr when
+that's the failure.
+
+**Degraded mode:** if `release-manager` can't determine the local suite's status (no runnable test
+command it recognizes for the active stack), it never presents "unknown" as "green" — it reports
+`- warn: sin suite ejecutable — verde NO verificado`, and that exact warning is folded into the
+approval question's text, so you approve knowing the green isn't actually confirmed.
 
 ### Stack packs
 
