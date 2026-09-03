@@ -358,12 +358,14 @@ and extra OS/library requirements — that swarm leaves read instead of guessing
 exactly one today: `skills/pack-php-ddd-symfony8/` (PHP + DDD + Symfony).
 
 **How it's detected:** automatically, no configuration needed. When `memory-builder` builds
-`.swarm/context-pack.md`, it checks whether the repo's `composer.json` exists at the root and its
-`require` block contains a `symfony/*` package; if so it writes `stack: php-ddd-symfony8` into the
-pack. Every leaf that can use a pack (`quality-fixer`, `test-writer`, `implementer`,
-`migration-engineer`, `doc-writer`, `pattern-advisor`, `domain-modeler`, `vulnerability-scanner`,
-`dependency-auditor`, `env-checker` via `requirements-orchestrator`) resolves its absolute path from
-that line and reads only the files it needs.
+`.swarm/context-pack.md`, it checks whether the repo's `composer.json` exists at the root and
+contains a `symfony/` package reference anywhere in the file; if so it writes
+`stack: php-ddd-symfony8` into the pack. Every leaf that receives a resolved `pack:` header
+(`quality-fixer`, `test-writer`, `implementer`, `migration-engineer`, `doc-writer`,
+`data-model-auditor`, `vulnerability-scanner`, `dependency-auditor`, `env-checker` via
+`requirements-orchestrator`) resolves its absolute path from that line and reads only the files it
+needs. `pattern-advisor`/`domain-modeler` don't receive a `pack:` line — they only honor the
+declared `stack:` via `.swarm/context-pack.md`.
 
 **What happens without one:** nothing breaks. A repo with no `composer.json`, or one that doesn't
 match a known pack, gets `stack: generic` — no `pack:` line is ever sent to a leaf, and each one
