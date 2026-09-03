@@ -297,6 +297,12 @@ run anterior.
 Antes de saltarte discovery por este motivo, comprueba si el objetivo casa con la clasificación "de
 análisis" de §8.1 — si es así, no es un salto sin más: ve a §8 en vez de terminar aquí.
 
+Comprueba también si el objetivo pide explícitamente implementar un plan ya escrito ("implementa el
+plan de X", "construye X según el plan ya diseñado") — si es así, tampoco es un salto sin más: ve a
+§10 en vez de terminar aquí. Es la ÚNICA condición que te lleva a §10 (ver §10.1): nunca lo
+encadenas tú sola tras discovery/design, ni siquiera en `tier: full` — solo cuando el objetivo lo
+pide así, literalmente, en esta clasificación inicial.
+
 **Cómo compruebas ese "ya cerró" (importa el CÓMO):** primero pasa el objetivo de ESTE run —el
 argumento de `/swarm:run` sin el flag `--tier`— por el **saneado de §5.0**, el mismo que aplicó §5.4
 al guardarlo. Los DOS lados de la comparación tienen que estar saneados: §5.4 escribe el campo
