@@ -1,0 +1,11 @@
+{
+  "backends": [
+    { "name": "files", "type": "files", "root": ".swarm", "default": true, "required": true },
+    { "name": "claude-mem", "type": "mcp", "server": "plugin_claude-mem_mcp-search", "scope": "historical", "required": false }
+  ],
+  "policy": {
+    "read": ["files", "claude-mem"],
+    "write": ["files", "claude-mem"],
+    "stale": { "mode": "tree-hash" }
+  }
+}
