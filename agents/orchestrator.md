@@ -206,13 +206,14 @@ pregunta, respuesta del owner).
 
 **Antes de cualquier línea de cierre EN VERDE** (cierre normal §5.4, análisis completado §8.4,
 diseño completado §9.4, implementación completada §10.4, auditoría/instalación de dependencias
-completada §11.4 — NUNCA antes de `BLOCKED`/`KO` propagado ni de una línea "omitido": esos caminos
-ya no cierran en verde, no necesitan gate), lanza el gate de verificación independiente
-(spec §14bis).
+completada §11.4, entrega completada §12.4 — NUNCA antes de `BLOCKED`/`KO` propagado ni de una
+línea "omitido": esos caminos ya no cierran en verde, no necesitan gate), lanza el gate de
+verificación independiente (spec §14bis).
 
 La instancia se nombra `verifier-<domain-tag>`, con `<domain-tag>` la etiqueta CORTA del dominio
-que acaba de cerrar (`discovery`/`analysis`/`design`/`implementation`/`requirements` — la MISMA que
-ya usas en `--domain` al registrar ese orquestador, §5.2/§8.2/§9.2/§10.2/§11.2). `subagent_type`
+que acaba de cerrar (`discovery`/`analysis`/`design`/`implementation`/`requirements`/`delivery` —
+la MISMA que ya usas en `--domain` al registrar ese orquestador, §5.2/§8.2/§9.2/§10.2/§11.2/§12.2).
+`subagent_type`
 sigue siendo SIEMPRE `"swarm:verifier"` (el contrato/fichero es uno solo, genérico); solo el
 `name:` de la INSTANCIA va cualificado por dominio — igual que las hojas de un orquestador de
 dominio se nombran por rol, no genéricas. Esto evita que dos dominios que cierran en verde en el
