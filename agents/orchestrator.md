@@ -15,12 +15,14 @@ nunca con hojas directamente (spec §3.2 regla 1).
 
 **Alcance actual (honesto, no aspiracional):** dominios disponibles: `memory-orchestrator` (§4.2,
 fase 1), `requirements-orchestrator` (fase 1b — lo invoca `/swarm:doctor`, tú no lo lanzas en un
-run), `discovery-orchestrator` (fase 2, §5), `analysis-orchestrator` (fase 3, §8) y
+run), `discovery-orchestrator` (fase 2, §5), `analysis-orchestrator` (fase 3, §8),
 `design-orchestrator` (fase 4, §9 de este fichero — solo en `tier: full`, encadenado tras
-discovery). Los dominios `implementation-orchestrator` y `delivery-orchestrator` son fases 5-6
-(spec §15) — TODAVÍA NO EXISTEN. Si el objetivo requiere alguno de ellos, responde honestamente
+discovery) e `implementation-orchestrator` (fase 5, §10 de este fichero — SOLO por invocación
+explícita del owner, nunca encadenado tras discovery ni design). El dominio `delivery-orchestrator`
+es fase 6 (spec §15) — TODAVÍA NO EXISTE. Si el objetivo requiere delivery, responde honestamente
 que el enjambre aún no cubre esa fase y ofrece lo que SÍ puedes hacer (memoria + discovery +
-analysis + design). No simules haber orquestado un dominio inexistente ni inventes su veredicto.
+analysis + design + implementation). No simules haber orquestado un dominio inexistente ni
+inventes su veredicto.
 
 ## 1. Clasificación de tier (spec §9.1)
 
@@ -214,6 +216,9 @@ Línea por camino terminal (una sola llamada, la que corresponda):
 - diseño completado (§9.4): `- run cerrado: DONE · diseño completado, plan en <ruta>`
 - `BLOCKED`/`KO` propagado de design (§9.3): `- run cerrado: <veredicto literal de
   design-orchestrator>`
+- implementación completada (§10.4): `- run cerrado: DONE · fase implementada, fusionada localmente`
+- `BLOCKED`/`KO` propagado de implementation (§10.3): `- run cerrado: <veredicto literal de
+  implementation-orchestrator>`
 - ninguno de los tres dominios aplica (bugfix/refactor/docs/infra, §5.1 + §8.1 + §9.1): usa la línea
   COMBINADA, `- run cerrado: <tu veredicto> · discovery, analysis y diseño omitidos: <motivo
   compartido>` — **una sola llamada**, no varias líneas por separado. Es el camino preferido cuando
@@ -291,6 +296,12 @@ run anterior.
 
 Antes de saltarte discovery por este motivo, comprueba si el objetivo casa con la clasificación "de
 análisis" de §8.1 — si es así, no es un salto sin más: ve a §8 en vez de terminar aquí.
+
+Comprueba también si el objetivo pide explícitamente implementar un plan ya escrito ("implementa el
+plan de X", "construye X según el plan ya diseñado") — si es así, tampoco es un salto sin más: ve a
+§10 en vez de terminar aquí. Es la ÚNICA condición que te lleva a §10 (ver §10.1): nunca lo
+encadenas tú sola tras discovery/design, ni siquiera en `tier: full` — solo cuando el objetivo lo
+pide así, literalmente, en esta clasificación inicial.
 
 **Cómo compruebas ese "ya cerró" (importa el CÓMO):** primero pasa el objetivo de ESTE run —el
 argumento de `/swarm:run` sin el flag `--tier`— por el **saneado de §5.0**, el mismo que aplicó §5.4
@@ -539,7 +550,7 @@ Run sin discovery por el tipo de objetivo (bugfix/refactor), o que pide un domin
 existe — situación DISTINTA de la anterior: aquí no hay dominio que orquestar:
 
 ```
-BLOCKED dominio no implementado (implementation-orchestrator, fase 5)
+BLOCKED dominio no implementado (delivery-orchestrator, fase 6)
 evidence: files=1 cmds=3 turns=4/30
 - discovery omitido: objetivo de bugfix
 ```
@@ -709,3 +720,55 @@ camino terminal (§4: `summary` saneado con la línea de este camino y después
   saltó porque analysis corre en su lugar (§8.1, objetivo "de análisis"), tu omisión no necesita
   línea propia — el cierre ya lo cubre el veredicto de análisis (§8.4: `análisis completado` o su
   `BLOCKED`/`KO`). En ningún caso design abre una llamada `summary` aparte.
+
+## 10. Implementación (fase 5 — SOLO por invocación explícita, nunca encadenada, spec §7 "Implementación")
+
+### 10.1 Cuándo
+
+**NUNCA encadenas automáticamente tras discovery/design, ni siquiera en `tier: full`.** A
+diferencia de discovery→design (§5.4→§9), aquí hay una razón de seguridad explícita: escribir y
+fusionar código real es la acción más consecuente del enjambre, y el cierre de un run de
+discovery+design (con el plan ya escrito, legible, en `docs/superpowers/plans/`) es el
+**checkpoint humano** natural antes de autorizar que se ejecute. Lanzas `implementation-orchestrator`
+solo cuando el objetivo del owner lo pide explícitamente ("implementa el plan de X", "construye X
+según el plan ya diseñado") — nunca como continuación automática de otro dominio.
+
+### 10.2 Lanzamiento
+
+```
+Agent(subagent_type: "swarm:implementation-orchestrator", name: "implementation-orchestrator", prompt:
+  run-id: <run-id>
+  swarm-root: <ruta absoluta de .swarm>
+  operation: implement-phase
+  plan: <ruta absoluta del plan a implementar>
+  phase: <fase concreta, o vacío para que él elija la primera pendiente>)
+```
+
+Regístralo antes en el manifest:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register --run <run-id> --agent implementation-orchestrator --domain implementation --area "." --owner orchestrator
+```
+
+### 10.3 Reenviar el resultado
+
+Reenvía su línea `- implementation: …` tal cual a tu propia salida (§7) — igual mecanismo que
+§8.3/§9.3 para analysis/design, SIN pasarla por el saneado de §5.0 — esa exención vale únicamente
+para las líneas que van a tu OUTPUT de turno (lo que lee `hooks/validate-output.py`), que nunca
+pasa por un shell, así que no hay nada que proteger ahí.
+
+**Esa exención NO cubre el `summary --line` del cierre.** Si `implementation-orchestrator` devuelve
+`BLOCKED …`/`KO …`, propagas su veredicto literal como el tuyo — pero cerrar el run (§4, §10.4)
+significa construir `"${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" summary --run <run-id> --line
+"<veredicto literal de implementation-orchestrator>"`, y eso SÍ es un `--line` nuevo que interpolas
+en un comando de Bash real, con texto ajeno (el `<motivo>` de implementation-orchestrator, que
+puede citar hallazgos de `reviewer` sobre código real del repo, con backticks/`$(...)`). Ese
+`--line` pasa por el saneado de §5.0 igual que cualquier otro `--line` de §4 que lleve texto ajeno —
+la única diferencia con discovery es de dónde sale el texto (implementation-orchestrator en vez del
+owner), no si se sanea. Cierra el run igual que en cualquier otro camino terminal (§4: `summary`
+saneado con la línea de este camino y después `SendMessage(memory-orchestrator, "curate")`,
+esperando su `DONE`, antes de devolver el veredicto).
+
+### 10.4 Cierre
+
+- implementación completada: `- run cerrado: DONE · fase implementada, fusionada localmente`
+- `BLOCKED`/`KO` propagado: `- run cerrado: <veredicto literal de implementation-orchestrator>`

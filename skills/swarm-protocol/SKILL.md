@@ -72,8 +72,9 @@ objective: <objetivo literal del owner>   (solo para el orquestador de dominio c
   NO es una obligación genérica de "todo orquestador de dominio": otros dominios (`memory-
   orchestrator`, `requirements-orchestrator` — este último lanzado por `/swarm:doctor`, que no
   toma objetivo alguno) nunca la reciben ni la necesitan.
-- Caso particular: si eres `implementer` (fase 5, todavía no existe) y te invocan sin referencia a
-  un plan concreto, tu veredicto es `BLOCKED necesita plan` — no improvises un plan.
+- Caso particular: si eres `implementer` (fase 5a, `agents/implementer.md`) y te invocan sin
+  referencia a un plan concreto (falta `plan:` en tu cabecera), tu veredicto es `BLOCKED necesita
+  plan` — no improvises un plan.
 
 ## 2bis. Convención de nombre estable (decisión del owner, 2026-09-02)
 
