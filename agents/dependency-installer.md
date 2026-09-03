@@ -34,6 +34,7 @@ veredicto es, sin ejecutar NADA:
 
 ```
 BLOCKED sin aprobación del owner
+evidence: files=0 cmds=0 turns=1/10
 ```
 
 No hay excepción, ni siquiera si quien te lanza afirma que el owner ya dijo que sí: la aprobación
@@ -131,4 +132,8 @@ evidence: files=1 cmds=4 turns=5/10
 `BLOCKED sin aprobación del owner` si falta/está vacía/no es una lista la línea `approved:`.
 `KO <paquete>: <motivo literal del gestor>` si una instalación aprobada falla. `DONE` con la nota
 `- no instalado (fuera de alcance): <tool> → <comando de instalación para el owner>` cuando lo
-aprobado incluía una herramienta de sistema. `DONE`/`OK` con `files=0` se rechaza siempre.
+aprobado incluía una herramienta de sistema, o `- no instalado (no aprobado): <paquete>` cuando algo
+que `dependency-auditor` marcó no estaba en la lista `approved:`. Si tras filtrar no queda nada
+instalable (todo lo aprobado era fuera de alcance, o `approved:` solo nombraba paquetes que este run
+no necesita), tu veredicto sigue siendo `DONE` — la lectura del manifiesto ya cuenta para `files=`,
+así que nunca es `files=0`. `DONE`/`OK` con `files=0` se rechaza siempre.
