@@ -1,6 +1,6 @@
 # swarm
 
-Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Construido hasta ahora: fases 1, 1b, 2, 3 y 4** — subsistema de memoria, orquestador raíz, dominio de requisitos, dominio discovery (batch de preguntas presentado al owner con `AskUserQuestion`), dominio de análisis (auditoría read-only del código en 6 lentes) y dominio de diseño (escribe un plan de implementación real, revisado adversarialmente por grill×3, arbitrado por el propio `design-orchestrator`).
+Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Construido hasta ahora: fases 1, 1b, 2, 3, 4 y 5a** — subsistema de memoria, orquestador raíz, dominio de requisitos, dominio discovery (batch de preguntas presentado al owner con `AskUserQuestion`), dominio de análisis (auditoría read-only del código en 6 lentes), dominio de diseño (escribe un plan de implementación real, revisado adversarialmente por grill×3, arbitrado por el propio `design-orchestrator`), y dominio de implementación (TDD RED→GREEN por fase en un worktree aislado, con `reviewer` como gate ANTES del merge local — solo por invocación explícita del owner, nunca encadenado).
 
 ## Instalación
 
@@ -44,6 +44,11 @@ flowchart TD
     PADV["pattern-advisor (sonnet)"]
     DM["domain-modeler (opus)"]
     PL["planner (opus)"]
+    IO["implementation-orchestrator (sonnet)"]
+    TW["test-writer (sonnet)"]
+    IM["implementer (sonnet)"]
+    QF["quality-fixer (haiku)"]
+    RV["reviewer (opus)"]
 
     O --> MO
     MO --> MB
@@ -65,21 +70,25 @@ flowchart TD
     DGO --> PADV
     DGO --> DM
     DGO --> PL
+    O -. solo invocación explícita .-> IO
+    IO --> TW
+    IO --> IM
+    IO --> QF
+    IO --> RV
 
-    subgraph planned["planeado, no construido (spec §15, fases 5-6)"]
+    subgraph planned["planeado, no construido (spec §15, fase 6)"]
         direction TB
-        IO["implementation-orchestrator"]
         DLO["delivery-orchestrator"]
     end
 
     O -.-> planned
 
     classDef planned fill:#eee,stroke:#999,color:#888,stroke-dasharray: 5 5;
-    class IO,DLO planned
+    class DLO planned
     class planned planned
 ```
 
-El `orchestrator` raíz (opus) clasifica el tier del run y habla con cuatro dominios hoy: `memory-orchestrator`, que dirige a `memory-builder` (construye/refresca el context-pack) y `memory-curator` (compacta hallazgos, GC); `discovery-orchestrator`, que dirige las cuatro hojas de discovery y devuelve UN batch de preguntas que la raíz presenta con `AskUserQuestion`; `analysis-orchestrator`, que selecciona un subconjunto de sus 6 lentes read-only según el objetivo y reenvía sus hallazgos directamente; y `design-orchestrator`, que corre tras discovery (solo `tier: full`) — `pattern-advisor` + `domain-modeler` en una tanda, luego `planner` escribe el plan real, luego (también `tier: full`) grill×3 lo revisa adversarialmente y `design-orchestrator` arbitra los hallazgos él mismo, sin preguntar nunca al owner. `requirements-orchestrator` (con `env-checker`) es un quinto dominio, invocado por `/swarm:doctor` y no dentro de un run. Los dominios restantes — implementación, entrega — están especificados pero no implementados (ver estado más abajo).
+El `orchestrator` raíz (opus) clasifica el tier del run y habla con cinco dominios hoy: `memory-orchestrator`, que dirige a `memory-builder` (construye/refresca el context-pack) y `memory-curator` (compacta hallazgos, GC); `discovery-orchestrator`, que dirige las cuatro hojas de discovery y devuelve UN batch de preguntas que la raíz presenta con `AskUserQuestion`; `analysis-orchestrator`, que selecciona un subconjunto de sus 6 lentes read-only según el objetivo y reenvía sus hallazgos directamente; `design-orchestrator`, que corre tras discovery (solo `tier: full`) — `pattern-advisor` + `domain-modeler` en una tanda, luego `planner` escribe el plan real, luego (también `tier: full`) grill×3 lo revisa adversarialmente y `design-orchestrator` arbitra los hallazgos él mismo, sin preguntar nunca al owner; y `implementation-orchestrator`, que secuencia `test-writer` (RED) → `implementer` (worktree aislado, GREEN) → `quality-fixer` (`--fix` determinista + residual) → `reviewer` (gate severidad-tagged ANTES del merge) → merge local a la rama del run, para UNA fase de un plan ya `arbitrado` por invocación — solo cuando el owner lo pide explícitamente, nunca encadenado tras discovery/diseño. `requirements-orchestrator` (con `env-checker`) es un sexto dominio, invocado por `/swarm:doctor` y no dentro de un run. El dominio restante — entrega — está especificado pero no implementado (ver estado más abajo).
 
 ### Flujo de `/swarm:run`
 
@@ -160,7 +169,7 @@ Fases según spec §15:
 2. **Discovery (construido).** `discovery-orchestrator` + `value-critic`, `research-analyst`, `options-generator`, `feasibility-spiker`; la raíz presenta UN batch de preguntas con `AskUserQuestion` y registra cada respuesta en `.swarm/decisions.md`.
 3. **Análisis (construido).** `analysis-orchestrator` + `opportunity-analyst`, `architecture-auditor`, `security-auditor`, `vulnerability-scanner`, `performance-analyst`, `data-model-auditor`; la raíz reenvía sus hallazgos (`TAG · fichero:línea · problema → fix`) directamente, sin `AskUserQuestion` de por medio.
 4. **Diseño (construido).** `design-orchestrator` + `pattern-advisor`, `domain-modeler`, `planner`; corre tras discovery en `tier: full`, grill×3 (`working-methods:grill-architect/operator/engineer`) revisa adversarialmente el plan que escribe `planner`, y `design-orchestrator` arbitra los hallazgos él mismo — sin `AskUserQuestion` de por medio.
-5. **Implementación (planeado).** 7 agentes + `dependency-auditor`/`dependency-installer` + el stack pack `php-ddd-symfony8`.
+5. **Implementación (construido — núcleo, fase 5a).** `implementation-orchestrator` + `test-writer`, `implementer`, `quality-fixer`, `reviewer`; ejecuta UNA fase de un plan ya `arbitrado` por invocación (TDD RED→GREEN en el worktree aislado de `implementer`, `quality-fixer` aplica `--fix` al residual, `reviewer` hace gate de hallazgos severidad-tagged ANTES del merge local a la rama del run); solo por invocación explícita del owner, nunca encadenado tras discovery/diseño. `dependency-auditor`/`dependency-installer` y el stack pack `php-ddd-symfony8` (el resto de la fase 5 de spec §15) siguen planeados.
 6. **Entrega (planeado).** 3 agentes + `/swarm:status`, `/swarm:findings`.
 
 ## Convención de nombres

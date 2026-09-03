@@ -64,7 +64,7 @@ JSONEOF
       echo "    }"
       echo "}"
     } > src/Controller/InvoiceController.php
-    mkdir -p "$dir/tests/Unit"
+    mkdir -p tests/Unit
     {
       echo "<?php"
       echo ""
