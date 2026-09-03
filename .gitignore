@@ -4,3 +4,9 @@
 __pycache__/
 
 .claude/
+# swarm
+.swarm/context-pack.md
+.swarm/index.md
+.swarm/findings/
+.swarm/run/
+.swarm/.lock.d
