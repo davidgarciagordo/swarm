@@ -175,8 +175,10 @@ assert_eq "allow" "$(guard $A 'git remote add origin git@github-personal-david:o
 assert_eq "allow" "$(guard $A 'gh repo create owner/repo --private --source=. --remote=origin --push')" "canonical: gh repo create (=-form flags)"
 assert_eq "allow" "$(guard $A 'gh repo create owner/repo --public --source . --remote origin --push')" "canonical: gh repo create (space-form flags)"
 assert_eq "allow" "$(guard $A 'gh repo create owner/repo --private --description \"notas del run: fase 6\"')" "canonical: a quoted --description with spaces and a colon"
-assert_eq "allow" "$(guard $A 'gh pr create --base master --head feature/x --title T --body-file /tmp/n.md')" "canonical: gh pr create"
-assert_eq "allow" "$(guard $A 'gh pr create --base master --head feature/export-csv --title \"feature/export-csv\" --body-file /abs/.swarm/run/1234-5678/release-notes.md')" "canonical: gh pr create with a quoted title and an absolute body-file"
+assert_eq "allow" "$(guard $A 'gh pr create --base master --head feature/x --title T --body-file .swarm/run/x/release-notes.md')" "canonical: gh pr create"
+assert_eq "allow" "$(guard $A 'gh pr create --base master --head feature/export-csv --title \"feature/export-csv\" --body-file .swarm/run/1234-5678/release-notes.md')" "canonical: gh pr create with a quoted title and a relative body-file under .swarm/"
+assert_eq "deny" "$(guard $A 'gh pr create --base master --head feature/x --title T --body-file /tmp/n.md')" "canonical: gh pr create with an ABSOLUTE body-file is denied (C1)"
+assert_eq "deny" "$(guard $A 'gh pr create --base master --head feature/x --title T --body-file ../../../../etc/passwd')" "canonical: gh pr create with a traversal body-file is denied (C1)"
 # comandos de LECTURA de las mismas herramientas: el gate no los toca (no disparan ninguna familia)
 assert_eq "allow" "$(guard $A 'git remote -v')" "read-only git remote -v is untouched by the gate"
 assert_eq "allow" "$(guard $A 'git remote get-url origin')" "read-only git remote get-url is untouched"
@@ -184,6 +186,15 @@ assert_eq "allow" "$(guard $A 'gh pr view 12')" "gh pr view is untouched"
 assert_eq "allow" "$(guard $A 'gh pr list')" "gh pr list is untouched"
 assert_eq "allow" "$(guard $A 'gh auth status')" "gh auth status is untouched"
 assert_eq "allow" "$(guard $A 'git rev-parse --abbrev-ref HEAD 2>&1')" "a read-only command with 2>&1 is untouched"
+
+# T1 (3rd adversarial review): a global flag that takes its value in a SEPARATE word (git -C <path>,
+# git -c k=v, gh --repo o/r, gh -R o/r) must not let the value-word swallow the trigger — the
+# canonical gate must still fire and deny, not silently fall through to the allowlist as the only net.
+assert_eq "deny" "$(guard $A 'git -C /tmp/x push --force origin master')" "T1: git -C <path> push still triggers the canonical gate and denies"
+assert_eq "deny" "$(guard $A 'git -c a=b push --force origin master')" "T1: git -c k=v push still triggers the canonical gate and denies"
+assert_eq "deny" "$(guard $A 'gh --repo owner/repo pr merge 12')" "T1: gh --repo o/r pr merge still triggers the canonical gate and denies"
+assert_eq "deny" "$(guard $A 'gh -R owner/repo pr create --title x')" "T1: gh -R o/r pr create (missing --base/--head) still denies"
+assert_eq "allow" "$(guard $A 'git push -u origin feature/x')" "T1: plain legitimate push is unaffected by the trigger fix"
 
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

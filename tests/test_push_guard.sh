@@ -100,7 +100,8 @@ assert_eq "allow" "$(guard $A 'git push origin \"feature/x\"')" "a plain quoted 
 
 # --- gh: crear/leer sí, mergear/cerrar/mover el árbol NO ---
 assert_eq "allow" "$(guard $A 'gh auth status')" "gh auth status is allowed (availability probe)"
-assert_eq "allow" "$(guard $A 'gh pr create --base master --head feature/x --title T --body-file /tmp/n.md')" "gh pr create is allowed"
+assert_eq "allow" "$(guard $A 'gh pr create --base master --head feature/x --title T --body-file .swarm/run/x/release-notes.md')" "gh pr create is allowed"
+assert_eq "deny" "$(guard $A 'gh pr create --base master --head feature/x --title T --body-file /tmp/n.md')" "gh pr create with an ABSOLUTE body-file is denied (C1: value-scoping, same class as --source)"
 assert_eq "allow" "$(guard $A 'gh pr view 12')" "gh pr view is allowed"
 assert_eq "deny"  "$(guard $A 'gh pr merge 12 --squash')" "gh pr merge is DENIED — a human merges the PR (permanent design property)"
 assert_eq "deny"  "$(guard $A 'gh pr close 12')" "gh pr close is denied"

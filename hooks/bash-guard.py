@@ -175,6 +175,15 @@ _REMOTE = r'[A-Za-z0-9][A-Za-z0-9._-]*'
 _BRANCH = r'[A-Za-z0-9][A-Za-z0-9._/-]*'
 _REFSPEC = r'%s(?::%s)?' % (_BRANCH, _BRANCH)
 _PATH = r'[A-Za-z0-9._/-]+'
+# Ruta de fichero LOCAL RELATIVA para valores como `--body-file`: nunca absoluta (no empieza por
+# `/`) y ningún segmento es `.`/`..` — sin esto, `_PATH` a secas deja pasar `/Users/tú/.ssh/id_rsa`
+# o `../../../etc/passwd` como cuerpo del PR y lo publica en el remoto sin que el owner lo vea antes
+# (misma clase de agujero que `--source` con valor libre, cerrada aquí igual: charset cerrado, no
+# blacklist). Un segmento con punto inicial SÍ vale (`.swarm/run/x/release-notes.md`, la ruta real
+# que usa este dominio) — lo que se excluye es exactamente `.` o `..` como segmento completo, vía
+# negative lookahead, no "empieza por punto".
+_RELPATH_SEGMENT = r'(?!\.\.?/|\.\.?$)[A-Za-z0-9._-]+'
+_RELPATH = _RELPATH_SEGMENT + r'(?:/' + _RELPATH_SEGMENT + r')*'
 _OWNER_REPO = r'[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)?'
 
 # URL de remoto: lista CERRADA de esquemas. El charset de la parte de ruta no incluye `:`, así que
@@ -252,7 +261,7 @@ _GH_PR_CREATE_FLAG = (
     r'|--head(?:=|[ \t]+)' + _q(_BRANCH) +
     r'|--repo(?:=|[ \t]+)' + _q(_OWNER_REPO) +
     r'|--title(?:=|[ \t]+)' + _TEXT +
-    r'|--body-file(?:=|[ \t]+)' + _q(_PATH) +
+    r'|--body-file(?:=|[ \t]+)' + _q(_RELPATH) +
     r')'
 )
 _GH_PR_CREATE_RE = re.compile(
@@ -266,13 +275,18 @@ _GH_PR_CREATE_RE = re.compile(
 # lista de formas VACÍA no tienen ninguna forma legítima: mencionarlas deniega, punto.
 #
 # `\b` antes de `git`/`gh` deja que la ruta absoluta (`/usr/bin/git push`) también dispare, y no
-# confunde `mygit`/`highlight` (no hay frontera de palabra ahí). `(?:-[^ \t]+[ \t]+)*` absorbe flags
-# globales (`git -C /otro/repo push …`, `gh --repo o/r pr merge`) para que no escondan el verbo.
+# confunde `mygit`/`highlight` (no hay frontera de palabra ahí). El disparador absorbe flags
+# globales para que no escondan el verbo — incluidas las que toman su valor en una palabra
+# SEPARADA (`git -C /otro/repo push …`, `git -c a=b push …`, `gh --repo o/r pr merge`,
+# `gh -R o/r pr create`): sin esto, la palabra del valor (`/otro/repo`, `o/r`) nunca casa con
+# `push`/`create`/`merge` y el disparador entero no prende — el gate estructural se salta por
+# completo y solo queda la defensa de la allowlist de dos palabras, que es justo la que este
+# rediseño quería dejar de ser la única red (hallazgo real de la 3ª review adversarial).
 # El separador del DISPARADOR admite además la continuación de línea (`\` + salto), que bash borra
 # antes de ejecutar: `git \<salto>push --force origin master` es un push real y no debe escaparse del
 # gate por una diferencia de texto que el shell ya ha resuelto.
 _TSP = r'(?:[ \t]|\\\n)+'
-_TRIGGER_FLAGS = r'(?:-[^ \t]+' + _TSP + r')*'
+_TRIGGER_FLAGS = r'(?:-[^ \t]+' + _TSP + r'(?:[^-\s][^ \t]*' + _TSP + r')?)*'
 MUTATION_FAMILIES = (
     ('git push', re.compile(r'\bgit' + _TSP + _TRIGGER_FLAGS + r'push\b'), (_GIT_PUSH_RE,)),
     ('git remote add', re.compile(r'\bgit' + _TSP + _TRIGGER_FLAGS + r'remote' + _TSP + _TRIGGER_FLAGS + r'add\b'), (_GIT_REMOTE_ADD_RE,)),
