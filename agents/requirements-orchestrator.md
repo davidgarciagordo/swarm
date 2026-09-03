@@ -46,16 +46,29 @@ que el plugin ya declara, o marca `required` una librería que el plugin no cono
 
 Para saber si hay pack, `Read` de `.swarm/context-pack.md` y mira su línea `stack:`:
 - `stack: generic` o sin línea → no pasas `--pack`, chequeas solo el del plugin.
-- otro valor → resuelve la ruta absoluta (la tool `Read` no expande variables; el shell sí):
+- otro valor → resuelve la ruta absoluta del DIRECTORIO del pack (la tool `Read` no expande
+  variables; el shell sí):
   ```bash
   ls -d "${CLAUDE_PLUGIN_ROOT}/skills/pack-php-ddd-symfony8"
   ```
-  y pasa `<esa ruta>/requirements.json` como `--pack` a `env-checker`. Si `ls -d` falla, sigue sin
-  pack y añade `- warn: pack declarado pero ausente` a tu salida.
+  Guarda la salida cruda de este comando como `<pack>` — es un DIRECTORIO, no un fichero. El
+  `--pack` de `env-checker` (operación `check`, más abajo) es siempre `<pack>/requirements.json`
+  construido a partir de `<pack>`, nunca `<pack>` a secas ni una variante que confunda directorio
+  con fichero. Si `ls -d` falla, sigue sin pack y añade `- warn: pack declarado pero ausente` a tu
+  salida.
 
 ## Operación `check`
 
-1. Antes de lanzar, registra la hoja en el manifest del run (spec §5; en adhoc también, con
+1. Resuelve la ruta ABSOLUTA del `requirements.json` del propio plugin (la tool `Read` ya lo leyó
+   en el paso de arranque como cadena `${CLAUDE_PLUGIN_ROOT}/...` sin expandir — `env-checker`
+   hace `Read` DIRECTO de lo que le pases en `--file`, y `Read` tampoco expande variables de
+   entorno, así que el shell lo expande primero):
+   ```bash
+   ls -d "${CLAUDE_PLUGIN_ROOT}/requirements.json"
+   ```
+   (cuenta para `cmds=`). Guarda la salida cruda como `<plugin-req>` — es la ruta LITERAL resuelta,
+   nunca la cadena sin expandir.
+2. Antes de lanzar, registra la hoja en el manifest del run (spec §5; en adhoc también, con
    `--run adhoc`):
    ```bash
    "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register --run "${RUN:-adhoc}" --agent env-checker --domain requirements --area "." --owner requirements-orchestrator
@@ -77,12 +90,15 @@ Para saber si hay pack, `Read` de `.swarm/context-pack.md` y mira su línea `sta
    ```
    run-id: <tu RUN, o literal "adhoc" si tú mismo estás en adhoc>
    swarm-root: <tu swarm-root, si lo tienes — si estás en adhoc y no te dieron uno, omite esta línea>
-   operation: check --file ${CLAUDE_PLUGIN_ROOT}/requirements.json --pack <ruta absoluta>/requirements.json
+   operation: check --file <plugin-req> --pack <pack>/requirements.json
    ```
-   (la línea `--pack` se omite entera si no hay pack, ver la sección de fusión arriba).
-2. Espera su salida (`OK` o `BLOCKED <tool>`). NO reinterpretes su JSON ni repitas el chequeo tú
+   `<plugin-req>` es la ruta LITERAL resuelta en el paso 1 de arriba (NUNCA la cadena
+   `${CLAUDE_PLUGIN_ROOT}/...` sin expandir: `env-checker` hace `Read` directo de ese valor y
+   `Read` no expande variables de shell). `--pack <pack>/requirements.json` se omite entero si no
+   hay pack activo; `<pack>` es el directorio resuelto en la sección de fusión de arriba.
+3. Espera su salida (`OK` o `BLOCKED <tool>`). NO reinterpretes su JSON ni repitas el chequeo tú
    mismo — `env-checker` es la única hoja que toca `req-check.sh`; tú solo propagas.
-3. Propagación:
+4. Propagación:
    - Su `OK` → tu `OK`.
    - Su `BLOCKED <tool>` → tu `BLOCKED <tool>` LITERAL, con el mismo hallazgo/hint que él trajo
      (no lo resumas, no lo reformules — quien lee tu veredicto necesita el comando de instalación
@@ -126,7 +142,10 @@ regla 7).
   ("todo", "lo que diga el auditor"), tu veredicto es, sin lanzar a nadie:
   ```
   BLOCKED sin aprobación del owner
+  evidence: files=1 cmds=0 turns=1/10
   ```
+  (`files=1` porque ya leíste `requirements.json` del plugin en el arranque; `evidence:` es
+  obligatoria en TODO veredicto, incluso uno que corta antes de lanzar nada.)
 - Con lista válida, antes de lanzar registra la hoja en el manifest del run (spec §5; en adhoc
   también, con `--run adhoc`):
   ```bash
