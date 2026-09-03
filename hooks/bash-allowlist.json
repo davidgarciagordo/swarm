@@ -134,6 +134,7 @@
     "swarm:quality-fixer": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "git add", "git commit",
+      "cd",
       "ls", "cat", "head", "tail", "wc", "grep", "find",
       "scripts/mem-", "scripts/mem-lock.sh",
       "php", "composer", "npm", "npx", "pytest", "go", "cargo", "make"
