@@ -101,8 +101,6 @@ PUSH_DENIED_DST_PREFIXES = ('refs/', 'heads/', 'tags/')
 # reescribir la URL de un remoto existente es justo lo que el ruling 14 prohíbe hacer en silencio.
 SUBCOMMAND_DENIED_ARGS = {
     ('git', 'remote'): ('remove', 'rm', 'set-url', 'rename', 'set-head', 'set-branches', 'prune', 'update'),
-    ('gh', 'pr'): ('merge', 'close', 'edit', 'ready', 'review', 'reopen', 'comment', 'lock', 'unlock', 'checkout'),
-    ('gh', 'auth'): ('login', 'logout', 'refresh', 'setup-git', 'token'),
 }
 
 # C1 (fase 6, review adversarial): flags de `gh` que TOMAN VALOR y pueden aparecer ANTES del
@@ -116,9 +114,17 @@ GH_VALUE_TAKING_FLAGS = frozenset({'--repo', '-R', '--hostname', '-h'})
 # CERRADO de terceras palabras, y cualquier otra (incluida la ausencia de tercera palabra) se
 # deniega. Denylist y allowlist no son intercambiables: `gh repo` tiene decenas de subcomandos y `gh`
 # añade más en cada versión, así que enumerar lo prohibido envejece mal y falla ABIERTO. Aquí sólo
-# `create` es alcanzable, y su forma la acota además `gh_repo_create_denied`.
+# `create` es alcanzable, y su forma la acota además `gh_repo_create_denied`. Ronda 3 de review final
+# de fase 6: `gh pr`/`gh auth` eran denylist (`merge/close/...` y `login/logout/...`) y demostraron
+# el mismo fallo que el comentario de arriba predice — `gh pr update-branch` y `gh auth switch`
+# mutan un remoto/la identidad activa del owner y no estaban en ninguna de las dos listas. Pasan a
+# allowlist cerrado con SOLO lo que `release-manager` documenta ejecutar de verdad (`gh auth status`,
+# `gh pr create` — `gh pr merge`/`gh auth login` son ejemplos de forma PROHIBIDA en su propio cuerpo,
+# nunca algo que corra).
 SUBCOMMAND_ALLOWED_ARGS = {
     ('gh', 'repo'): ('create',),
+    ('gh', 'pr'): ('create',),
+    ('gh', 'auth'): ('status',),
 }
 
 # Conjunto CERRADO de flags de `gh repo create`. Lo que se protege aquí es la inyección de flags: el

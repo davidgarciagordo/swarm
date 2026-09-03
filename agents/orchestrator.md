@@ -212,8 +212,8 @@ verificación independiente (spec §14bis).
 
 La instancia se nombra `verifier-<domain-tag>`, con `<domain-tag>` la etiqueta CORTA del dominio
 que acaba de cerrar (`discovery`/`analysis`/`design`/`implementation`/`requirements`/`delivery` —
-la MISMA que ya usas en `--domain` al registrar ese orquestador, §5.2/§8.2/§9.2/§10.2/§11.2/§12.2).
-`subagent_type`
+la MISMA que ya usas en `--domain` al registrar ese orquestador, §5.2/§8.2/§9.2/§10.2/§11.2/§12.3 —
+delivery registra en §12.3, no en §12.2, que es el gate de aprobación de push). `subagent_type`
 sigue siendo SIEMPRE `"swarm:verifier"` (el contrato/fichero es uno solo, genérico); solo el
 `name:` de la INSTANCIA va cualificado por dominio — igual que las hojas de un orquestador de
 dominio se nombran por rol, no genéricas. Esto evita que dos dominios que cierran en verde en el
