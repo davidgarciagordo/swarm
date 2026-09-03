@@ -1,6 +1,6 @@
 # swarm
 
-Claude Code plugin. Single-responsibility agent swarm for the software development lifecycle — analysis, design, implementation, delivery — optimized for quality per token. Full design in `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Built so far: phases 1, 1b, 2, 3, 4 and 5a** — memory subsystem, root orchestrator, requirements domain, discovery domain (questions batch presented to the owner via `AskUserQuestion`), analysis domain (read-only codebase audit across 6 lenses), design domain (writes a real implementation plan, adversarially reviewed by grill×3, arbitrated by `design-orchestrator` itself), and implementation domain (RED→GREEN TDD per phase in an isolated worktree, gated by `reviewer` BEFORE a local merge — only by explicit owner invocation, never auto-chained).
+Claude Code plugin. Single-responsibility agent swarm for the software development lifecycle — analysis, design, implementation, delivery — optimized for quality per token. Full design in `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Built so far: phases 1, 1b, 2, 3, 4, 5a and 5b** — memory subsystem, root orchestrator, requirements domain (environment check + dependency audit + owner-approved dependency install), discovery domain (questions batch presented to the owner via `AskUserQuestion`), analysis domain (read-only codebase audit across 6 lenses), design domain (writes a real implementation plan, adversarially reviewed by grill×3, arbitrated by `design-orchestrator` itself), implementation domain (RED→GREEN TDD per phase in an isolated worktree, with conditional schema-migration and documentation steps, gated by `reviewer` BEFORE a local merge — only by explicit owner invocation, never auto-chained), and the first stack pack (`php-ddd-symfony8`, auto-detected from `composer.json`).
 
 For a full usage guide (installation, the 3 commands, every domain, worked examples, how to read
 the output) see `docs/USAGE.md`.
@@ -31,6 +31,8 @@ flowchart TD
     MC["memory-curator (haiku)"]
     RO["requirements-orchestrator (haiku)"]
     EC["env-checker (haiku)"]
+    DA["dependency-auditor (sonnet)"]
+    DI["dependency-installer (sonnet)"]
     DO["discovery-orchestrator (sonnet)"]
     VC["value-critic (opus)"]
     RA["research-analyst (sonnet)"]
@@ -50,6 +52,8 @@ flowchart TD
     IO["implementation-orchestrator (sonnet)"]
     TW["test-writer (sonnet)"]
     IM["implementer (sonnet)"]
+    ME["migration-engineer (sonnet)"]
+    DW["doc-writer (sonnet)"]
     QF["quality-fixer (haiku)"]
     RV["reviewer (opus)"]
 
@@ -61,7 +65,10 @@ flowchart TD
     DO --> RA
     DO --> OG
     DO --> FS
+    O -. audit-deps / install .-> RO
     RO --> EC
+    RO --> DA
+    RO --> DI
     O --> AO
     AO --> OA
     AO --> AA
@@ -76,6 +83,8 @@ flowchart TD
     O -. explicit invocation only .-> IO
     IO --> TW
     IO --> IM
+    IO --> ME
+    IO --> DW
     IO --> QF
     IO --> RV
 
@@ -91,7 +100,7 @@ flowchart TD
     class planned planned
 ```
 
-The root `orchestrator` (opus) classifies the run tier and talks to five domains today: `memory-orchestrator`, which owns `memory-builder` (builds/refreshes the context-pack) and `memory-curator` (compacts findings, GC); `discovery-orchestrator`, which owns the four discovery leaves and returns ONE batch of questions the root presents with `AskUserQuestion`; `analysis-orchestrator`, which selects a subset of its 6 read-only lenses by objective and forwards their findings directly; `design-orchestrator`, which runs after discovery (tier `full` only) — `pattern-advisor` + `domain-modeler` in one batch, then `planner` writes the real plan file, then (also tier `full`) grill×3 adversarially reviews it and `design-orchestrator` arbitrates the findings itself, never asking the owner; and `implementation-orchestrator`, which sequences `test-writer` (RED) → `implementer` (isolated worktree, GREEN) → `quality-fixer` (deterministic `--fix` + residual) → `reviewer` (severity-tagged gate BEFORE merge) → a local merge to the run's branch, for ONE phase of an already-arbitrado plan per invocation — only when the owner asks explicitly, never auto-chained after discovery/design. `requirements-orchestrator` (with `env-checker`) is a sixth domain, invoked by `/swarm:doctor` rather than inside a run. The remaining domain — delivery — is spec'd but not implemented (see status below).
+The root `orchestrator` (opus) classifies the run tier and talks to six domains today: `memory-orchestrator`, which owns `memory-builder` (builds/refreshes the context-pack) and `memory-curator` (compacts findings, GC); `requirements-orchestrator`, which owns `env-checker` (OS/project tool check, `/swarm:doctor`'s `operation: check`), `dependency-auditor` (read-only CVE/outdated/license audit, `operation: audit-deps`) and `dependency-installer` (mutating, `operation: install`, launched only with an itemised owner approval the root collects via `AskUserQuestion` — see `agents/orchestrator.md` §11); `discovery-orchestrator`, which owns the four discovery leaves and returns ONE batch of questions the root presents with `AskUserQuestion`; `analysis-orchestrator`, which selects a subset of its 6 read-only lenses by objective and forwards their findings directly; `design-orchestrator`, which runs after discovery (tier `full` only) — `pattern-advisor` + `domain-modeler` in one batch, then `planner` writes the real plan file, then (also tier `full`) grill×3 adversarially reviews it and `design-orchestrator` arbitrates the findings itself, never asking the owner; and `implementation-orchestrator`, which sequences `test-writer` (RED) → `implementer` (isolated worktree, GREEN) → `migration-engineer` (conditional, schema-touching phases only) → `doc-writer` (conditional, observable-behavior phases only, turns allowing) → `quality-fixer` (deterministic `--fix` + residual) → `reviewer` (severity-tagged gate BEFORE merge) → a local merge to the run's branch, for ONE phase of an already-arbitrado plan per invocation — only when the owner asks explicitly, never auto-chained after discovery/design. `/swarm:doctor` also invokes `requirements-orchestrator` directly, adhoc, outside any run, for a plain environment check. The remaining domain — delivery — is spec'd but not implemented (see status below).
 
 ### `/swarm:run` flow
 
@@ -168,16 +177,17 @@ No agent scans the repo or `.swarm/` twice, and no agent writes `.swarm/` direct
 Phases from spec §15:
 
 1. **Core (built).** `orchestrator`, memory subsystem (`memory-orchestrator` + `memory-builder` + `memory-curator`, `files`/`claude-mem` backends), `swarm-protocol` skill, hooks (evidence-contract validation + bash allowlist), `/swarm:init`, smoke tests 1-8.
-1b. **Requirements (built).** `requirements-orchestrator`, `env-checker`, `req-check.sh`, `requirements.json`, `/swarm:doctor`.
+1b. **Requirements — env check (built).** `requirements-orchestrator`, `env-checker`, `req-check.sh`, `requirements.json`, `/swarm:doctor`.
 2. **Discovery (built).** `discovery-orchestrator` + `value-critic`, `research-analyst`, `options-generator`, `feasibility-spiker`; the root presents ONE batch of questions via `AskUserQuestion` and records each answer in `.swarm/decisions.md`.
 3. **Analysis (built).** `analysis-orchestrator` + `opportunity-analyst`, `architecture-auditor`, `security-auditor`, `vulnerability-scanner`, `performance-analyst`, `data-model-auditor`; the root forwards its findings (`TAG · file:line · problem → fix`) directly, no `AskUserQuestion` involved.
 4. **Design (built).** `design-orchestrator` + `pattern-advisor`, `domain-modeler`, `planner`; runs after discovery in `tier: full`, grill×3 (`working-methods:grill-architect/operator/engineer`) adversarially reviews the plan `planner` writes, and `design-orchestrator` arbitrates the findings itself — no `AskUserQuestion` involved.
-5. **Implementation (built — core, fase 5a).** `implementation-orchestrator` + `test-writer`, `implementer`, `quality-fixer`, `reviewer`; runs ONE phase of an already-`arbitrado` plan per invocation (RED→GREEN TDD in `implementer`'s isolated worktree, `quality-fixer` `--fix`s the residual, `reviewer` gates severity-tagged findings BEFORE a local merge to the run's branch); only by explicit owner invocation, never auto-chained after discovery/design. `dependency-auditor`/`dependency-installer` and the `php-ddd-symfony8` stack pack (rest of spec §15 phase 5) are still planned.
+5. **Implementation — core (built, fase 5a).** `implementation-orchestrator` + `test-writer`, `implementer`, `quality-fixer`, `reviewer`; runs ONE phase of an already-`arbitrado` plan per invocation (RED→GREEN TDD in `implementer`'s isolated worktree, `quality-fixer` `--fix`s the residual, `reviewer` gates severity-tagged findings BEFORE a local merge to the run's branch); only by explicit owner invocation, never auto-chained after discovery/design.
+5b. **Requirements — dependency audit/install + stack pack (built).** `dependency-auditor` (read-only CVE/outdated/license audit, `requirements-orchestrator`'s `operation: audit-deps`) and `dependency-installer` (mutating, `operation: install`, only with an itemised owner approval collected by the root via `AskUserQuestion` — `agents/orchestrator.md` §11); `migration-engineer` and `doc-writer` join `implementation-orchestrator`'s sequence (both conditional — schema-touching and observable-behavior phases respectively); the first stack pack, `php-ddd-symfony8` (`skills/pack-php-ddd-symfony8/`), auto-detected from a `composer.json` with a `symfony/*` requirement.
 6. **Delivery (planned).** 3 agents + `/swarm:status`, `/swarm:findings`.
 
 ## Naming convention
 
-Every spawned agent is launched **named after its role** — the basename of its type, no suffixes or variants (`memory-orchestrator`, `analysis-orchestrator`, and in future phases `pattern-advisor`, `dependency-installer`, …). This is what lets peer agents `SendMessage` each other by name without discovering it first, and lets the owner address a specific agent directly — "tell `memory-builder` when it's done" — without the caller having to look up who that is. `memory-orchestrator` is the one case that's mandatory today: a single named instance per run (spec §4.5).
+Every spawned agent is launched **named after its role** — the basename of its type, no suffixes or variants (`memory-orchestrator`, `analysis-orchestrator`, `pattern-advisor`, `dependency-installer`, and in the future `release-manager`…). This is what lets peer agents `SendMessage` each other by name without discovering it first, and lets the owner address a specific agent directly — "tell `memory-builder` when it's done" — without the caller having to look up who that is. `memory-orchestrator` is the one case that's mandatory today: a single named instance per run (spec §4.5).
 
 ## Tests
 

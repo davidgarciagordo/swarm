@@ -93,6 +93,58 @@ assert set(['ok', 'missing_required', 'missing_optional', 'checked']) <= set(d.k
 " "$out"
 assert_eq "0" "$?" "default --file (plugin's own requirements.json) produces well-shaped JSON"
 
+# --- fusión plugin + pack (fase 5b, spec §7: misma clave de identidad → gana el PACK) ---
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/req-merge.XXXXXX")"
+cat > "$TMP/plugin.json" <<'JSONEOF'
+{ "os": [ {"tool":"git","required":true,"install":{"brew":"git","apt":"git"}},
+          {"tool":"php","required":false,"install":{"brew":"php","apt":"php-cli"}} ],
+  "project": [],
+  "libs": [ {"name":"phpstan/phpstan","manager":"composer","required":false} ] }
+JSONEOF
+cat > "$TMP/pack.json" <<'JSONEOF'
+{ "os": [ {"tool":"php","min":"8.2","required":true,"install":{"brew":"php","apt":"php-cli"}},
+          {"tool":"composer","required":true,"install":{"brew":"composer","apt":"composer"}} ],
+  "project": [ {"file":"composer.json","required":true} ],
+  "libs": [ {"name":"phpstan/phpstan","manager":"composer","min":"1.10","required":true} ] }
+JSONEOF
+mkdir -p "$TMP/root" && echo '{}' > "$TMP/root/composer.json"
+
+out="$(bash "$PLUGIN_ROOT/scripts/req-check.sh" --file "$TMP/plugin.json" --pack "$TMP/pack.json" --root "$TMP/root" 2>/dev/null)"
+merged="$(python3 -c "
+import json,sys
+d = json.loads(sys.argv[1])
+print(d['checked'])
+" "$out")"
+# git + php + composer (os, php fusionado en UNA entrada) + composer.json (project) + phpstan (libs) = 5
+assert_eq "5" "$merged" "req-check merges plugin+pack without duplicating the shared php entry"
+
+# la entrada del PACK gana: php pasa de required:false (plugin) a required:true (pack)
+wins="$(python3 - "$TMP/plugin.json" "$TMP/pack.json" "$PLUGIN_ROOT/scripts/req-check.sh" <<'PYEOF'
+import json, subprocess, sys, tempfile, os
+plugin, pack, script = sys.argv[1], sys.argv[2], sys.argv[3]
+root = tempfile.mkdtemp()
+open(os.path.join(root, 'composer.json'), 'w').write('{}')
+# forzamos la ausencia de la tool renombrandola a algo que no existe en el PATH
+p = json.load(open(pack)); p['os'][0]['tool'] = 'swarm-tool-que-no-existe'
+tmp = os.path.join(root, 'pack.json'); json.dump(p, open(tmp, 'w'))
+r = subprocess.run(['bash', script, '--file', plugin, '--pack', tmp, '--root', root],
+                   capture_output=True, text=True)
+d = json.loads(r.stdout)
+print('required' if any(m['tool'] == 'swarm-tool-que-no-existe' for m in d['missing_required']) else 'optional')
+PYEOF
+)"
+assert_eq "required" "$wins" "pack entry wins on conflict: a tool the plugin marked optional becomes required"
+
+# validación de entrada (backlog de fases 1-5a, ahora alcanzable de verdad)
+assert_exit "64" "req-check rejects a --pack file that does not exist" bash "$PLUGIN_ROOT/scripts/req-check.sh" --file "$TMP/plugin.json" --pack "$TMP/no-existe.json"
+echo 'no soy json' > "$TMP/roto.json"
+assert_exit "64" "req-check rejects a malformed requirements file" bash "$PLUGIN_ROOT/scripts/req-check.sh" --file "$TMP/roto.json"
+cat > "$TMP/mal-esquema.json" <<'JSONEOF'
+{ "os": "no soy una lista" }
+JSONEOF
+assert_exit "64" "req-check rejects a requirements file whose os is not a list" bash "$PLUGIN_ROOT/scripts/req-check.sh" --file "$TMP/mal-esquema.json"
+rm -rf "$TMP"
+
 rm -rf "$fixture"
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

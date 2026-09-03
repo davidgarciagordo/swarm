@@ -34,6 +34,21 @@ ejecutas trabajo de hoja (§3.2 regla 4): no auditas tú mismo código, delegas 
 3. Lee con la tool `Read` (cuenta para `files=`): `.swarm/context-pack.md`. Si no existe, NO
    lances hojas a ciegas: `SendMessage(to: "memory-orchestrator", "build")`, espera su `OK`/`DONE`,
    y si no llega en tu siguiente turno, cierra con `BLOCKED falta context-pack`.
+4. **Resolver la ruta del stack pack** (una sola vez, spec §3.1/§8.1): en el `.swarm/context-pack.md`
+   que acabas de leer, busca su línea `stack:`.
+   - Si dice `stack: generic` (o no hay línea `stack:`), **no hay pack**: no emites ninguna línea
+     `pack:` en los prompts de abajo y cada hoja usa su modo genérico documentado. No es un error,
+     no lo reportes como hallazgo.
+   - Si dice otro valor (hoy solo `php-ddd-symfony8`), resuelve la ruta ABSOLUTA del pack — la tool
+     `Read` no expande variables de entorno, así que la expande el shell por ti:
+     ```bash
+     ls -d "${CLAUDE_PLUGIN_ROOT}/skills/pack-php-ddd-symfony8"
+     ```
+     (cuenta para `cmds=`). La salida ES la ruta absoluta resuelta. Guárdala como `<pack>`.
+     **Nunca pases la cadena `${CLAUDE_PLUGIN_ROOT}/...` sin expandir**: la hoja haría `Read` de una
+     ruta inexistente y perdería el pack en silencio. Si `ls -d` falla (el directorio no existe:
+     pack declarado en el context-pack pero no instalado), sigue SIN pack y añade
+     `- warn: pack <stack> declarado pero ausente` a tu salida — nunca bloquees el ciclo por esto.
 
 ## Saneado obligatorio de todo texto ajeno (si alguna vez construyes un `--text`/`--fix`/`--line`)
 
@@ -113,6 +128,11 @@ operation: audit
 objective: <objetivo literal del owner>
 ```
 
+A `data-model-auditor` y `vulnerability-scanner`, y solo a ellas, añade una quinta línea
+`pack: <pack>` (spec §8.1) — omitida si no hay pack (§4 de arriba). Las otras cuatro lentes
+(`opportunity-analyst`, `architecture-auditor`, `security-auditor`, `performance-analyst`) nunca la
+reciben: no consumen el pack.
+
 El override de modelo es el parámetro `model: "sonnet"` del tool `Agent`, y aplica SOLO a las tres
 hojas opus-based cuando `tier: light` (spec §7.0 — el tier reescala hojas cuya base es opus, no
 las que ya son sonnet o haiku):
@@ -157,8 +177,8 @@ Allowlist de `swarm:analysis-orchestrator`: `scripts/mem-*.sh`, `git status|log|
 rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`. Nada de `python3`, `echo`, `mkdir`, `rm`,
 `export`, `git worktree` (no lo necesitas — ninguna hoja usa `isolation: worktree`); denegación por
 segmento (`&&`, `||`, `;`, `|`); no cierres con `; echo $?`. Casi no usas Bash: `register` ×(hojas
-lanzadas), y nada más — no hay `query` ni `summary` que hacer tú (eso lo hace la raíz en su propio
-cierre, §4 de `agents/orchestrator.md`).
+lanzadas) y, si hay pack activo, el `ls -d` del paso 4 — nada más, no hay `query` ni `summary` que
+hacer tú (eso lo hace la raíz en su propio cierre, §4 de `agents/orchestrator.md`).
 
 ## Salida
 

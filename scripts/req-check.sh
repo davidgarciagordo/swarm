@@ -7,6 +7,7 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 FILE="$PLUGIN_ROOT/requirements.json"
 ROOT="$PWD"
+PACK_FILE=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -16,6 +17,9 @@ while [ $# -gt 0 ]; do
     --root)
       [ $# -ge 2 ] || { echo "req-check.sh: --root requires a value" >&2; exit 64; }
       ROOT="$2"; shift 2 ;;
+    --pack)
+      [ $# -ge 2 ] || { echo "req-check.sh: --pack requires a value" >&2; exit 64; }
+      PACK_FILE="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -25,9 +29,14 @@ if [ ! -f "$FILE" ]; then
   exit 64
 fi
 
+if [ -n "$PACK_FILE" ] && [ ! -f "$PACK_FILE" ]; then
+  echo "req-check.sh: pack requirements file not found: $PACK_FILE" >&2
+  exit 64
+fi
+
 UNAME="$(uname -s 2>/dev/null || echo unknown)"
 
-python3 - "$FILE" "$ROOT" "$UNAME" <<'PYEOF'
+python3 - "$FILE" "$ROOT" "$UNAME" "$PACK_FILE" <<'PYEOF'
 import json
 import os
 import re
@@ -36,9 +45,52 @@ import subprocess
 import sys
 
 req_file, root, uname = sys.argv[1], sys.argv[2], sys.argv[3]
+pack_file = sys.argv[4] if len(sys.argv) > 4 else ""
 
-with open(req_file) as fh:
-    data = json.load(fh)
+
+def load(path):
+    try:
+        with open(path) as fh:
+            data = json.load(fh)
+    except (ValueError, OSError) as exc:
+        sys.stderr.write("req-check.sh: %s no es JSON valido: %s\n" % (path, exc))
+        sys.exit(64)
+    if not isinstance(data, dict):
+        sys.stderr.write("req-check.sh: %s no es un objeto JSON\n" % path)
+        sys.exit(64)
+    for key in ("os", "project", "libs"):
+        value = data.get(key, [])
+        if not isinstance(value, list):
+            sys.stderr.write("req-check.sh: %s: '%s' debe ser una lista\n" % (path, key))
+            sys.exit(64)
+        data[key] = value
+    return data
+
+
+IDENTITY = {"os": "tool", "project": "file", "libs": "name"}
+
+
+def merge(base, pack):
+    """Concatena os/project/libs; ante la misma clave de identidad, gana el PACK (spec §7)."""
+    out = {}
+    for key, id_field in IDENTITY.items():
+        merged = []
+        pack_ids = set()
+        for item in pack.get(key, []):
+            if isinstance(item, dict) and item.get(id_field) is not None:
+                pack_ids.add(item[id_field])
+            merged.append(item)
+        for item in base.get(key, []):
+            if isinstance(item, dict) and item.get(id_field) in pack_ids:
+                continue          # la entrada del pack ya la cubre
+            merged.append(item)
+        out[key] = merged
+    return out
+
+
+data = load(req_file)
+if pack_file:
+    data = merge(data, load(pack_file))
 
 checked = 0
 missing_required = []
@@ -112,14 +164,14 @@ for item in data.get("project", []):
         entry = {"tool": path, "hint": "fichero de proyecto ausente"}
         (missing_required if required else missing_optional).append(entry)
 
-# libs: fase 1b no tiene stack pack todavia, asi que nada es verificable contra
-# un gestor de paquetes real. Cada entrada se reporta como "unknown" y NUNCA
-# hace fallar el chequeo — este stub es el limite YAGNI hasta la fase 5.
+# libs: la verificacion real contra un gestor de paquetes es responsabilidad de
+# `dependency-auditor` (comandos del pack: scan-deps/outdated), no de este script. Aqui cada
+# entrada se reporta como no bloqueante para que el health-gate nunca falle por una libreria.
 for item in data.get("libs", []):
     checked += 1
     missing_optional.append({
         "tool": item.get("name"),
-        "hint": "unknown - requiere stack pack para verificar (fase 5)",
+        "hint": "sin verificar aqui - lo audita dependency-auditor",
     })
 
 ok = len(missing_required) == 0

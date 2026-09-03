@@ -32,6 +32,11 @@ owner** — no tienes `AskUserQuestion`.
    pack activo, spec §8) para saber qué herramientas `--fix` corresponden (sin pack →
    conocimiento genérico: detecta por convención de ficheros — `.php-cs-fixer.php`/`phpcs.xml` →
    PHP-CS-Fixer/PHPCS; `.eslintrc*` → ESLint `--fix`; `pyproject.toml` con `ruff`/`black` → esos).
+4. `pack:` (opcional, quinta línea de tu cabecera) es la **ruta absoluta ya resuelta** del stack
+   pack activo. Si viene, haz `Read` de `<pack>/commands.md` (para las claves `fix`, `lint` y
+   `typecheck`), `<pack>/conventions.md` (naming y capas que tu código debe respetar) y
+   `<pack>/boundaries.md` (qué no tocas nunca) — cuentan para `files=`. **Sin pack**: conocimiento
+   genérico, exactamente como hasta ahora (spec §8).
 
 ## Ejecuta primero, juzga después
 
