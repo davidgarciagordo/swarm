@@ -36,9 +36,11 @@ owner** — no tienes `AskUserQuestion`.
 ## Ejecuta primero, juzga después
 
 ```bash
-cd <ruta absoluta del worktree> && vendor/bin/php-cs-fixer fix --diff
+cd <ruta absoluta del worktree> && php vendor/bin/php-cs-fixer fix --diff
 ```
-(ajusta al framework real detectado; cuenta para `cmds=`). Lee el resultado: si el `--fix` resolvió
+(ajusta al framework real detectado; cuenta para `cmds=`; el guard casa por el primer intérprete —
+`php vendor/bin/php-cs-fixer`, nunca `vendor/bin/php-cs-fixer` a secas, mismo patrón que `php
+vendor/bin/phpunit` en `test-writer.md`/`implementer.md`). Lee el resultado: si el `--fix` resolvió
 todo, no hay residual — no inventes trabajo. Si queda un residual (un error de tipo que el `--fix`
 no auto-resuelve, un import sin usar que el formatter no borra), usa `Edit` sobre el fichero real
 del worktree para parchearlo — nunca "revises a ojo" lo que la herramienta ya habría resuelto sola
@@ -55,10 +57,11 @@ sin hallazgos.
 
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
-Allowlist de `swarm:quality-fixer`: `git status|log|diff|show|rev-parse|add|commit`,
-`ls|cat|head|tail|wc|grep|find`, `scripts/mem-*.sh`, herramientas de build/test genéricas (`php`,
-`composer`, `npm`, `npx`, `pytest`, `go`, `cargo`, `make`). Nada de `git push`, `git merge`, `rm`;
-denegación por segmento.
+Allowlist de `swarm:quality-fixer`: `git status|log|diff|show|rev-parse|add|commit`, `cd` (para
+anclarte a la ruta absoluta del worktree antes de `--fix`/commit, mismo motivo que `swarm:
+orchestrator` en §2.0 de la raíz), `ls|cat|head|tail|wc|grep|find`, `scripts/mem-*.sh`, herramientas
+de build/test genéricas (`php`, `composer`, `npm`, `npx`, `pytest`, `go`, `cargo`, `make`). Nada de
+`git push`, `git merge`, `rm`; denegación por segmento.
 
 ## Salida
 

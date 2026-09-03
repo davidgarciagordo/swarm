@@ -22,18 +22,24 @@ grill de fase 4). Read-only por construcción: nunca `Write`/`Edit` — tú solo
 ## Arranque
 
 1. `RUN`: de tu cabecera (`run-id:` o `adhoc`, protocolo §2). `operation: review` y
-   `worktree: <ruta absoluta>` en tu cabecera, más `base: <sha del commit RED de test-writer>` (el
-   punto de partida del diff — todo lo que `implementer`+`quality-fixer` añadieron por encima).
+   `worktree: <ruta absoluta, .claude/worktrees/agent-<agentId>>` en tu cabecera, más
+   `base: <sha del commit RED de test-writer>` (el punto de partida del diff — todo lo que
+   `implementer`+`quality-fixer` añadieron por encima). El `<agentId>` que necesitas para el diff
+   (paso 3) es el basename de esa ruta sin el prefijo `agent-`.
 2. Lee tu buzón:
    ```bash
    cat "$SWARM_ROOT/run/${RUN:-adhoc}/mailbox/reviewer.md" 2>/dev/null
    ```
-3. Lee el diff completo (Bash, cuenta para `cmds=`):
+3. Lee el diff completo (Bash, cuenta para `cmds=`). **Nunca `cd`** — no lo tienes en tu allowlist,
+   y no lo necesitas: la rama del worktree de `implementer` (`worktree-agent-<agentId>`) vive en el
+   MISMO object store que el checkout principal donde corres tú, así que se ve sin moverte de sitio:
    ```bash
-   cd <ruta absoluta del worktree> && git diff <base>..HEAD
+   git diff <base>..worktree-agent-<agentId>
    ```
-   Y con `Read` (cuenta para `files=`) la fase del plan que `implementer` debía cubrir (la misma
-   que le dieron a `test-writer`), para juzgar si el diff cumple lo pedido — ni de más ni de menos.
+   La ruta absoluta del `worktree:` de tu cabecera sigue sirviendo para citar ficheros concretos con
+   `Read` cuando el hunk del diff no basta de contexto. Con `Read` (cuenta para `files=`) lee también
+   la fase del plan que `implementer` debía cubrir (la misma que le dieron a `test-writer`), para
+   juzgar si el diff cumple lo pedido — ni de más ni de menos.
 
 ## Qué revisar
 
