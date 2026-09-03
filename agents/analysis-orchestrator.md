@@ -177,8 +177,8 @@ Allowlist de `swarm:analysis-orchestrator`: `scripts/mem-*.sh`, `git status|log|
 rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`. Nada de `python3`, `echo`, `mkdir`, `rm`,
 `export`, `git worktree` (no lo necesitas — ninguna hoja usa `isolation: worktree`); denegación por
 segmento (`&&`, `||`, `;`, `|`); no cierres con `; echo $?`. Casi no usas Bash: `register` ×(hojas
-lanzadas), y nada más — no hay `query` ni `summary` que hacer tú (eso lo hace la raíz en su propio
-cierre, §4 de `agents/orchestrator.md`).
+lanzadas) y, si hay pack activo, el `ls -d` del paso 4 — nada más, no hay `query` ni `summary` que
+hacer tú (eso lo hace la raíz en su propio cierre, §4 de `agents/orchestrator.md`).
 
 ## Salida
 

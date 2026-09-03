@@ -15,7 +15,7 @@ front="$(awk '/^---$/{n++; next} n==1{print} n==2{exit}' "$F")"
 tools="$(echo "$front" | grep '^tools:')"
 agent_clause="$(echo "$tools" | sed -n 's/.*Agent(\([^)]*\)).*/\1/p')"
 assert_eq "1" "$([ -z "$agent_clause" ] && echo 0 || echo 1)" "tools: has an Agent(...) clause"
-for leaf in test-writer implementer quality-fixer reviewer; do
+for leaf in test-writer implementer quality-fixer reviewer migration-engineer doc-writer; do
   assert_eq "0" "$(echo "$agent_clause" | grep -qF "$leaf" && echo 0 || echo 1)" "Agent(...) includes $leaf"
 done
 assert_eq "0" "$(echo "$tools" | grep -qF 'SendMessage' && echo 0 || echo 1)" "tools: includes SendMessage"
