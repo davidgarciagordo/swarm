@@ -86,7 +86,7 @@ if [ -f "$f" ]; then
   assert_eq "1" "$(has "$tools" 'Agent')" "implementer is a leaf: spawns nobody (2-level hierarchy, spec §3.2 rule 8)"
   assert_eq "0" "$(has "$b" 'git commit')" "implementer documents committing its own work in its own worktree"
   assert_eq "0" "$(has "$b" 'GREEN')" "implementer documents confirming GREEN before committing"
-  assert_eq "0" "$(has "$b" '[x]')" "implementer documents flipping the plan's step checkboxes as part of its commit"
+  assert_eq "0" "$(has "$b" '- [x] Step')" "implementer documents flipping the plan's step checkboxes as part of its commit"
   assert_eq "allow" "$(guard "swarm:implementer" 'git add -A')" "implementer can git add in its own worktree"
   assert_eq "allow" "$(guard "swarm:implementer" 'git commit -m x')" "implementer can git commit"
   assert_eq "deny" "$(guard "swarm:implementer" 'git merge x')" "implementer (leaf) cannot merge — only the orchestrator merges"
