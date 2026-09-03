@@ -60,13 +60,13 @@ Allowlist de `swarm:verifier`: `scripts/mem-*.sh`, `git status|log|diff|show|rev
 
 ```
 OK
-evidence: files=2 cmds=1 turns=3/10
+evidence: files=1 cmds=1 turns=3/10
 ```
 `OK` = todo lo del veredicto traza a un finding real y el contrato del dominio está completo.
 
 ```
 KO líneas Q1/Q3 no trazan a ningún finding real de value-critic
-evidence: files=2 cmds=1 turns=4/10
+evidence: files=1 cmds=1 turns=4/10
 VERIFY · discovery-orchestrator:1 · Q1 no aparece en findings/value-critic.md → corregir y reenviar
 VERIFY · discovery-orchestrator:2 · falta línea "- findings: <lista>" que exige su ## Salida → corregir y reenviar
 ```
@@ -74,5 +74,4 @@ Un hallazgo por problema, mismo formato `TAG · file:línea · problema → fix`
 exige (`hooks/validate-output.py`). `TAG` siempre `VERIFY`; `file:línea` es `<domain>:<ordinal>`
 (no citas código real, misma convención que `discovery-<run>:<n>`).
 
-`OK` con `files=0` se rechaza siempre: leíste al menos el contrato del dominio y su consulta de
-findings — dos ficheros mínimo.
+`OK` con `files=0` se rechaza siempre: `files=N` cuenta Read calls (Read de agents/<domain>.md = 1 fichero mínimo).
