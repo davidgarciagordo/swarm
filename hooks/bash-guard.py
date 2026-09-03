@@ -56,6 +56,55 @@ BARE_TWO_WORD_DENIED = {
     ('composer', 'update'),
 }
 
+# ── Delivery (fase 6): `git push` es la acción más consecuente e IRREVERSIBLE del enjambre ──
+# Un merge local se deshace; un push a un remoto compartido, o un PR que otra persona mergea, no
+# siempre. La prosa de agents/release-manager.md dice qué forma usar; esto hace imposible el resto,
+# para CUALQUIER agent_type (presente o futuro), igual que BARE_TWO_WORD_DENIED con `composer update`.
+PUSH_DENIED_FLAGS = (
+    '--force', '-f', '--force-with-lease', '--force-if-includes',
+    '--delete', '-d', '--mirror', '--all', '--prune', '--tags', '--follow-tags',
+)
+
+# Ramas cuyo destino NUNCA se empuja desde el enjambre. Extiende la guarda de 2 nombres que
+# implementation-orchestrator aplica en local (backlog de fase 5a: `develop`/`trunk` no cubiertos).
+PROTECTED_REFS = ('master', 'main', 'develop', 'trunk')
+
+# Tercera palabra denegada para un prefijo de dos palabras ya permitido. Un prefijo de DOS palabras
+# ("gh pr") no puede expresar "todo menos merge" — esto lo expresa. `gh pr merge` es la línea roja
+# permanente del diseño (el PR lo mergea una persona); los mutantes DESTRUCTIVOS de `git remote` y
+# `gh auth` cambian configuración del owner fuera del alcance de un run.
+#
+# `add` NO está en la lista de `git remote`: es la única forma que el bootstrap de remoto necesita
+# (ruling 3) y es ADITIVA — `git remote add` falla si el nombre ya existe, así que no puede pisar un
+# remoto del owner. Su forma exacta la fija `remote_add_segment_denied`. `set-url` SÍ sigue denegado:
+# reescribir la URL de un remoto existente es justo lo que el ruling 14 prohíbe hacer en silencio.
+SUBCOMMAND_DENIED_ARGS = {
+    ('git', 'remote'): ('remove', 'rm', 'set-url', 'rename', 'set-head', 'set-branches', 'prune', 'update'),
+    ('gh', 'pr'): ('merge', 'close', 'edit', 'ready', 'review', 'reopen', 'comment', 'lock', 'unlock', 'checkout'),
+    ('gh', 'auth'): ('login', 'logout', 'refresh', 'setup-git', 'token'),
+}
+
+# Inverso de SUBCOMMAND_DENIED_ARGS: para estos prefijos de dos palabras SOLO se permite un conjunto
+# CERRADO de terceras palabras, y cualquier otra (incluida la ausencia de tercera palabra) se
+# deniega. Denylist y allowlist no son intercambiables: `gh repo` tiene decenas de subcomandos y `gh`
+# añade más en cada versión, así que enumerar lo prohibido envejece mal y falla ABIERTO. Aquí sólo
+# `create` es alcanzable, y su forma la acota además `gh_repo_create_denied`.
+SUBCOMMAND_ALLOWED_ARGS = {
+    ('gh', 'repo'): ('create',),
+}
+
+# Conjunto CERRADO de flags de `gh repo create`. Lo que se protege aquí es la inyección de flags: el
+# nombre del repo y la visibilidad los decide el owner (ruling 2e), pero un `--template`, un
+# `--clone` o un `--team` convertirían "crea mi repo vacío" en otra cosa distinta. Lo que no está en
+# esta tupla deniega el segmento entero.
+GH_REPO_CREATE_ALLOWED_FLAGS = (
+    '--public', '--private', '--source', '--remote', '--push', '--description',
+)
+
+# De los anteriores, los que llevan valor: hay que consumirlo para no contarlo como el nombre del
+# repo cuando vienen en su forma con espacio (`--source .`).
+GH_REPO_CREATE_VALUE_FLAGS = ('--source', '--remote', '--description')
+
 
 def load_allowlist():
     with open(ALLOWLIST_PATH) as f:
@@ -135,6 +184,105 @@ def is_mem_script(word):
     return bool(MEM_SCRIPT_RE.match(tail)) and os.path.basename(head) == 'scripts'
 
 
+def _push_dst(ref):
+    """Destino REAL de un refspec de push: el `dst` de `src:dst`, o el propio ref.
+
+    `master`, `HEAD:master` y `refs/heads/master` son el mismo destino; comprobar solo la
+    palabra literal dejaría pasar las dos últimas formas.
+    """
+    ref = ref[1:] if ref.startswith('+') else ref
+    if ':' in ref:
+        ref = ref.split(':', 1)[1]
+    if ref.startswith('refs/heads/'):
+        ref = ref[len('refs/heads/'):]
+    return ref
+
+
+def push_segment_denied(words):
+    """True si este `git push` cae fuera de la ÚNICA forma permitida.
+
+    Forma permitida: `git push <remote> <rama>` — exactamente dos palabras posicionales tras
+    `git push`, sin flag destructivo, sin `+` de force, y con destino que no sea rama protegida.
+    """
+    for word in words[2:]:
+        if word.split('=', 1)[0] in PUSH_DENIED_FLAGS:
+            return True
+        # cluster de flags cortos: `-fu` lleva `-f` dentro (mismo bug-class que INTERP_DENIED_FLAGS)
+        if re.match(r'^-[A-Za-z]+$', word) and not word.startswith('--'):
+            if any(len(f) == 2 and f[1] in word[1:] for f in PUSH_DENIED_FLAGS):
+                return True
+    positional = [w for w in words[2:] if not w.startswith('-')]
+    if len(positional) != 2:
+        return True
+    ref = positional[1]
+    if ref.startswith('+'):
+        return True
+    # `:rama` — src vacío en un refspec `src:dst` — borra `rama` en el remoto. `_push_dst` por sí
+    # sola no lo detecta (solo mira el `dst`), así que se comprueba el `src` aquí explícitamente.
+    if ':' in ref and ref.split(':', 1)[0] == '':
+        return True
+    dst = _push_dst(ref)
+    if not dst or dst in PROTECTED_REFS:
+        return True
+    return False
+
+
+def subcommand_and_rest(words):
+    """(subcomando, resto) de un segmento `<cmd> <grupo> …`.
+
+    El subcomando es el PRIMER no-flag tras el grupo, no `words[2]` a secas: con `words[2]` fijo,
+    `git remote -v set-url origin <url>` colaría por delante de SUBCOMMAND_DENIED_ARGS (el tercer
+    palabro sería `-v`) y `git remote -v` legítimo dejaría de funcionar si se denegara todo flag.
+    El `resto` lleva TODO lo demás —incluidos los flags que iban ANTES del subcomando—, para que
+    los verificadores de forma no puedan saltarse un flag por su posición.
+    """
+    sub = None
+    rest = []
+    for word in words[2:]:
+        if sub is None and not word.startswith('-'):
+            sub = word
+        else:
+            rest.append(word)
+    return sub, rest
+
+
+def remote_add_segment_denied(rest):
+    """True si este `git remote add` cae fuera de la ÚNICA forma permitida.
+
+    Forma permitida: `git remote add <nombre> <url>` — exactamente dos palabras posicionales y CERO
+    flags. `--mirror=push` convertiría el remoto en uno que BORRA ramas en cada push, y `-f`
+    dispararía un fetch que nadie pidió: por eso no se permite ningún flag, no una lista de flags
+    malos (fallar cerrado, igual que GH_REPO_CREATE_ALLOWED_FLAGS).
+    """
+    if any(w.startswith('-') for w in rest):
+        return True
+    return len(rest) != 2
+
+
+def gh_repo_create_denied(rest):
+    """True si este `gh repo create` cae fuera de la forma permitida.
+
+    Forma permitida: exactamente UN posicional (el nombre `owner/repo` o `repo`) y flags
+    únicamente del conjunto cerrado GH_REPO_CREATE_ALLOWED_FLAGS, en su forma `--flag`,
+    `--flag=valor` o `--flag valor`. Se cuenta el posicional tras consumir el valor de los flags que
+    lo llevan: sin eso, `--source .` metería `.` en la cuenta y la forma legítima se denegaría.
+    """
+    positional = []
+    i = 0
+    while i < len(rest):
+        word = rest[i]
+        if word.startswith('-'):
+            name = word.split('=', 1)[0]
+            if name not in GH_REPO_CREATE_ALLOWED_FLAGS:
+                return True
+            if name in GH_REPO_CREATE_VALUE_FLAGS and '=' not in word:
+                i += 1  # consume el valor de la forma `--flag valor`
+        else:
+            positional.append(word)
+        i += 1
+    return len(positional) != 1
+
+
 def segment_allowed(segment, allowlist):
     words = segment_words(segment)
     if words and ENV_PREFIX_RE.match(words[0]):
@@ -154,6 +302,25 @@ def segment_allowed(segment, allowlist):
         and not any(not w.startswith('-') for w in words[2:])
     ):
         return False
+    if len(words) >= 2 and (command_word, words[1]) == ('git', 'push'):
+        if push_segment_denied(words):
+            return False
+    if len(words) >= 2:
+        group = (command_word, words[1])
+        allowed_sub = SUBCOMMAND_ALLOWED_ARGS.get(group)
+        denied_sub = SUBCOMMAND_DENIED_ARGS.get(group)
+        if allowed_sub is not None or denied_sub is not None:
+            sub, rest = subcommand_and_rest(words)
+            if allowed_sub is not None and sub not in allowed_sub:
+                return False  # `gh repo` a secas, o con un subcomando que no sea `create`
+            if denied_sub is not None and sub in denied_sub:
+                return False
+            if group == ('git', 'remote') and sub == 'add':
+                if remote_add_segment_denied(rest):
+                    return False
+            if group == ('gh', 'repo') and sub == 'create':
+                if gh_repo_create_denied(rest):
+                    return False
     denied_flags = INTERP_DENIED_FLAGS.get(command_word)
     if denied_flags:
         for word in words[1:]:

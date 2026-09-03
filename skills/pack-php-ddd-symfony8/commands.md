@@ -19,8 +19,8 @@ tiene comando en este repo y la hoja lo dice explícitamente en vez de inventars
 | fix | existe `.php-cs-fixer.dist.php` o `.php-cs-fixer.php` | `php vendor/bin/php-cs-fixer fix` | quality-fixer |
 | fix | existe `rector.php` (se ejecuta ANTES del formateador) | `php vendor/bin/rector process` | quality-fixer |
 | typecheck | existe `phpstan.dist.neon` o `phpstan.neon` | `php vendor/bin/phpstan analyse --no-progress --error-format=raw` | quality-fixer |
-| test | existe `phpunit.xml.dist` o `phpunit.xml` | `php vendor/bin/phpunit` | test-writer + implementer |
-| test | además existe `vendor/bin/paratest` (suite grande) | `php vendor/bin/paratest --processes=4` | implementer |
+| test | existe `phpunit.xml.dist` o `phpunit.xml` | `php vendor/bin/phpunit` | test-writer + implementer + release-manager |
+| test | además existe `vendor/bin/paratest` (suite grande) | `php vendor/bin/paratest --processes=4` | implementer + release-manager |
 | test-one | siempre que haya PHPUnit | `php vendor/bin/phpunit --filter <NombreDelTest> <ruta/al/Test.php>` | test-writer + implementer |
 | scan-deps | existe `composer.lock` | `composer audit --format=json` | dependency-auditor + vulnerability-scanner |
 | outdated | existe `composer.lock` | `composer outdated --direct --format=json` | dependency-auditor |

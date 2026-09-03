@@ -186,6 +186,25 @@
       "scripts/mem-", "scripts/mem-lock.sh",
       "composer install", "composer require", "composer update",
       "npm install", "npm ci"
+    ],
+    "swarm:delivery-orchestrator": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:release-manager": [
+      "git status", "git log", "git diff", "git show", "git rev-parse", "git remote",
+      "git push",
+      "gh auth", "gh pr", "gh repo",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh",
+      "php vendor/bin/phpunit", "php vendor/bin/paratest",
+      "composer test", "npm test", "make test", "go test", "cargo test", "pytest"
+    ],
+    "swarm:handoff-writer": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "scripts/mem-", "scripts/mem-lock.sh"
     ]
   }
 }
