@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/test_implementation_agents.sh — contrato de los agentes del núcleo de implementation
 # (spec §7 "Implementación"). Crece por tarea: T2 test-writer, T3 quality-fixer, T4 reviewer,
-# T5 implementer, T6 implementation-orchestrator.
+# T5 implementer, T6 implementation-orchestrator, T5b migration-engineer, T5c doc-writer.
 set -u
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$DIR/lib.sh"
@@ -90,6 +90,28 @@ if [ -f "$f" ]; then
   assert_eq "allow" "$(guard "swarm:implementer" 'git add -A')" "implementer can git add in its own worktree"
   assert_eq "allow" "$(guard "swarm:implementer" 'git commit -m x')" "implementer can git commit"
   assert_eq "deny" "$(guard "swarm:implementer" 'git merge x')" "implementer (leaf) cannot merge — only the orchestrator merges"
+fi
+
+
+# ---------- T5b: migration-engineer (fase 5b, condicional) ----------
+f="$PLUGIN_ROOT/agents/migration-engineer.md"
+assert_eq "0" "$([ -f "$f" ] && echo 0 || echo 1)" "agents/migration-engineer.md exists"
+if [ -f "$f" ]; then
+  front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"; b="$(body "$f")"
+  assert_eq "0" "$(echo "$front" | grep -q '^model: sonnet$' && echo 0 || echo 1)" "migration-engineer model is sonnet (spec §7)"
+  assert_eq "0" "$(echo "$front" | grep -q '^maxTurns: 15$' && echo 0 || echo 1)" "migration-engineer maxTurns is 15 (spec §7)"
+  assert_eq "0" "$(has "$tools" 'Write')" "migration-engineer HAS Write (writes real migration files)"
+  assert_eq "0" "$(has "$tools" 'Edit')" "migration-engineer HAS Edit"
+  assert_eq "1" "$(has "$tools" 'Agent')" "migration-engineer is a leaf: spawns nobody"
+  assert_eq "1" "$(has "$tools" 'AskUserQuestion')" "migration-engineer never asks the owner"
+  assert_eq "1" "$(echo "$front" | grep -q '^isolation:' && echo 0 || echo 1)" "migration-engineer has NO worktree of its own (reuses implementer's)"
+  assert_eq "0" "$(has "$b" 'worktree:')" "migration-engineer documents the worktree: header line"
+  assert_eq "0" "$(has "$b" 'pack:')" "migration-engineer documents the pack: header line"
+  assert_eq "0" "$(has "$b" 'ya aplicada')" "migration-engineer refuses to edit an applied migration (boundaries.md)"
+  assert_eq "0" "$(has "$b" 'Nunca aplicas')" "migration-engineer never runs a real migrate against a database"
+  assert_eq "0" "$(has "$b" 'MIGRATION ·')" "migration-engineer documents its MIGRATION finding tag"
+  assert_eq "allow" "$(guard "swarm:migration-engineer" 'git commit -m x')" "migration-engineer can commit in the worktree"
+  assert_eq "deny"  "$(guard "swarm:migration-engineer" 'git push origin master')" "migration-engineer cannot push"
 fi
 
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
