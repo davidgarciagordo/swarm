@@ -47,6 +47,11 @@ assert_eq "deny"  "$(guard swarm:dependency-auditor 'git commit -m x')" "depende
 # --- dependency-installer: MUTANTE, solo gestores de proyecto, jamás OS ni borrado ni commit ---
 assert_eq "allow" "$(guard swarm:dependency-installer 'composer require phpstan/phpstan --dev')" "installer can composer require"
 assert_eq "allow" "$(guard swarm:dependency-installer 'composer update doctrine/orm')" "installer can composer update a named package"
+# Backstop determinista (hooks/bash-guard.py BARE_TWO_WORD_DENIED): un prefijo allowlist de dos
+# palabras ("composer update") también matchea el comando BARE de dos palabras -- actualización
+# de TODO el árbol, muy por encima de cualquier paquete aprobado. Antes de este fix lo único que
+# lo impedía era la prosa de agents/dependency-installer.md ("Nunca composer update a secas").
+assert_eq "deny"  "$(guard swarm:dependency-installer 'composer update')" "installer CANNOT bare composer update (scope-escape past itemised approval)"
 assert_eq "allow" "$(guard swarm:dependency-installer 'composer install --no-interaction')" "installer can composer install"
 assert_eq "allow" "$(guard swarm:dependency-installer 'npm ci')" "installer can npm ci"
 assert_eq "deny"  "$(guard swarm:dependency-installer 'brew install jq')" "installer CANNOT touch OS packages (ruling 2)"

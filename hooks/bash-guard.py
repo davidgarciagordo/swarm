@@ -42,6 +42,17 @@ INTERP_DENIED_FLAGS = {
     'php': ('-r',),
 }
 
+# Un prefijo allowlist de DOS palabras ("composer update") no puede expresar "y necesita AL
+# MENOS una palabra más detrás" — así que también matchea el comando BARE de dos palabras
+# (`composer update` a secas, actualización de TODO el árbol), muy por encima de cualquier
+# paquete aprobado explícitamente por el owner (dependency-installer, fase 5b, `approved:`).
+# Hasta ahora lo único que lo impedía era la prosa de agents/dependency-installer.md — esto es
+# el backstop determinista: se deniega cuando el comando tiene EXACTAMENTE estas dos palabras y
+# nada más (sin paquete), sin importar el agente ni si el prefijo está en su allowlist.
+BARE_TWO_WORD_DENIED = {
+    ('composer', 'update'),
+}
+
 
 def load_allowlist():
     with open(ALLOWLIST_PATH) as f:
@@ -134,6 +145,8 @@ def segment_allowed(segment, allowlist):
         for word in words[1:]:
             if word in FIND_DENIED_FLAGS:
                 return False
+    if len(words) == 2 and (command_word, words[1]) in BARE_TWO_WORD_DENIED:
+        return False
     denied_flags = INTERP_DENIED_FLAGS.get(command_word)
     if denied_flags:
         for word in words[1:]:
