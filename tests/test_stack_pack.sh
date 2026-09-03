@@ -85,3 +85,7 @@ while IFS= read -r pair; do
   assert_eq "allow" "$(guard "$agent" "$cmd")" "$agent may run its documented pack command: $cmd"
 done <<EOF
 $rows
+EOF
+
+if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
+exit 0
