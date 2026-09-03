@@ -1,6 +1,6 @@
 # Swarm — enjambre de agentes Claude Code para el ciclo de desarrollo
 
-Fecha: 2026-09-01 · Estado: v2.1 tras grill ×3 + dominio requirements (2026-09-01) · Plugin: `swarm`
+Fecha: 2026-09-01 · Estado: v2.2 tras gate de verificación independiente (2026-09-03) · Plugin: `swarm`
 
 ## 1. Objetivo
 
@@ -416,6 +416,70 @@ Smoke tests en `tests/` (repo fixture mínimo):
     warning.
 12. `implementer` invocado sin plan → `BLOCKED necesita plan`.
 
+## 14bis. Gate de verificación independiente (v2.2, 2026-09-03)
+
+Motivación (David, en vivo): un modelo puede no seguir instrucciones o dar por hecho algo que no
+comprobó — bug real observado el mismo día en `discovery-orchestrator`, que devolvió `OK` con un
+batch vacío pese a que `value-critic` sí había persistido sus 3 preguntas (el veredicto rechazado
+por el hook nunca se recuperó). §2 principio 9 ("evidencia antes de afirmar") ya lo prohibía, pero
+no existía ningún mecanismo que lo hiciera cumplir — este gate es esa aplicación.
+
+**No confundir con §14** (smoke tests del propio mecanismo del plugin: locks, buzones, staleness).
+Este gate verifica el CONTENIDO que un dominio concreto afirma haber producido en un run concreto,
+contra lo que de verdad persistió.
+
+**Enganche — único punto, cubre todo dominio presente y futuro:** en `agents/orchestrator.md`, tras
+recibir `DONE`/`OK` de cualquier orquestador de dominio y ANTES de `curate`/cerrar el run:
+
+```
+dominio devuelve DONE/OK
+        ↓
+raíz lanza swarm:verifier(dominio, run-id, veredicto) — síncrono, misma tanda
+        ↓
+   ¿verifier OK?
+   ├─ sí → curate, cierra run (flujo actual sin cambios)
+   └─ no (KO <motivo>) → raíz reenvía el motivo al dominio (SendMessage,
+        el dominio sigue vivo/resumible) → dominio corrige → nuevo veredicto
+        → 2º swarm:verifier
+        ├─ 2º OK → cierra
+        └─ 2º KO → two-strike (mismo patrón que `hooks/validate-output.py`):
+             se acepta como `BLOCKED`, NO se cura, run queda abierto para el owner
+```
+
+**Agente `swarm:verifier` — único, genérico, reusable para cualquier dominio** (no uno por
+dominio; no lleva conocimiento específico de discovery/requirements/etc. incrustado). Cabecera de
+lanzamiento (además de la estándar §2):
+```
+operation: verify
+domain: <nombre del dominio, p.ej. discovery-orchestrator>
+verdict: <el texto LITERAL completo que el dominio acaba de devolver>
+```
+
+Comprueba dos cosas, ambas leídas del propio repo — nunca re-ejecuta al dominio, todo `Read`/`Bash`
+de solo lectura:
+1. **Trazabilidad**: cada línea del veredicto (p.ej. cada `- Q…`) debe corresponder a un finding
+   real persistido en `.swarm/` para ese run (`mem-files.sh query "<dominio>-<run>:" --scope
+   findings`, mismo mecanismo que ya usan los propios dominios para fusionar) — si no existe,
+   `KO <línea> no traza a ningún finding real`.
+2. **Completitud contra su propio contrato**: lee `agents/<domain>.md` § Salida — el contrato de
+   CADA dominio ya declara qué exige siempre (p.ej. discovery-orchestrator exige la línea
+   `- findings: <las 4 hojas>`). Si algo obligatorio falta, o nombra una hoja que nunca corrió,
+   `KO`. Esto es lo que hace al verificador genérico: no necesita spec/plan.md aparte — el
+   contrato `.md` de cada agente hace ese papel hoy. Cuando exista una fase con plan.md real
+   (`implementer`, fase 5+), el mismo verificador puede tomarlo como entrada extra — extensión
+   natural, fuera de alcance de v2.2 (YAGNI).
+
+**Límite reconocido**: el verificador no ve la transcripción interna del dominio, solo lo
+persistido — coherente con el resto del plugin (todo lo real DEBE persistirse vía
+`memory-orchestrator`, es la razón de que ese mecanismo exista). No puede confirmar que un
+`files=N` del veredicto sea *exactamente* N, solo que N>0 sea plausible contra lo persistido.
+
+**Riesgo reconocido**: el verificador es él mismo un `swarm:*` agente — puede tener falsos
+positivos/negativos, un punto único nuevo del mismo tipo de riesgo que el gate ataca, un nivel más
+arriba. Mitigación: chequeos ESTRUCTURALES (existe/no existe, está/no está la línea exigida) en vez
+de juicio difuso, cobertura de test fuerte, y el two-strike como salida de escape (nunca cierra en
+falso — en el peor caso, `BLOCKED` visible al owner).
+
 ## 15. Fases de entrega
 1. Núcleo: `orchestrator`, subsistema memoria (3 agentes + backends files/claude-mem), `swarm-protocol`,
    hooks (incl. hook de evidencia §6.1 y `bash-allowlist`), comando `/swarm:init`, smoke tests 1-8.
@@ -453,3 +517,11 @@ lo que expone el CLI.
 ## 18. Changelog v2→v2.1
 1. Nuevo dominio `requirements-orchestrator` (haiku) con `env-checker`, `dependency-auditor`, `dependency-installer`; contrato `requirements.json` en plugin y en cada pack; comando `/swarm:doctor`; fase 1b.
 2. Portabilidad macOS: lock atómico `mkdir` en lugar de `flock`; hooks en `python3` stdlib (sin `jq` obligatorio; `jq` opcional declarado en `requirements.json`).
+
+## 19. Changelog v2.1→v2.2
+1. §14bis nuevo: gate de verificación independiente. Agente `swarm:verifier` (genérico, un solo
+   agente para todo dominio) enganchado en `orchestrator.md` entre `DONE`/`OK` de cualquier dominio
+   y `curate`/cierre — comprueba trazabilidad (cada afirmación del veredicto traza a un finding
+   real) y completitud (contra el propio contrato `## Salida` del dominio verificado). Two-strike:
+   1er KO reenvía al dominio para corregir, 2º KO cierra en `BLOCKED` visible al owner, nunca cierra
+   en falso. Motivado por bug real: `discovery-orchestrator` devolviendo `OK` con batch vacío.
