@@ -103,6 +103,11 @@ swarm-root: <tu swarm-root, si lo tienes>
 operation: audit-deps
 pack: <ruta absoluta del pack>      ← omite esta línea entera si no hay pack
 ```
+**Esta línea `pack:` es el DIRECTORIO del pack** (la salida cruda de tu `ls -d` de la sección de
+fusión de arriba) — **nunca** le añadas `/requirements.json`. Ese sufijo es SOLO para el `--pack`
+de `env-checker` en `operation: check`; si lo arrastras aquí por reutilizar la misma ruta,
+`dependency-auditor` recibiría un fichero donde espera un directorio y su `Read` de
+`<pack>/commands.md` apuntaría a una ruta inexistente (`.../requirements.json/commands.md`).
 Espera su veredicto y **propágalo literal**, con sus hallazgos `DEP` tal cual: quien lee tu salida
 necesita el paquete y la versión exactos para poder decidir. Nunca reinterpretes su JSON ni repitas
 la auditoría tú mismo.
