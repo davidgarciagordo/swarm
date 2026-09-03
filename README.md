@@ -2,6 +2,9 @@
 
 Claude Code plugin. Single-responsibility agent swarm for the software development lifecycle — analysis, design, implementation, delivery — optimized for quality per token. Full design in `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Built so far: phases 1, 1b, 2, 3, 4 and 5a** — memory subsystem, root orchestrator, requirements domain, discovery domain (questions batch presented to the owner via `AskUserQuestion`), analysis domain (read-only codebase audit across 6 lenses), design domain (writes a real implementation plan, adversarially reviewed by grill×3, arbitrated by `design-orchestrator` itself), and implementation domain (RED→GREEN TDD per phase in an isolated worktree, gated by `reviewer` BEFORE a local merge — only by explicit owner invocation, never auto-chained).
 
+For a full usage guide (installation, the 3 commands, every domain, worked examples, how to read
+the output) see `docs/USAGE.md`.
+
 ## Install
 
 No marketplace listing yet — local dev only:

@@ -2,6 +2,9 @@
 
 Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Construido hasta ahora: fases 1, 1b, 2, 3, 4 y 5a** — subsistema de memoria, orquestador raíz, dominio de requisitos, dominio discovery (batch de preguntas presentado al owner con `AskUserQuestion`), dominio de análisis (auditoría read-only del código en 6 lentes), dominio de diseño (escribe un plan de implementación real, revisado adversarialmente por grill×3, arbitrado por el propio `design-orchestrator`), y dominio de implementación (TDD RED→GREEN por fase en un worktree aislado, con `reviewer` como gate ANTES del merge local — solo por invocación explícita del owner, nunca encadenado).
 
+Para una guía de uso completa (instalación, los 3 comandos, cada dominio, ejemplos reales, cómo
+interpretar la salida) ver `docs/USAGE.es.md`.
+
 ## Instalación
 
 Todavía no hay listing en el marketplace — solo desarrollo local:
