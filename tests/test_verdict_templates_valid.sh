@@ -35,7 +35,7 @@ HOOK="$PLUGIN_ROOT/hooks/validate-output.py"
 
 # The 4 new phase-5b leaf agents (minimum required) plus the orchestrators this same review pass
 # touched for the identical bug class -- extending coverage costs nothing once the harness exists.
-AGENT_FILES="migration-engineer doc-writer dependency-auditor dependency-installer implementation-orchestrator requirements-orchestrator env-checker"
+AGENT_FILES="migration-engineer doc-writer dependency-auditor dependency-installer implementation-orchestrator requirements-orchestrator env-checker release-manager"
 
 validate() { # validate <agent_type> <message-json-string> -> "accept" | "reject"
   # Fresh, isolated SWARM_ROOT PER CALL (protocol §1.3 retry counter lives under
