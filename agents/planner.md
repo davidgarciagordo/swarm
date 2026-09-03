@@ -126,8 +126,8 @@ el skill `writing-plans` de este repo — mira cómo el propio plan de esta fase
 grano exacto a replicar). La agrupación por fase (con `Ficheros`/`Riesgos`/`Tests` a nivel de fase,
 no repetidos por step) se mantiene porque es más rica que una lista plana de tareas sueltas y
 ningún código de este repo parsea el formato en crudo — pero cada fase, por dentro, es tarea-forma
-(`- [ ] Step N`), que es lo que un futuro `implementer` (fase 5, spec §7: "UNA tarea cerrada del
-plan") ejecutará una a una.
+(`- [ ] Step N`), que es lo que `implementer` (fase 5a, spec §7: "UNA tarea cerrada del
+plan") ejecuta una a una.
 
 Si el plan es muy largo (>4 fases), divídelo en versiones (v1 para MVP, v1.1 para extensiones, v2 para
 refactor) y escribe un plan por versión.
