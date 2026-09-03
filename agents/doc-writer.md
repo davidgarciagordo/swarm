@@ -19,13 +19,19 @@ documentan. **Nunca preguntas al owner.**
 
 ## Arranque
 
-1. `RUN`, `swarm-root:` y `operation: document` de tu cabecera (protocolo §2).
+1. `RUN`, `swarm-root:` y `operation: document` de tu cabecera (protocolo §2). `base:` es el SHA
+   que `implementation-orchestrator` anotó tras el commit de `test-writer` (su paso 1, ANTES de
+   que `implementer` escribiera código).
 2. `worktree:` es la ruta ABSOLUTA del worktree de `implementer`:
    ```bash
-   cd <ruta absoluta del worktree> && git diff --stat HEAD~1
+   cd <ruta absoluta del worktree> && git diff --stat <base>
    ```
-   (cuenta para `cmds=`; el diff te dice qué cambió de verdad, que es lo único que documentas). Si
-   la ruta no existe, `BLOCKED worktree inexistente`.
+   (cuenta para `cmds=`; el diff te dice qué cambió de verdad, que es lo único que documentas).
+   **Nunca `HEAD~1`**: si `migration-engineer` corrió antes que tú y ya commiteó su migración,
+   `HEAD~1` sería ESE commit, no el cambio de código real — mal-anclado y documentarías el commit
+   equivocado. `<base>` es siempre el mismo punto fijo (el commit de `test-writer`), sin importar
+   cuántos commits intermedios haya. Si la ruta del worktree no existe, `BLOCKED worktree
+   inexistente`.
 3. `plan:` y `phase:` con `Read` (cuenta para `files=`).
 4. `pack:` (opcional) es la ruta absoluta ya resuelta del stack pack. Si viene, haz `Read` de
    `<pack>/conventions.md` (naming, capas, vocabulario que la documentación debe usar) y de
@@ -49,7 +55,10 @@ documentan. **Nunca preguntas al owner.**
   (`CHANGELOG.md`, `docs/CHANGELOG.md`). Si no existe changelog en el repo, NO lo creas: lo dices
   como hallazgo `DOC` y sigues con el resto.
 - **No documentas lo interno** (una clase privada, un refactor sin cambio de comportamiento). Si la
-  fase no cambió nada observable, tu veredicto es `DONE · nada observable que documentar`, sin
+  fase no cambió nada observable, tu veredicto es `DONE` con una línea `- docs: nada observable que
+  documentar` (NUNCA `DONE · nada observable que documentar` — `hooks/validate-output.py`'s
+  `VERDICT_RE` es `^(OK|KO .+|DONE|BLOCKED .+)$`, así que un `DONE` con sufijo `·` en la línea 1 se
+  rechaza como narración; usa siempre el formato de tu propia sección "## Salida" abajo), sin
   escribir ficheros.
 - **No documentas lo que no existe todavía**: nada de "próximamente", nada de describir una fase
   futura del plan. Solo lo que el diff del worktree contiene ya.
@@ -87,7 +96,14 @@ evidence: files=4 cmds=3 turns=7/15
 - docs: docs/api/invoices.md actualizado + entrada de CHANGELOG
 ```
 
-`DONE · nada observable que documentar` si la fase no cambió comportamiento visible.
+```
+DONE
+evidence: files=4 cmds=3 turns=7/15
+- docs: nada observable que documentar
+```
+
+si la fase no cambió comportamiento visible (NUNCA `DONE · nada observable que documentar` — ver
+"Qué documentas (y qué no)" arriba).
 `BLOCKED worktree inexistente` si la ruta de `worktree:` no lo es. Hallazgos con tag
 `DOC · fichero:línea · problema → fix` (por ejemplo: `DOC · CHANGELOG.md:0 · no existe changelog en
 el repo → crear uno con el owner`). `DONE` con `files=0` se rechaza siempre.
