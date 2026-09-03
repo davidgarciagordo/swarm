@@ -36,5 +36,21 @@ if [ -f "$f" ]; then
   assert_eq "deny" "$(guard "swarm:test-writer" 'git push origin master')" "test-writer cannot push"
 fi
 
+
+# ---------- T3: quality-fixer (mecánico, siempre haiku) ----------
+f="$PLUGIN_ROOT/agents/quality-fixer.md"
+assert_eq "0" "$([ -f "$f" ] && echo 0 || echo 1)" "agents/quality-fixer.md exists"
+if [ -f "$f" ]; then
+  front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"; b="$(body "$f")"
+  assert_eq "0" "$(echo "$front" | grep -q '^model: haiku$' && echo 0 || echo 1)" "quality-fixer model is haiku always (spec §7.0, mechanical leaf)"
+  assert_eq "0" "$(echo "$front" | grep -q '^maxTurns: 10$' && echo 0 || echo 1)" "quality-fixer maxTurns is 10 (spec §7)"
+  assert_eq "1" "$(has "$tools" 'AskUserQuestion')" "quality-fixer NEVER has AskUserQuestion"
+  assert_eq "0" "$(has "$tools" 'Edit')" "quality-fixer HAS Edit (parchea residual)"
+  assert_eq "1" "$(echo "$front" | grep -q '^isolation:' && echo 0 || echo 1)" "quality-fixer has NO worktree isolation of its own (points at implementer's)"
+  assert_eq "0" "$(has "$b" 'ruta absoluta')" "quality-fixer documents receiving implementer's worktree as an absolute path"
+  assert_eq "0" "$(has "$b" '--fix')" "quality-fixer documents running --fix tools before manual patching"
+  assert_eq "allow" "$(guard "swarm:quality-fixer" 'git commit -m x')" "quality-fixer can commit its fixes"
+fi
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
