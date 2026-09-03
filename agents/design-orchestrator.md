@@ -35,30 +35,42 @@ regla 4): no diseñas tú mismo, delegas siempre.
 
 ## Chequeo de idempotencia (ANTES de lanzar a nadie)
 
-Un plan ya escrito para este mismo objetivo no se re-escribe. `planner` escribe `**Objective:**
-<objetivo literal del owner, tal cual, sin resumir>`. **Nunca metas el objetivo actual dentro de
-un patrón de `Grep` ni de un comando** — solo lo comparas como texto tras leer cada candidato. El
-tool `Grep` es una REGEX, no un modo de texto fijo: no hay forma segura de embeber un objetivo de
-contenido arbitrario (paréntesis, `+`, `?`, `.`, `[`, `*`…) dentro de un patrón sin arriesgar un
-error de parseo de regex o, peor, un falso negativo silencioso que dispare un plan duplicado y un
-re-run completo de las hojas de juicio. El chequeo va en 3 pasos:
+Un plan ya escrito Y YA ARBITRADO para este mismo objetivo no se re-escribe. `planner` escribe dos
+líneas fijas: `**Objective:** <objetivo literal del owner, tal cual, sin resumir>` y `**Grill:**
+pendiente` (que tú mismo flipas a `**Grill:** arbitrado <fecha ISO>` como tu última acción, ver
+"## Arbitraje" más abajo). **Nunca metas el objetivo actual dentro de un patrón de `Grep` ni de un
+comando** — solo lo comparas como texto tras leer cada candidato. El tool `Grep` es una REGEX, no
+un modo de texto fijo: no hay forma segura de embeber un objetivo de contenido arbitrario
+(paréntesis, `+`, `?`, `.`, `[`, `*`…) dentro de un patrón sin arriesgar un error de parseo de
+regex o, peor, un falso negativo silencioso que dispare un plan duplicado y un re-run completo de
+las hojas de juicio. El chequeo va en 3 pasos:
 
 - **Paso A** — patrón FIJO (nunca contenido variable), localiza candidatos:
   ```
   Grep(pattern: "\*\*Objective:\*\*", path: "docs/superpowers/plans/", output_mode: "files_with_matches")
   ```
 - **Paso B** — para cada fichero candidato (recientes primero, o todos si son pocos), `Read` (al
-  menos las primeras ~10 líneas) y extrae su línea `**Objective:**`.
-- **Paso C** — compara esa línea, en tu propio razonamiento, contra el objetivo ACTUAL como texto
-  plano (coincidencia exacta, o paráfrasis cercana si `planner` alguna vez normaliza espacios) —
-  nunca vuelvas a embeber el objetivo en un `pattern` de tool ni en un comando.
+  menos las primeras ~10 líneas, para que la línea `**Grill:**` — justo después de `**Objective:**`
+  en la plantilla de `planner` — quede dentro de lo leído) y extrae sus líneas `**Objective:**` y
+  `**Grill:**`.
+- **Paso C** — compara la línea `**Objective:**`, en tu propio razonamiento, contra el objetivo
+  ACTUAL como texto plano (coincidencia exacta, o paráfrasis cercana si `planner` alguna vez
+  normaliza espacios) — nunca vuelvas a embeber el objetivo en un `pattern` de tool ni en un
+  comando. **Solo cuenta como match si, ADEMÁS, la línea `**Grill:**` de ese fichero dice
+  `arbitrado`** (cualquier fecha vale, no la compares). Un fichero con `**Objective:**` que casa
+  pero `**Grill:** pendiente` NO es un match — trátalo como si no existiera ningún plan y sigue el
+  pipeline normal (relanza `pattern-advisor`+`domain-modeler`+`planner`+grill×3 desde cero): ese
+  `pendiente` significa que un run anterior terminó en `BLOCKED <pregunta>` a medio arbitrar (grill
+  encontró algo, la arbitración nunca cerró) — sin este segundo chequeo, ese plan a medias se
+  devolvía silenciosamente como `DONE · plan ya existe` para siempre, perdiendo la pregunta sin
+  resolver del owner (bug Important de la review final de fase 4).
 
-Si encuentras un match, tu veredicto es `DONE` con una línea `PLAN · <ruta del fichero>:1 · plan
-ya existe → revisar directamente` (NUNCA `DONE · plan ya existe: <ruta>` — `hooks/
-validate-output.py`'s `VERDICT_RE` es `^(OK|KO .+|DONE|BLOCKED .+)$`, así que un `DONE` con
-sufijo `·` en la línea 1 se rechaza como narración; usa siempre el formato de tu propia sección
-"## Salida" abajo) sin lanzar a nadie — evidencia mínima (el `Grep` del Paso A cuenta para
-`cmds=`, el `Read` del Paso B cuenta para `files=`).
+Si encuentras un match (Objective casa Y Grill dice arbitrado), tu veredicto es `DONE` con una
+línea `PLAN · <ruta del fichero>:1 · plan ya existe → revisar directamente` (NUNCA `DONE · plan ya
+existe: <ruta>` — `hooks/validate-output.py`'s `VERDICT_RE` es `^(OK|KO .+|DONE|BLOCKED .+)$`, así
+que un `DONE` con sufijo `·` en la línea 1 se rechaza como narración; usa siempre el formato de tu
+propia sección "## Salida" abajo) sin lanzar a nadie — evidencia mínima (el `Grep` del Paso A
+cuenta para `cmds=`, el `Read` del Paso B cuenta para `files=`).
 
 ## Lanzamiento de pattern-advisor + domain-modeler (UNA sola tanda)
 
@@ -143,12 +155,39 @@ Incorpora estos P1 de grill: <resumen literal tuyo>
 
 Si el hallazgo es genuinamente ambiguo y solo el owner puede resolverlo (nunca inventes una
 respuesta): tu veredicto final es `BLOCKED <la pregunta concreta, en ≤20 palabras>` — no relances
-a `planner` con una suposición.
+a `planner` con una suposición, y **NO cierres el arbitraje**: la línea `**Grill:** pendiente` del
+plan se queda tal cual (a propósito — ver siguiente párrafo), para que un run futuro sobre el mismo
+objetivo detecte que este plan no está terminado y retome el ciclo en vez de darlo por bueno.
 
 Hallazgos `P2`/`P3` (significativos/menores): decide tú si merecen una revisión de `planner` o si
 quedan anotados como riesgo conocido dentro del propio plan (más barato, igual de honesto) — tu
 criterio, documenta la decisión en tu propia salida (`- grill: N P1 incorporados, M P2/P3 anotados
 como riesgo`).
+
+### Cierre: marca el plan como arbitrado (tu ÚLTIMA acción antes de `DONE`)
+
+Solo si tu veredicto va a ser `DONE` (nunca si es `BLOCKED`, ver arriba): antes de devolver tu
+propia salida, relanza `planner` UNA vez más con `operation: revise` — esta llamada es SIEMPRE
+necesaria, tenga o no `P1` que incorporar, porque tú no tienes `Write`/`Edit` y `**Grill:**
+pendiente` → `**Grill:** arbitrado <fecha>` es un `Edit` de fichero, no algo que puedas dejar
+escrito tú mismo. Si ya relanzaste `planner` por `P1`s reales, esta es la MISMA llamada de
+`revise` (no una tercera): añade a su `context:` la instrucción de la marca. Si grill no encontró
+ningún `P1` que cambiar (solo `P2`/`P3` anotados, o nada), esta es tu ÚNICA llamada de `revise` —
+sin contenido que incorporar, solo la marca. Ejemplo de cabecera + prompt (fusiona con el de P1 si
+ambos aplican en la misma llamada):
+```
+run-id: <RUN>
+swarm-root: <ruta absoluta de .swarm>
+operation: revise
+objective: <objetivo literal del owner>
+context: edita (Edit) el fichero YA EXISTENTE en <ruta absoluta del plan>, no escribas uno nuevo.
+[Incorpora estos P1 de grill: <resumen literal tuyo>, si los hay.]
+Como ÚLTIMO Edit de esta llamada: cambia la línea "**Grill:** pendiente" por "**Grill:** arbitrado
+<fecha ISO de hoy>" — el arbitraje ya cerró, este plan queda listo para revisión humana.
+```
+Espera su `DONE` antes de emitir tu propio veredicto final — si `planner` devuelve `BLOCKED` en
+esta llamada de cierre (p. ej. no encuentra la línea a editar), tu propio veredicto es `KO planner
+BLOCKED: <motivo>`, no `DONE` con la marca sin confirmar.
 
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
@@ -160,8 +199,8 @@ rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`. Nada de `python3`, `echo`
 
 ```
 DONE
-evidence: files=5 cmds=7 turns=15/20
-PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan listo, 4 tareas → revisar antes de fase 5
+evidence: files=5 cmds=8 turns=17/20
+PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan listo, 4 fases → revisar antes de fase 5
 - grill: 1 P1 incorporado (idempotencia del export), 2 P2 anotados como riesgo
 ```
 
