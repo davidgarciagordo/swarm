@@ -1,0 +1,18 @@
+{
+  "os": [
+    { "tool": "php", "min": "8.2", "required": true, "install": { "brew": "php", "apt": "php-cli" } },
+    { "tool": "composer", "required": true, "install": { "brew": "composer", "apt": "composer" } },
+    { "tool": "make", "required": false, "install": { "brew": "make", "apt": "make" } }
+  ],
+  "project": [
+    { "file": "composer.json", "required": true },
+    { "file": "composer.lock", "required": false },
+    { "file": "phpunit.xml.dist", "required": false }
+  ],
+  "libs": [
+    { "name": "phpunit/phpunit", "manager": "composer", "min": "10.0", "required": true },
+    { "name": "phpstan/phpstan", "manager": "composer", "min": "1.10", "required": false },
+    { "name": "doctrine/orm", "manager": "composer", "min": "2.14", "required": false },
+    { "name": "doctrine/migrations", "manager": "composer", "min": "3.6", "required": false }
+  ]
+}

@@ -31,6 +31,11 @@ tienes `AskUserQuestion`.
    `### Phase N: ...` exacta que te toca — su bloque `**Tests**:` (qué debe pasar) y sus
    `- [ ] Step N` (qué construye cada uno) son tu especificación. Lee también `.swarm/context-pack.md`
    para convenciones de test ya existentes en el repo (framework, ubicación, estilo de assert).
+4. `pack:` (opcional, quinta línea de tu cabecera) es la **ruta absoluta ya resuelta** del stack
+   pack activo. Si viene, haz `Read` de `<pack>/commands.md` (para las claves `test` y `test-one`),
+   `<pack>/conventions.md` (naming y capas que tu código debe respetar) y `<pack>/boundaries.md`
+   (qué no tocas nunca) — cuentan para `files=`. **Sin pack**: conocimiento genérico, exactamente
+   como hasta ahora (spec §8).
 
 ## Cómo escribir el test
 

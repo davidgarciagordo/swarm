@@ -37,6 +37,11 @@ suposición silenciosa sobre código de producción.
 3. Lee con `Read` (cuenta para `files=`): el fichero de plan (ya en tu propio worktree, mismo
    contenido que vio `test-writer` — tu worktree ramifica desde SU commit) — la sección
    `### Phase N` exacta: sus `**Ficheros**`, `**Riesgos**`, y cada `- [ ] Step N`.
+4. `pack:` (opcional, quinta línea de tu cabecera) es la **ruta absoluta ya resuelta** del stack
+   pack activo. Si viene, haz `Read` de `<pack>/commands.md` (para las claves `test`, `test-one` y
+   `fix`), `<pack>/conventions.md` (naming y capas que tu código debe respetar) y
+   `<pack>/boundaries.md` (qué no tocas nunca) — cuentan para `files=`. **Sin pack**: conocimiento
+   genérico, exactamente como hasta ahora (spec §8).
 
 ## Cómo implementar
 

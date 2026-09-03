@@ -26,9 +26,13 @@ al owner** — no tienes `AskUserQuestion`.
    cat "$SWARM_ROOT/run/${RUN:-adhoc}/mailbox/data-model-auditor.md" 2>/dev/null
    ```
 3. Lee con `Read` (cuenta para `files=`): `.swarm/context-pack.md` — ahí está el mapa de ficheros
-   de migración/entidad que el pack ya haya detectado (spec §4.1, si el stack pack lo declara — sin
-   pack, conocimiento genérico: busca directorios `migrations/`, `entities/`, `models/` por
-   convención con `Glob`).
+   de migración/entidad que el pack ya haya detectado (spec §4.1).
+4. `pack:` (opcional, quinta línea de tu cabecera) es la **ruta absoluta ya resuelta** del stack
+   pack activo. Eres read-only: no ejecutas ninguna clave de `commands.md`. Si `pack:` viene, haz
+   `Read` de `<pack>/conventions.md` (el layout de mapeos y migraciones que el repo debe seguir) y
+   `<pack>/boundaries.md` (migraciones aplicadas: se añaden, no se editan) — cuentan para `files=`.
+   **Sin pack**: conocimiento genérico, exactamente como hasta ahora (spec §8): busca directorios
+   `migrations/`, `entities/`, `models/` por convención con `Glob`.
 
 ## Cómo auditar
 

@@ -29,12 +29,20 @@ comando correcto; nunca "revisas a ojo" lo que el script ya te dio.
 
 ## Chequeo
 
-Tu prompt de lanzamiento trae `operation: check --file <ruta>` — el `<ruta>` es SIEMPRE la que
-`requirements-orchestrator` resolvió (fase 1b: `${CLAUDE_PLUGIN_ROOT}/requirements.json`; ver su
-fichero para la lógica de fusión futura con packs). Corre:
+Tu prompt de lanzamiento trae `operation: check --file <ruta>` y, si hay stack pack activo, un
+segundo flag `--pack <fichero>` — el `<ruta>` es SIEMPRE la que `requirements-orchestrator`
+resolvió (`${CLAUDE_PLUGIN_ROOT}/requirements.json`; ver su fichero para la lógica de fusión con
+packs, spec §7). Pasas ambos flags TAL CUAL a `req-check.sh` sin reinterpretarlos — la fusión real
+(concatenar `os`/`project`/`libs`, resolver conflictos a favor del pack) la hace el script, no tú:
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/req-check.sh" --file "<ruta del prompt>"
+```
+
+o, con pack activo:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/req-check.sh" --file "<ruta del prompt>" --pack "<ruta del pack del prompt>"
 ```
 
 Sin `--root`: `req-check.sh` por defecto usa `$PWD` para las comprobaciones de `project`, y tu

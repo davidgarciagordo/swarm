@@ -1,8 +1,8 @@
 ---
 name: implementation-orchestrator
-description: Use when the root orchestrator needs ONE phase of an arbitrado plan actually built — sequences test-writer (RED) → implementer (isolated worktree, GREEN) → quality-fixer → reviewer (gate BEFORE merge) → local merge to the run's branch. Never asks the owner, never touches master or a remote.
+description: Use when the root orchestrator needs ONE phase of an arbitrado plan actually built — sequences test-writer (RED) → implementer (isolated worktree, GREEN) → migration-engineer (if the phase touches schema) → doc-writer (if turns allow) → quality-fixer → reviewer (gate BEFORE merge) → local merge to the run's branch. Never asks the owner, never touches master or a remote.
 model: sonnet
-tools: Read, Grep, Bash, Agent(test-writer,implementer,quality-fixer,reviewer), SendMessage
+tools: Read, Grep, Bash, Agent(test-writer,implementer,migration-engineer,doc-writer,quality-fixer,reviewer), SendMessage
 maxTurns: 25
 memory: project
 skills: [swarm-protocol]
@@ -25,7 +25,7 @@ tú mismo, delegas siempre.
    `phase:` es la fase concreta a implementar (si viene vacía, elige la primera fase del plan con
    algún `- [ ]` Step sin marcar — `Read` el plan y busca el primer `- [ ]` desde el principio).
 2. Ánclate a la raíz absoluta del repo (mismo motivo que `agents/orchestrator.md` §2.0): sin esto,
-   cualquier ruta de worktree que construyas más abajo para `quality-fixer`/`reviewer` (pasos 3-4 de
+   cualquier ruta de worktree que construyas más abajo para `quality-fixer`/`reviewer` (pasos 5-6 de
    la secuencia) sería relativa a tu cwd, no la absoluta que ambos exigen por contrato propio.
    ```bash
    git rev-parse --show-toplevel
@@ -40,7 +40,30 @@ tú mismo, delegas siempre.
    ```
 4. Lee con `Read` (cuenta para `files=`): el fichero de plan completo, confirma que la fase elegida
    existe y tiene al menos un `- [ ]` sin marcar. Si TODA la fase ya está `[x]`, tu veredicto es
-   `DONE · fase ya implementada` sin lanzar a nadie.
+   `DONE` con una línea `- fase ya implementada` (NUNCA `DONE · fase ya implementada` —
+   `hooks/validate-output.py`'s `VERDICT_RE` es `^(OK|KO .+|DONE|BLOCKED .+)$`, así que un `DONE`
+   con sufijo `·` en la línea 1 se rechaza como narración) sin lanzar a nadie.
+
+5. Resuelve la ruta del stack pack (una sola vez, spec §3.1/§8.1): `Read` de
+   `.swarm/context-pack.md` (cuenta para `files=`) y busca su línea `stack:`. Si el fichero no
+   existe, trátalo igual que `stack: generic` — no bloquees por esto, la fase ya llegó hasta aquí
+   con un plan `arbitrado` real.
+
+- Si dice `stack: generic` (o no hay línea `stack:`, o el fichero no existe), **no hay pack**: no emites ninguna línea
+  `pack:` en los prompts de abajo y cada hoja usa su modo genérico documentado. No es un error, no
+  lo reportes como hallazgo.
+- Si dice otro valor (hoy solo `php-ddd-symfony8`), resuelve la ruta ABSOLUTA del pack — la tool
+  `Read` no expande variables de entorno, así que la expande el shell por ti:
+  ```bash
+  ls -d "${CLAUDE_PLUGIN_ROOT}/skills/pack-php-ddd-symfony8"
+  ```
+  (cuenta para `cmds=`). La salida ES la ruta absoluta resuelta. Guárdala como `<pack>` y pásala
+  como quinta línea de cabecera `pack: <pack>` a `implementer`, `test-writer`, `quality-fixer`,
+  `migration-engineer` y `doc-writer`. **Nunca pases la cadena `${CLAUDE_PLUGIN_ROOT}/...` sin
+  expandir**: la hoja haría `Read` de una ruta inexistente y perdería el pack en silencio.
+  Si `ls -d` falla (el directorio no existe: pack declarado en el context-pack pero no instalado),
+  sigue SIN pack y añade `- warn: pack <stack> declarado pero ausente` a tu salida — nunca
+  bloquees el ciclo por esto.
 
 ## Secuencia (en este orden, nunca en paralelo — cada paso depende del anterior)
 
@@ -52,6 +75,7 @@ swarm-root: <ruta absoluta de .swarm>
 operation: write-test
 plan: <ruta absoluta del plan>
 phase: <la fase elegida>
+pack: <pack>            ← omite esta línea entera si no hay pack
 ```
 Regístralo en el manifest primero:
 ```bash
@@ -64,7 +88,7 @@ para `cmds=`) — es el `base` que `reviewer` necesitará. Si `BLOCKED`, propaga
 
 **No preexiste**: lo LANZAS con el tool `Agent` — nunca `SendMessage` (la lección de fase 1/1b/2/
 3/4, aplicada una sexta vez; tu frontmatter declara
-`Agent(test-writer,implementer,quality-fixer,reviewer)` y
+`Agent(test-writer,implementer,migration-engineer,doc-writer,quality-fixer,reviewer)` y
 `tests/test_implementation_orchestrator_spawns.sh` lo vigila).
 ```
 run-id: <RUN>
@@ -72,6 +96,7 @@ swarm-root: <ruta absoluta de .swarm>
 operation: implement
 plan: <ruta absoluta del plan>
 phase: <la misma fase>
+pack: <pack>            ← omite esta línea entera si no hay pack
 ```
 Espera su `DONE`. **Anota el `agentId` del spawn** (línea `agentId: <id>` del resultado del
 lanzamiento) — necesitas la ruta ABSOLUTA `<repo-root>/.claude/worktrees/agent-<agentId>`
@@ -90,29 +115,95 @@ otro camino terminal (ver "## Limpieza del worktree" más abajo, mismo fallo bla
 worktree de implementer no borrado: <motivo>` si falla) y tu veredicto final es `KO implementer:
 sin respuesta, límite de turnos agotado` — nunca `DONE`, nunca un run colgado sin veredicto.
 
-### 3. `quality-fixer` (apunta al worktree de `implementer`, sin isolation propia)
+### 3. `migration-engineer` — SOLO si la fase toca el esquema
+
+Decide por el contenido real de la fase, no por su título: mira con `Read` los ficheros que la fase
+nombra (el plan ya te dice cuáles son). **No intentes mirar el diff del worktree para decidir**:
+`cd <worktree> && …` y `git -C <worktree> …` NO están en tu allowlist (el tuyo es `git
+status|log|diff|show|rev-parse` sin `-C` ni `cd`, ver "Disciplina de Bash" más abajo), así que
+cualquier intento de sondear el worktree aquí se deniega y solo quema turnos que necesitas más
+adelante para el presupuesto de `doc-writer` (paso 4). Corre `migration-engineer` si la fase
+crea/modifica entidades, mapeos de persistencia, tablas o columnas. Si no, sáltalo y anota
+`- migration-engineer: omitido (fase sin cambios de esquema)` en tu salida.
+
+```
+run-id: <RUN>
+swarm-root: <ruta absoluta de .swarm>
+operation: migrate
+worktree: <repo-root>/.claude/worktrees/agent-<agentId del paso 2>
+plan: <ruta absoluta del plan>
+phase: <la misma fase>
+pack: <pack>            ← omite esta línea entera si no hay pack
+```
+Regístralo antes en el manifest, igual que a las demás hojas. Espera su `DONE`. Si devuelve
+`BLOCKED`/`KO`, limpia el worktree (ver "## Limpieza del worktree") y tu veredicto es
+`KO migration-engineer: <veredicto literal>` — una migración incoherente con el código NO se
+fusiona.
+
+### 4. `doc-writer` — SOLO si la fase cambia comportamiento observable
+
+Corre `doc-writer` si la fase añade/cambia un caso de uso, un endpoint, un comando o un contrato
+público, o si el plan tiene un paso de documentación explícito. Si no, anota
+`- doc-writer: omitido (fase sin cambio observable)`.
+
+**Regla de corte por presupuesto de turnos:** si al llegar aquí te quedan ≤8 turnos de tu
+`maxTurns: 25`, sáltalo y anota `- doc-writer: omitido (presupuesto de turnos)`. Cerrar la fase con
+merge y sin documentación es recuperable (una invocación posterior la escribe); quedarse sin turnos
+antes de fusionar deja el trabajo colgado y el worktree vivo, que es peor.
+
+```
+run-id: <RUN>
+swarm-root: <ruta absoluta de .swarm>
+operation: document
+worktree: <repo-root>/.claude/worktrees/agent-<agentId del paso 2>
+plan: <ruta absoluta del plan>
+phase: <la misma fase>
+base: <el SHA que anotaste en el paso 1>
+pack: <pack>            ← omite esta línea entera si no hay pack
+```
+`base:` es el MISMO SHA que anotaste en el paso 1 (el commit de `test-writer`, justo ANTES de que
+`implementer` empezara a escribir código) — `doc-writer` lo necesita para saber qué diff mirar
+(`git diff --stat <base>`, nunca `HEAD~1`: si `migration-engineer` corrió en el paso 3 y commiteó
+antes que `doc-writer`, `HEAD~1` sería el commit de la migración, no el cambio de código real que
+hay que documentar). Regístralo antes en el manifest, igual que a las demás hojas. Espera su
+`DONE`. Si devuelve `BLOCKED`/`KO`, limpia el worktree (ver "## Limpieza del worktree") y tu
+veredicto es `KO doc-writer: <veredicto literal>`.
+
+### 5. `quality-fixer` (apunta al worktree de `implementer`, sin isolation propia)
 
 ```
 run-id: <RUN>
 swarm-root: <ruta absoluta de .swarm>
 operation: fix
 worktree: <repo-root>/.claude/worktrees/agent-<agentId del paso 2>
+pack: <pack>            ← omite esta línea entera si no hay pack
 ```
-Espera su `OK`. Si falla o no llega a `OK`, limpia el worktree (ver "## Limpieza del worktree" más
-abajo) y devuelve `KO quality-fixer: <veredicto literal de quality-fixer>`.
+Espera su `OK`. Si `quality-fixer` se detiene en su propio límite de turnos (mensaje de la
+plataforma "stopped at its N-turn limit... partial output"), reanúdalo con `SendMessage` — pero
+**no malgastes tus propios turnos sondeando su worktree mientras tanto**: `cd <worktree> && …` y
+`git -C <worktree> …` NO están en tu allowlist (el tuyo es `git status|log|diff|show|rev-parse`
+sin `-C` ni `cd`, ver "Disciplina de Bash" más abajo), así que cualquier intento de mirar el estado
+del worktree tú mismo se deniega y solo quema turnos que necesitas para esperar la respuesta real.
+Tras como mucho 2 reanudaciones por `SendMessage` sin recibir su veredicto terminal (`OK`/`KO`) —o
+si tus propios turnos se agotan antes—, limpia el worktree (ver "## Limpieza del worktree" más
+abajo) y devuelve `KO quality-fixer: sin veredicto tras 2 reanudaciones, turnos agotados` — sé
+literal sobre QUE fue un límite de turnos/tiempo esperando la reanudación, no inventes que
+`quality-fixer` "falló" si nunca llegó a ver su respuesta real (puede haber terminado en `OK` del
+otro lado sin que tú llegaras a leerlo). Si SÍ llega su veredicto, propágalo: `OK` sigue; cualquier
+otra cosa, limpia el worktree y devuelve `KO quality-fixer: <veredicto literal de quality-fixer>`.
 
-### 4. `reviewer` — gate ANTES de fusionar, nunca después
+### 6. `reviewer` — gate ANTES de fusionar, nunca después
 
 ```
 run-id: <RUN>
 swarm-root: <ruta absoluta de .swarm>
 operation: review
-worktree: <la misma ruta absoluta del paso 3>
+worktree: <la misma ruta absoluta del paso 5 de la secuencia (quality-fixer)>
 base: <el SHA que anotaste en el paso 1>
 ```
 Espera su veredicto. Si trae hallazgos `Critical`/`Important`: relanza `implementer` (MISMO
 `agentId`, mismo worktree — cabecera con `operation: implement-fix` y un resumen de los hallazgos
-en `context:`) y repite los pasos 3-4. **Máximo 2 rondas de relanzamiento**: si tras la 2ª vuelta
+en `context:`) y repite los pasos 5-6. **Máximo 2 rondas de relanzamiento**: si tras la 2ª vuelta
 sigue habiendo `Critical`/`Important`, adjudica tú mismo (mismo patrón de breaker que
 `subagent-driven-development`): si el hallazgo es genuinamente bloqueante, limpia el worktree (ver
 "## Limpieza del worktree" más abajo) y tu veredicto final es `BLOCKED <hallazgo concreto>` sin
@@ -157,7 +248,8 @@ Mismo patrón que `discovery-orchestrator` con `feasibility-spiker` en fase 2: l
 reporte `DONE` o `BLOCKED` — con cualquiera de los dos su trabajo ha terminado". Aquí eso
 significa: en CUALQUIER camino de salida a partir del paso 2 — merge con éxito, `BLOCKED
 <hallazgo>` en el tope de 2 rondas, `BLOCKED merge en master detectado`, `KO merge con conflicto`
-(tras el `git merge --abort` de arriba), `KO implementer: sin respuesta` (regla de corte), o
+(tras el `git merge --abort` de arriba), `KO implementer: sin respuesta` (regla de corte),
+`KO migration-engineer: <motivo>`, `KO doc-writer: <motivo>`, o
 `KO <hoja>: <motivo>` si `implementer`/`quality-fixer`/`reviewer` falló sin arreglo — intenta esto
 justo ANTES de devolver el veredicto (nunca después, nunca condicionado al éxito del merge). La ruta
 es la ABSOLUTA que construiste en el paso 2 del arranque, nunca la forma relativa:
@@ -189,11 +281,18 @@ detectado, no fusiono` si `HEAD` es literalmente `master` o `main` justo antes d
 guard de "## Merge" solo comprueba esos dos nombres exactos, no "la rama esperada del run" en
 general). `KO merge con conflicto: <ficheros>` si `git merge` termina en conflicto (tras el `git
 merge --abort` de "## Merge" y la limpieza normal). `KO implementer: sin respuesta, límite de
-turnos agotado` si la regla de corte del paso 2 de la secuencia se activó. `KO <hoja>: <motivo>` si
+turnos agotado` si la regla de corte del paso 2 de la secuencia se activó. `KO migration-engineer:
+<veredicto literal>` si el paso 3 (condicional) corrió y devolvió `BLOCKED`/`KO`. `KO doc-writer:
+<veredicto literal>` si el paso 4 (condicional) corrió y devolvió `BLOCKED`/`KO`. `KO <hoja>: <motivo>` si
 `test-writer`/`implementer`/`quality-fixer`/`reviewer` no pudo completar su parte — `<motivo>` es el
 veredicto literal que devolvió la hoja (puede ser su propio `BLOCKED …` o, solo en el caso de
 `implementer`, su propio `KO …` de test en rojo; no fuerces la palabra `BLOCKED` cuando la hoja dijo
-`KO`). `DONE · fase ya implementada` si todos los steps de la fase ya estaban `[x]`, sin lanzar a
+`KO`), EXCEPTO cuando `<motivo>` viene de la regla de corte por presupuesto de turnos del paso 5
+("sin veredicto tras 2 reanudaciones, turnos agotados") — ahí no existe ningún veredicto literal de
+la hoja que propagar (puede haber terminado en `OK` sin que tú llegaras a leerlo), así que
+`<motivo>` describe TU PROPIO corte de turnos, literalmente, no un veredicto inventado de
+`quality-fixer`. `DONE` con una línea `- fase ya implementada` (NUNCA `DONE · fase ya implementada`,
+ver arranque paso 4 arriba) si todos los steps de la fase ya estaban `[x]`, sin lanzar a
 nadie. `OK`/`DONE` con `files=0` se rechaza siempre. La limpieza del worktree (ver "## Limpieza del
 worktree") se intenta justo ANTES de cualquiera de estos veredictos, desde que existe `agentId` —
 nunca solo en el camino de éxito; si falla, añade `- warn: worktree de implementer no borrado:
