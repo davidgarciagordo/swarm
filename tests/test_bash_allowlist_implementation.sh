@@ -22,6 +22,7 @@ for agent in reviewer; do
   assert_eq "allow" "$(guard "swarm:$agent" 'cat .swarm/context-pack.md')" "$agent can cat the pack"
   assert_eq "deny" "$(guard "swarm:$agent" 'git commit -m x')" "$agent (read-only) cannot git commit"
   assert_eq "deny" "$(guard "swarm:$agent" 'rm -rf .swarm')" "$agent cannot rm"
+  assert_eq "deny" "$(guard "swarm:$agent" 'find . -name x')" "$agent cannot find (differentiates from default fallback, which DOES allow find)"
 done
 
 # test-writer, implementer, quality-fixer: SÍ pueden git add/commit (necesitan capturar su propio trabajo)
