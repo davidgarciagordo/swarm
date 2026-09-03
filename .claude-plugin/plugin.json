@@ -7,5 +7,5 @@
   "author": { "name": "David García Gordo" },
   "license": "MIT",
   "skills": "./skills/",
-  "commands": ["./commands/init.md", "./commands/run.md", "./commands/doctor.md"]
+  "commands": ["./commands/init.md", "./commands/run.md", "./commands/doctor.md", "./commands/status.md", "./commands/findings.md"]
 }
