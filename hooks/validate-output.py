@@ -63,6 +63,18 @@ DISCOVERY_OTHER_RE = re.compile(r'^- (warn|findings|lentes|sin hallazgos|grill):
 ANALYSIS_ADDITIONAL_RE = re.compile(r'^- \d+ hallazgos adicionales en \.swarm/findings/\S+\.md$')
 ANALYSIS_LEAF_BLOCKED_RE = re.compile(r'^- [a-z][a-z0-9-]* BLOCKED: .+$')
 
+# Vocabulario fijo del dominio delivery (spec §7 "Entrega", agents/release-manager.md y
+# agents/delivery-orchestrator.md "## Salida"): las líneas de preview y de degradación de PR
+# llevan un COMANDO COMPLETO con valores ya resueltos (`gh pr create --base … --body-file
+# /abs/…/release-notes.md`) y pasan de 120 chars con total normalidad. Mismo bug de fondo que C1
+# de fase 2 y que el Important #1 de fase 4, tercera aparición. Exención por FORMA (prefijo fijo
+# del vocabulario + resto), NUNCA por venir con un "- " delante: cualquier otra línea "- " sigue
+# sujeta al cap de 120.
+DELIVERY_LONG_RE = re.compile(
+    r'^- (preview push|preview pr|pr|pr manual|pr comando|notas|handoff|pushed|remote'
+    r'|remoto propuesto|remoto creado|cuenta gh|hint|siguiente|discrepancia): .+$'
+)
+
 
 def _repo_root():
     """Raíz real del repo, NO el cwd del hook.
@@ -217,6 +229,7 @@ def main():
                     or DISCOVERY_OTHER_RE.match(stripped)
                     or ANALYSIS_ADDITIONAL_RE.match(stripped)
                     or ANALYSIS_LEAF_BLOCKED_RE.match(stripped)
+                    or DELIVERY_LONG_RE.match(stripped)
                 ):
                     continue
                 # Cualquier OTRA línea "- " (no reconocida por el formato de batch) sigue
