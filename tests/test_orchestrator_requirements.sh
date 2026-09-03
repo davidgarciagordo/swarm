@@ -24,7 +24,9 @@ assert_eq "0" "$(has "$body" 'Esa exención NO cubre el `summary --line` del cie
 occurrences="$(grep -cF 'Esa exención NO cubre el `summary --line` del cierre.' "$F")"
 assert_eq "4" "$occurrences" "the paragraph appears once per forwarding section (§8.3, §9.3, §10.3, §11.3)"
 # la raiz ya no puede seguir diciendo que requirements solo lo invoca /swarm:doctor
-assert_eq "1" "$(has "$body" 'lo invoca `/swarm:doctor`, tú no lo lanzas en un run')" "root no longer says it never launches requirements"
+# (fragmento de una sola línea: el original envolvía "tú no lo lanzas en un run" en dos líneas,
+# lo que hacía que grep -F -- línea a línea nunca pudiera fallar contra ESTE fragmento concreto)
+assert_eq "1" "$(has "$body" 'fase 1b — lo invoca')" "root no longer says it never launches requirements"
 
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

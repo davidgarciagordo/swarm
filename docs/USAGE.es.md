@@ -374,12 +374,14 @@ requisitos extra de OS/librerías — que las hojas del enjambre leen en vez de 
 genérica. Hoy hay exactamente uno: `skills/pack-php-ddd-symfony8/` (PHP + DDD + Symfony).
 
 **Cómo se detecta:** automáticamente, sin ninguna configuración. Cuando `memory-builder` construye
-`.swarm/context-pack.md`, comprueba si el `composer.json` del repo existe en la raíz y su bloque
-`require` contiene un paquete `symfony/*`; si es así, escribe `stack: php-ddd-symfony8` en el pack.
-Cada hoja que puede usar un pack (`quality-fixer`, `test-writer`, `implementer`,
-`migration-engineer`, `doc-writer`, `pattern-advisor`, `domain-modeler`, `vulnerability-scanner`,
-`dependency-auditor`, `env-checker` vía `requirements-orchestrator`) resuelve su ruta absoluta a
-partir de esa línea y lee solo los ficheros que necesita.
+`.swarm/context-pack.md`, comprueba si el `composer.json` del repo existe en la raíz y contiene una
+referencia a `symfony/` en cualquier parte del fichero; si es así, escribe
+`stack: php-ddd-symfony8` en el pack. Cada hoja que recibe una cabecera `pack:` ya resuelta
+(`quality-fixer`, `test-writer`, `implementer`, `migration-engineer`, `doc-writer`,
+`data-model-auditor`, `vulnerability-scanner`, `dependency-auditor`, `env-checker` vía
+`requirements-orchestrator`) resuelve su ruta absoluta a partir de esa línea y lee solo los ficheros
+que necesita. `pattern-advisor`/`domain-modeler` no reciben línea `pack:` — solo respetan el
+`stack:` declarado vía `.swarm/context-pack.md`.
 
 **Qué pasa sin él:** nada se rompe. Un repo sin `composer.json`, o que no casa con ningún pack
 conocido, recibe `stack: generic` — nunca se envía una línea `pack:` a ninguna hoja, y cada una cae

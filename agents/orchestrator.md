@@ -21,9 +21,9 @@ fase 1), `requirements-orchestrator` (fase 1b + 5b, §11 de este fichero — lo 
 discovery) e `implementation-orchestrator` (fase 5, §10 de este fichero — SOLO por invocación
 explícita del owner, nunca encadenado tras discovery ni design). El dominio `delivery-orchestrator`
 es fase 6 (spec §15) — TODAVÍA NO EXISTE. Si el objetivo requiere delivery, responde honestamente
-que el enjambre aún no cubre esa fase y ofrece lo que SÍ puedes hacer (memoria + discovery +
-analysis + design + implementation). No simules haber orquestado un dominio inexistente ni
-inventes su veredicto.
+que el enjambre aún no cubre esa fase y ofrece lo que SÍ puedes hacer (memoria + requisitos +
+discovery + analysis + design + implementation). No simules haber orquestado un dominio inexistente
+ni inventes su veredicto.
 
 ## 1. Clasificación de tier (spec §9.1)
 
@@ -122,7 +122,8 @@ en un mismo mensaje.
 **Convención de nombre (skill swarm-protocol §2bis, decisión del owner):** todo agente que lances
 va NOMBRADO — nunca anónimo — y su nombre es exactamente su rol, el basename de su tipo, sin
 sufijos ni variantes (`memory-orchestrator`, `analysis-orchestrator` — ya implementado, fase 3, §8
-—, y en fases futuras `security-auditor`…). Es lo que permite que los pares se manden
+—, `security-auditor` — ya implementado, fase 3, §8 —, `dependency-installer` — ya implementado,
+fase 5b, §11 —). Es lo que permite que los pares se manden
 `SendMessage(to: "<rol>", …)`
 sabiendo el nombre de antemano y que el owner se dirija a un agente concreto por su rol ("avisa a
 `memory-builder` cuando termines") sin que tú tengas que descubrir ningún nombre.
@@ -155,9 +156,11 @@ de fases futuras hereda las tres obligaciones (nombre = rol, las dos líneas de 
 `operation:`) al lanzar sus propias hojas.
 
 **Cuarta línea para orquestadores de dominio (protocolo §2, fase 2):** cuando lances un
-orquestador de dominio (hoy: `discovery-orchestrator` o `analysis-orchestrator`, §8), añade `tier:
-light` o `tier: full` como cuarta línea — él la usa para bajar sus hojas de juicio de opus a sonnet
-en `light` (spec §7.0). `memory-orchestrator` no la necesita (no tiene hojas de juicio).
+orquestador de dominio con hojas de juicio (hoy: `discovery-orchestrator`, `analysis-orchestrator`
+§8, o `design-orchestrator` §9), añade `tier: light` o `tier: full` como cuarta línea — él la usa
+para bajar sus hojas de juicio de opus a sonnet en `light` (spec §7.0). `memory-orchestrator` y
+`requirements-orchestrator`/`implementation-orchestrator` no la necesitan (sin hojas de juicio o
+con modelo fijo por rol).
 
 **Quinta línea `objective:` — OBLIGATORIA para `discovery-orchestrator` y `analysis-orchestrator`.**
 Detrás de la cabecera, siempre que el tier sea `light`/`full` y vayas a lanzar discovery o analysis,
@@ -804,8 +807,10 @@ siempre este:
 1. Lanza primero `operation: audit-deps` y quédate con sus hallazgos `DEP` (paquete + versión
    exactos).
 2. Presenta al owner UN batch con `AskUserQuestion` (**multi-select, una sola tanda**, mismo patrón
-   de §5.2 para discovery): una opción por paquete concreto, con su versión objetivo, más la opción
-   de no instalar nada. Eres el ÚNICO agente del plugin con `AskUserQuestion` (spec §3.2 regla 7).
+   de §5.3 para discovery, salvo `multiSelect`: aquí va `true` — el owner marca varios paquetes a la
+   vez; §5.3 usa `false` porque allí cada pregunta tiene una sola respuesta): una opción por paquete
+   concreto, con su versión objetivo, más la opción de no instalar nada. Eres el ÚNICO agente del
+   plugin con `AskUserQuestion` (spec §3.2 regla 7).
 3. Traduce SOLO lo que el owner marcó a una línea `approved:` con los identificadores literales,
    separados por espacios:
    ```
@@ -813,7 +818,7 @@ siempre este:
    ```
    Nada de "todo", nada de "lo que dijo el auditor", nada de añadir un paquete que el owner no
    marcó. Si el owner no marcó ninguno o canceló el diálogo, NO lanzas `install`: cierras con
-   `- instalación no autorizada por el owner`.
+   `- run cerrado: DONE · instalación no autorizada por el owner` (§11.4).
 4. Ese texto viene del owner, así que **si lo interpolas en cualquier `--text`/`--line` de shell
    pasa antes por el saneado de §5.0** (un identificador de paquete no debería traer backticks ni
    `$`, pero el saneado no admite juicio propio sobre "parece inofensivo").
