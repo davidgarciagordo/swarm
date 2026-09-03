@@ -216,6 +216,9 @@ Línea por camino terminal (una sola llamada, la que corresponda):
 - diseño completado (§9.4): `- run cerrado: DONE · diseño completado, plan en <ruta>`
 - `BLOCKED`/`KO` propagado de design (§9.3): `- run cerrado: <veredicto literal de
   design-orchestrator>`
+- implementación completada (§10.4): `- run cerrado: DONE · fase implementada, fusionada localmente`
+- `BLOCKED`/`KO` propagado de implementation (§10.3): `- run cerrado: <veredicto literal de
+  implementation-orchestrator>`
 - ninguno de los tres dominios aplica (bugfix/refactor/docs/infra, §5.1 + §8.1 + §9.1): usa la línea
   COMBINADA, `- run cerrado: <tu veredicto> · discovery, analysis y diseño omitidos: <motivo
   compartido>` — **una sola llamada**, no varias líneas por separado. Es el camino preferido cuando
@@ -742,9 +745,22 @@ Regístralo antes en el manifest:
 
 ### 10.3 Reenviar el resultado
 
-Reenvía su línea `- implementation: …` tal cual a tu propia salida (§7) — sin pasarla por el
-saneado de §5.0 (no construyes ningún `--text`/`--line` nuevo con ella). Si devuelve `BLOCKED …`/
-`KO …`, propaga su veredicto literal — cierra el run igual que cualquier otro camino terminal (§4).
+Reenvía su línea `- implementation: …` tal cual a tu propia salida (§7) — igual mecanismo que
+§8.3/§9.3 para analysis/design, SIN pasarla por el saneado de §5.0 — esa exención vale únicamente
+para las líneas que van a tu OUTPUT de turno (lo que lee `hooks/validate-output.py`), que nunca
+pasa por un shell, así que no hay nada que proteger ahí.
+
+**Esa exención NO cubre el `summary --line` del cierre.** Si `implementation-orchestrator` devuelve
+`BLOCKED …`/`KO …`, propagas su veredicto literal como el tuyo — pero cerrar el run (§4, §10.4)
+significa construir `"${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" summary --run <run-id> --line
+"<veredicto literal de implementation-orchestrator>"`, y eso SÍ es un `--line` nuevo que interpolas
+en un comando de Bash real, con texto ajeno (el `<motivo>` de implementation-orchestrator, que
+puede citar hallazgos de `reviewer` sobre código real del repo, con backticks/`$(...)`). Ese
+`--line` pasa por el saneado de §5.0 igual que cualquier otro `--line` de §4 que lleve texto ajeno —
+la única diferencia con discovery es de dónde sale el texto (implementation-orchestrator en vez del
+owner), no si se sanea. Cierra el run igual que en cualquier otro camino terminal (§4: `summary`
+saneado con la línea de este camino y después `SendMessage(memory-orchestrator, "curate")`,
+esperando su `DONE`, antes de devolver el veredicto).
 
 ### 10.4 Cierre
 
