@@ -1,223 +1,197 @@
-# Handoff — swarm, 2026-09-03 (fases 1 + 1b + 2 + 3 + 4 + 5a cerradas, documentación de uso hecha)
+# Handoff — swarm, 2026-09-03 (fases 1 + 1b + 2 + 3 + 4 + 5a + 5b cerradas, documentación de uso hecha)
 
 ## Prompt copy-paste para la sesión nueva
 
 > Lee `docs/superpowers/handoffs/2026-09-02-next-session.md` en `/Users/davidgarciagordo/projects/multiagents`
-> y continúa desde ahí — toca decidir/empezar la fase 5b (stack pack `php-ddd-symfony8`) o 5c
-> (`migration-engineer`/`doc-writer`/`dependency-auditor`/`dependency-installer`), spec §15. Modo de
-> trabajo: brainstorming corto si hace falta cerrar algo del diseño → `writing-plans` → Subagent-Driven
-> Development (superpowers), commit por tarea, review adversarial por tarea + review final de rama
-> antes de merge, checklist de smoke ejecutado EN VIVO (no solo escrito) antes de dar una fase por
-> cerrada — así se han encontrado y arreglado bugs reales en CADA fase (2 en fase 1, 1 en fase 1b, 3
-> en fase 2, varios en fase 3, 7+ en fase 4, 1 Critical + 6 Important en la review final de fase 5a)
-> que ninguna review individual pilló sola. David quiere avisos cuando cierre cada fase, no antes.
-> Cada task/fix termina en commit con SU identidad git personal (`garcia.gordo.david@gmail.com`, no
-> Classlife). **Merge siempre local a master** (instrucción permanente del owner, 2026-09-03) — no
-> preguntar cada vez, no ofrecer PR salvo que lo pida explícitamente. **La pasada de documentación de
-> uso completa que David pidió explícitamente ya está hecha** (`docs/USAGE.md`/`USAGE.es.md`,
-> commit `21a1e6a`) — no hace falta repetirla, solo mantenerla al día si se añaden dominios/comandos
-> nuevos.
+> y continúa desde ahí — toca decidir/empezar la **fase 6 (delivery)**: `delivery-orchestrator` +
+> `release-manager` + `handoff-writer` (spec §7/§15), primer dominio con `git push` real. Es la
+> última fase antes de poder declarar v1 estable. Modo de trabajo: brainstorming corto si hace falta
+> cerrar algo del diseño → `writing-plans` → Subagent-Driven Development (superpowers), commit por
+> tarea, review adversarial por tarea + review final de rama antes de merge, checklist de smoke
+> ejecutado EN VIVO (no solo escrito) antes de dar una fase por cerrada — así se han encontrado y
+> arreglado bugs reales en CADA fase (2 en fase 1, 1 en fase 1b, 3 en fase 2, varios en fase 3, 7+ en
+> fase 4, 1 Critical + 6 Important en fase 5a, 1 Critical + 5 Important + 2 hallazgos nuevos del
+> propio fix + 1 Important residual en fase 5b) que ninguna review individual pilló sola. David
+> quiere avisos cuando cierre cada fase, no antes. Cada task/fix termina en commit con SU identidad
+> git personal (`garcia.gordo.david@gmail.com`, no Classlife). **Merge siempre local a master**
+> (instrucción permanente del owner, 2026-09-03) — no preguntar cada vez, no ofrecer PR salvo que lo
+> pida explícitamente. **La pasada de documentación de uso completa ya está hecha**
+> (`docs/USAGE.md`/`USAGE.es.md`, commit `21a1e6a`) — mantenerla al día si fase 6 añade
+> comandos/dominios nuevos, no repetirla desde cero.
 
 ## Dónde está todo
 
 - Repo: `/Users/davidgarciagordo/projects/multiagents` (plugin Claude Code `swarm`, sin remoto aún,
-  rama `master`, sin ramas de trabajo abiertas — **excepto** `worktree-phase2-discovery`, ver nota
-  de limpieza pendiente abajo, sin cambiar desde hace 3 handoffs). `worktree-phase3-analysis`,
-  `worktree-phase4-design` y `worktree-phase5a-implementation` ya se mergearon y se limpiaron
-  (worktree borrado, rama borrada) — no quedan pendientes.
+  rama `master`, sin ramas de trabajo propias abiertas — **excepto** `worktree-phase2-discovery`,
+  ver nota de limpieza pendiente abajo, sin cambios desde hace 4 handoffs). Todas las demás ramas de
+  fase ya se mergearon y limpiaron (worktree borrado, rama borrada).
+- **Trabajo concurrente de otra sesión**: durante el cierre de fase 5b, la sesión `multiagents-c9`
+  trabajaba en paralelo sobre un pedido en vivo del owner (bucle de estado activo para
+  orquestadores, en discusión — investigaron si un subagente orquestador recibe notificación
+  automática al terminar una hoja `background: true`, confirmado que SÍ vía plataforma, sin
+  mecanismo nuevo necesario) y ya mergeó `fix-discovery-orchestrator-timeout` (commit `17d976c`,
+  quita el margen artificial de 2 turnos que `discovery-orchestrator` se daba a sí mismo esperando a
+  `research-analyst`/`feasibility-spiker` — innecesario porque la notificación real llega sola).
+  Coexiste sin conflicto con fase 5b (verificado, suite 42/42 tras el merge combinado). Si esa
+  sesión sigue activa, puede haber más cambios en curso sobre `discovery-orchestrator.md` — revisa
+  `git log` antes de asumir el estado de ese fichero.
 - Spec: `docs/superpowers/specs/2026-09-01-swarm-design.md` (v2.1) — fuente de verdad del diseño.
-- **Guía de uso completa: `docs/USAGE.md` / `docs/USAGE.es.md` (commit `21a1e6a`).** Instalación
-  real, los 3 comandos con ejemplos reales sacados de los smoke checklists, cada dominio construido
-  explicado en términos de usuario con ejemplo real, el contrato de veredicto universal explicado
-  una vez. Los README solo apuntan a ella (una línea cada uno), no la duplican.
-- **Fase 1 (núcleo) — completa y mergeada.** 13 tareas + review final + smoke en vivo. 2 bugs
-  Critical: payload real de `SubagentStop` es `last_assistant_message` (no `output`);
-  `memory-orchestrator` sin tool `Agent` para lanzar hojas (solo tenía `SendMessage`).
-- **Fase 1b (dominio requirements) — completa y mergeada.** 5 tareas + review final + smoke en
-  vivo. 1 bug: `bash-guard.py` no normalizaba rutas absolutas ya resueltas fuera de `mem-*.sh`.
-- **Fase 2 (dominio discovery) — completa y mergeada (fast-forward `42d6213..6f25335`).** 7 tareas
-  + 3 rondas de fix en T6 + smoke test EN VIVO con el owner (sesión interactiva real, `AskUserQuestion`
-  no se simula headless) + review final + fix de 4 hallazgos importantes. 5 bugs reales, entre ellos
-  un HIGH de seguridad (worktree huérfano del spike) y un HIGH de pérdida de datos (colisión de
-  dedup entre runs).
-- **Fase 3 (dominio analysis) — completa y mergeada (fast-forward `e870c54..dfad121`).**
-  `analysis-orchestrator` + 6 hojas de juicio, excluyente con discovery en v1. Smoke headless
-  completo. Review final: 6 Important + 4 Minor, arreglados y re-verificados limpios.
-- **Fase 4 (dominio design) — completa y mergeada (fast-forward `f406955..2a6eb59`).**
-  `design-orchestrator` (sonnet) + `planner` (opus, escribe planes reales con `Write`/`Edit`) +
-  `pattern-advisor` + `domain-modeler`. Primera vez que el enjambre invoca agentes de OTRO plugin ya
-  instalado (`working-methods:grill-architect/operator/engineer`), confirmado funcionando en un run
-  real. Encadena tras discovery SOLO en `tier: full`.
-- **Fase 5a (núcleo del dominio implementation) — completa y mergeada (merge commit `666fc4d`,
-  2026-09-03).** Primera fase que escribe y fusiona código real. 4 hojas nuevas (`test-writer`,
-  `implementer` con `isolation: worktree`, `quality-fixer`, `reviewer`) + `implementation-orchestrator`
-  (primer orquestador del repo con `git merge`/`git worktree` de verdad). Ciclo TDD real:
-  test-writer (RED, commit directo a la rama del run) → implementer (worktree aislado, GREEN, commit
-  propio, marca `- [x] Step N` del plan) → quality-fixer (`--fix`) → reviewer (gate ANTES del merge,
-  read-only puro) → `implementation-orchestrator` fusiona LOCAL (nunca a master/remoto, guardia real
-  `git rev-parse --abbrev-ref HEAD` antes del `git merge`, nunca prosa sola) → limpieza del worktree
-  en TODOS los caminos de salida (no solo el feliz). Decisión de seguridad explícita: **nunca
-  encadena tras discovery/design, ni en `tier: full`** — checkpoint humano obligatorio antes de que
-  el enjambre escriba/fusione código.
-  - **Spike real ANTES de escribir el plan**: `isolation: worktree` NO auto-commitea (queda `??`
-    hasta que el propio agente hace `git add`+`commit`), la rama es `worktree-agent-<agentId>`,
-    mergeable con `git merge` normal desde el checkout principal — verificado con un
-    `feasibility-spiker` adhoc real contra un fixture desechable, no adivinado.
-  - **Smoke EN VIVO real**: ciclo completo de 5 agentes contra un VO `Money`, merge real confirmado
-    (`git log --all`), limpieza de worktree confirmada en disco (`git worktree prune -v`, no solo
-    confiando en la narración del propio agente coordinador, que dio un falso "sigue existiendo").
-    2 mecanismos (gate Critical con fix-loop, guardia anti-master) verificados solo por trazado de
-    código, no disparados en vivo — riesgo bajo, documentado honestamente en el checklist.
-  - **Review final de rama (Opus, 13 commits): 1 Critical NUEVO** que ninguna review de tarea pilló
-    — `cd` ausente del allowlist de `quality-fixer`/`reviewer`, sus propios comandos documentados
-    (incluido `vendor/bin/php-cs-fixer`, tampoco allowlisted por nombre completo) eran `deny` en
-    runtime, neutralizando en silencio el paso de calidad y degradando el gate pre-merge (falla
-    cerrado, no es hueco de seguridad, pero sí regresión funcional real). + 6 Important: sin test
-    para la guardia anti-master ni la limpieza de `implementation-orchestrator`; la raíz sin regla de
-    enrutado que alcance §10 (un objetivo "implementa el plan de X" caía en cierre omitido); ruta de
-    worktree documentada como absoluta pero escrita relativa, sin ancla de repo-root; sin manejo de
-    `git merge` con conflicto real; sin cut-rule si `implementer` nunca responde; READMEs/SKILL.md
-    seguían afirmando que implementation no existe (regresión real del propio merge de la fase).
-  - **1 sola ronda de fix** (regla "no second fix wave") + **re-review Opus escopeada al diff del
-    fix**, que verificó CADA hallazgo empíricamente (guard.py contra formas reales de comando, repo
-    desechable con worktree real para C1/I4, mutation-testing de los 2 tests nuevos contra 11
-    reversiones — 10/11 capturadas), con foco especial en confirmar que la nueva regla de enrutado
-    (I2) NO abre ninguna vía implícita a §10 — la propiedad "nunca encadena" quedó intacta y
-    reforzada. 3 Minor nuevos del propio fix, corregidos directamente sin agente (commit `fdc7061`).
-- Todo en `master`: **36 archivos de test, 36/36 en verde** (`bash tests/run.sh`, verificado tras el
-  merge, no solo antes).
-- Agentes vivos: `swarm:orchestrator` (raíz), dominio memory (3), requirements (2), discovery (5),
-  analysis (7), design (4 + 3 lentes grill externos), implementation (5: `test-writer`, `implementer`,
-  `quality-fixer`, `reviewer`, `implementation-orchestrator`). Comandos: `/swarm:init`, `/swarm:run`,
-  `/swarm:doctor`.
+- **Guía de uso completa: `docs/USAGE.md` / `docs/USAGE.es.md` (commit `21a1e6a`, actualizada en
+  fase 5b para el stack pack y las 4 hojas nuevas).** Instalación real, los 3 comandos con ejemplos
+  reales, cada dominio construido explicado en términos de usuario. Los README solo apuntan a ella.
+- **Fases 1, 1b, 2, 3, 4 — completas y mergeadas.** Detalle completo en `git log` o memoria
+  persistente; resumen en handoffs anteriores si hace falta releer motivos.
+- **Fase 5a (núcleo del dominio implementation) — completa y mergeada.** `test-writer`/
+  `implementer`/`quality-fixer`/`reviewer`/`implementation-orchestrator`. Primera fase que escribe y
+  fusiona código real, primer orquestador con `git merge`/`git worktree` de verdad, nunca encadena
+  tras discovery/design (checkpoint humano deliberado).
+- **Fase 5b (stack pack + 4 hojas consumidoras) — completa y mergeada (merge commit `d9e777d`,
+  2026-09-03).** Primer stack pack `skills/pack-php-ddd-symfony8/` (6 ficheros del contrato §8,
+  contenido real derivado de un estudio acotado de un proyecto PHP-DDD-Symfony real usado SOLO como
+  referencia de patrones, nunca nombrado ni citado en el pack) + 4 hojas nuevas:
+  `migration-engineer` (migraciones, condicional a que la fase toque esquema),
+  `doc-writer` (docs + changelog, condicional a cambio observable, regla de corte por presupuesto de
+  turnos), `dependency-auditor` (auditoría read-only vía comandos del pack), `dependency-installer`
+  (primer leaf mutante del dominio requirements — instala solo lo que el owner aprobó explícitamente
+  vía `AskUserQuestion` de la raíz, nunca `brew`/`apt`, nunca desinstala, nunca commitea). Wiring del
+  pack a través de `implementation-orchestrator`/`analysis-orchestrator` ya construidos, fusión real
+  de `requirements.json` (plugin + pack, pack gana en conflicto) en `requirements-orchestrator`
+  (antes prosa inerte de fase 1b), integración de raíz (`agents/orchestrator.md` §11 "Requisitos e
+  instalación").
+  - **Smoke EN VIVO real**: ciclo completo contra fixtures desechables, 2 bugs reales encontrados y
+    arreglados EN VIVO durante el propio smoke (no en review): `dependency-auditor` recibía la ruta
+    de `requirements.json` en vez del directorio del pack (confusión de convenio con
+    `env-checker`); `implementation-orchestrator` quemaba turnos sondeando el worktree de
+    `quality-fixer` resumido con comandos denegados por su propio allowlist, y declaraba un `KO`
+    fabricado pese a que `quality-fixer` había devuelto `OK`. Honestamente revelado lo no ejercitado:
+    la cadena completa `AskUserQuestion` real de la raíz (necesita owner humano interactivo) — se
+    verificó en su lugar el mecanismo de carga real de `dependency-installer` (el gate en sí),
+    directamente headless.
+  - **Review final de rama (Opus, 17 commits): 1 Critical** — verdicto `DONE · <detalle>` de
+    `doc-writer`/`implementation-orchestrator` rechazado por `validate-output.py` (mismo patrón que
+    `design-orchestrator` ya documentaba desde fase 4 como trampa, no replicado aquí; consecuencia
+    real: una fase completada con éxito reportada como `KO` y su worktree destruido). **+ 5
+    Important**: mismo bug de sondeo de worktree denegado en un segundo punto (paso 3, el fix de
+    fase 5b solo cubrió el paso 5); ruta sin expandir pasada a `env-checker`; fila `scan-secrets` de
+    `commands.md` soltada en silencio por el parser de su propio test de cobertura; `composer
+    update` bare permitido por el guard para `dependency-installer` (escape de alcance más allá de
+    la aprobación itemizada); sin test que valide plantillas de veredicto contra el hook real (el
+    hueco sistémico que dejó pasar el Critical).
+  - **1 sola ronda de fix + re-review Opus escopeada** (primera corrida de la re-review interrumpida
+    por sleep de la máquina — error de API, reintentada limpia) que verificó cada hallazgo
+    empíricamente contra los hooks reales, más 2 hallazgos genuinos nuevos que el propio implementer
+    encontró al arreglar (línea `evidence:` faltante en un `BLOCKED`; fila de consumidores de
+    `precedents.md` con un agente listado por error). La re-review encontró 1 Important residual
+    (el backstop `composer update` solo cerraba la forma exacta de 2 palabras, dejaba pasar 8
+    variantes solo-con-flags con el mismo radio de alcance) + 1 Minor cosmético — ambos arreglados
+    directamente por el controlador sin ronda de agente adicional, verificados contra el guard real.
+- Todo en `master`: **42 archivos de test, 42/42 en verde** (`bash tests/run.sh`, verificado tras el
+  merge combinado con el fix de la sesión peer).
+- Agentes vivos: `swarm:orchestrator` (raíz), memory (3), requirements (5: `requirements-orchestrator`,
+  `env-checker`, `dependency-auditor`, `dependency-installer`, más el roster ya existente), discovery
+  (5), analysis (7), design (4 + 3 lentes grill externos), implementation (7: `test-writer`,
+  `implementer`, `migration-engineer`, `doc-writer`, `quality-fixer`, `reviewer`,
+  `implementation-orchestrator` — dominio completo 7/7 del spec §7). Comandos: `/swarm:init`,
+  `/swarm:run`, `/swarm:doctor`.
 
-## Limpieza pendiente (no urgente, sin cambios desde hace 3 handoffs)
+## Limpieza pendiente (no urgente, sin cambios desde hace 4 handoffs)
 
 El worktree `.claude/worktrees/phase2-discovery` (rama `worktree-phase2-discovery`, ya mergeada
 fast-forward a `master`) sigue registrado porque estaba **bloqueado por una sesión Claude viva
-corriendo dentro de él** en el momento del merge (no se puede borrar el propio cwd activo). Cuando
-esa sesión termine: desde el repo principal,
+corriendo dentro de él** en el momento del merge. Cuando esa sesión termine: desde el repo principal,
 `git worktree remove .claude/worktrees/phase2-discovery && git branch -d worktree-phase2-discovery`.
 Verificar antes con `git worktree list -v` que ya no aparece `locked`.
 
-## Lección aplicada cinco veces ya (aplícala en cada fase nueva)
+## Lecciones acumuladas (aplícalas en cada fase nueva — release ya las necesitará todas)
 
-Todo orquestador de dominio que lance una hoja que NO preexiste necesita `Agent(<hoja1>,<hoja2>,…)`
-en su `tools:` — nunca solo `SendMessage`. Fase 4 lo extendió a agentes de OTRO plugin ya instalado,
-confirmado que el mismo mecanismo funciona igual para nombres cross-plugin.
-
-## Lección de fase 2 (protocolo compartido, no repetir por agente)
-
-El hábito por defecto de un modelo es cerrar su turno con una frase de cortesía o narración antes
-del veredicto. Ya está resuelto en `skills/swarm-protocol/SKILL.md` §4 ("cero preámbulo").
-
-## Lección de fase 4: contenido largo estructurado NUNCA por argumento de shell
-
-`planner` e `implementer` son los únicos agentes del repo con `Write`/`Edit` — escriben directo, sin
-pasar por `bash-guard.py`, cero riesgo de injection en contenido largo/con backticks/`$`.
-
-## Lección de fase 5a, aplicada TRES veces ya en fases distintas (8.3→9.3→10.3): réplica manual de
-## una exención de saneado se olvida si no se copia literal
-
-La exención de saneado del §4.4 (turn-output) NUNCA cubre el `summary --line` que propaga un
-veredicto BLOCKED/KO — cada dominio orquestador nuevo (analysis §8.3, design §9.3, implementation
-§10.3) reintrodujo este mismo bug porque el párrafo de exención no se copió literal del dominio
-anterior. **Para cualquier fase futura con orquestador nuevo: copiar literal el párrafo "Esa exención
-NO cubre el `summary --line` del cierre" de la sección equivalente más reciente (§10.3 ahora mismo),
-no reescribirlo de memoria.**
-
-## Lección de fase 5a: un allowlist nunca probado contra los comandos reales del propio agente es
-## un allowlist sin verificar
-
-El bug Critical de la review final de fase 5a (`cd` denegado para `quality-fixer`/`reviewer`) existió
-porque ninguna review de tarea ejecutó los comandos ```bash literales del cuerpo del agente contra
-`hooks/bash-guard.py` — solo se leyó el allowlist y se asumió coherente. Fase 5a añadió
-`tests/test_agent_bash_blocks_allowed.sh`, que extrae y prueba cada bloque ```bash de los 5 agentes
-de implementation contra el guard real. **Para cualquier fase futura que añada agentes con Bash:
-extender ese test (o su patrón) a los agentes nuevos — no confiar en lectura visual del allowlist.**
-
-## Lección de fase 5a: limpieza de recursos mutables debe cubrir TODOS los caminos de salida, no solo
-## el feliz — y necesita test dedicado, no solo prosa
-
-El primer fix de Task 6 (worktree leak) y el patrón general: cualquier orquestador que cree un
-recurso que hay que liberar (worktree, lock, proceso) necesita una sección de limpieza compartida
-referenciada desde CADA camino terminal documentado, más un test que compruebe eso por conteo/orden
-(mirar `tests/test_implementation_worktree_cleanup.sh` como plantilla) — no basta con prosa
-afirmando "siempre limpio".
+1. **"La lección" (aplicada 6+ veces ya)**: todo orquestador de dominio que lance una hoja que NO
+   preexiste necesita `Agent(<hoja1>,<hoja2>,…)` en su `tools:` — nunca solo `SendMessage`. Aplica
+   igual a agentes de OTRO plugin ya instalado.
+2. **Protocolo compartido, cero preámbulo**: ya resuelto en `skills/swarm-protocol/SKILL.md` §4, no
+   repetir por agente.
+3. **Contenido largo estructurado → `Write`/`Edit` nativo, nunca argumento de shell.**
+4. **La exención de saneado del §4.4 NUNCA cubre el `summary --line` de cierre** — este bug recurrió
+   en CUATRO dominios distintos (analysis→design→implementation→requisitos) porque cada autor nuevo
+   no copió el párrafo literal del dominio anterior. **Copiar literal, no reescribir de memoria.**
+5. **Un allowlist nunca probado contra los comandos reales del propio agente es un allowlist sin
+   verificar** — `tests/test_agent_bash_blocks_allowed.sh` extrae y prueba cada bloque ```bash de
+   cada agente contra el guard real; EXTENDER su lista (`AGENT_FILES`) en cada fase que añada
+   agentes con Bash, nunca confiar en lectura visual del JSON del allowlist.
+6. **Limpieza de recursos mutables (worktree, lock) debe cubrir TODOS los caminos de salida** — una
+   sección compartida referenciada desde cada camino terminal, más un test que lo compruebe por
+   conteo/orden, no solo prosa.
+7. **NUEVA (fase 5b): un verdicto documentado con sufijo `· <detalle>` tras `DONE` es rechazado por
+   `hooks/validate-output.py`** (`VERDICT_RE` solo admite sufijo tras `KO`/`BLOCKED`, nunca tras
+   `DONE`/`OK`). `design-orchestrator` ya lo documentaba como trampa desde fase 4; recurrió en
+   `doc-writer`/`implementation-orchestrator` en fase 5b porque nadie lo replicó. **Para cualquier
+   agente nuevo: `DONE` siempre solo en la línea 1, cualquier detalle va en una línea de cuerpo
+   (`- algo: detalle`), nunca `DONE · algo`.** Se añadió `tests/test_verdict_templates_valid.sh`
+   (extrae plantillas de veredicto de los agentes y las prueba contra el hook real) para 7 agentes —
+   **extender su lista a cada agente nuevo de fase 6**, sigue siendo el hueco sistémico más barato de
+   cerrar por adelantado.
+8. **NUEVA (fase 5b): un fix aplicado en un solo punto de un bug que aparece en varios sitios del
+   mismo fichero no está completo** — el bug del sondeo de worktree denegado (`implementation-orchestrator`)
+   se arregló en el paso 5 durante el propio smoke de fase 5b, pero el paso 3 tenía el MISMO patrón y
+   sobrevivió hasta la review final. **Al arreglar un bug de "instrucción pide un comando que el
+   allowlist deniega", grepear el fichero entero por el mismo patrón, no confiar en que un solo sitio
+   sea todo el bug.**
 
 ## Lo que NO se toca ni se construye todavía
 
-`dependency-auditor`/`dependency-installer` (spec §7) — cero código, solo prosa en
-`agents/requirements-orchestrator.md`, diferidos a fase 5c. `/swarm:status`/`/swarm:findings` son
-fase 6. `migration-engineer`/`doc-writer` (dominio implementation, spec §7) y el stack pack
-`php-ddd-symfony8` son fase 5b/5c. `delivery-orchestrator`/`release-manager`/`handoff-writer` (fase
-6, el primer dominio con `git push` real) — `agents/orchestrator.md` ya declara honestamente que no
-existen si el objetivo los necesita.
+`delivery-orchestrator`/`release-manager`/`handoff-writer` (spec §7/§15, fase 6) — cero código, solo
+prosa en `agents/orchestrator.md` diciendo honestamente que no existen. `/swarm:status`/
+`/swarm:findings` son fase 6 también. Un segundo stack pack está fuera de alcance de v1 (spec §8.1).
+Todo lo demás del roster de 30 agentes propios del plugin (spec: "Total 30... — grill×3 es externo")
+está construido: memory (3), requirements (5), discovery (5), analysis (7), design (4), implementation
+(7 — completo), más la raíz. Fase 6 añade los 3 últimos hasta completar el total.
 
-## Backlog no bloqueante (de las reviews finales de fases 1-5a — no urgente, atender cuando toque el
+## Backlog no bloqueante (de las reviews finales de fases 1-5b — no urgente, atender cuando toque el
 área correspondiente)
 
-- `scripts/req-check.sh` no valida su entrada — inalcanzable hoy, requisito real para fase 5b/5c.
 - `hooks/bash-guard.py`: no inspecciona `$(...)`/backticks DENTRO de argumentos sin comillas de un
   comando ya permitido (con comillas sí lo cubre el saneado de §4.4) — preexistente de fase 1,
-  confirmado en fases 1b/2/3/5a. Hardening dedicado antes de dar más agentes con `Bash` a fases futuras.
+  confirmado en fases 1b/2/3/5a/5b. Hardening dedicado antes de dar más agentes con `Bash` a fase 6
+  — especialmente relevante ahí porque será el primer dominio con `git push` real.
 - `hooks/bash-allowlist.json`: `pwd`/`echo` no están en ningún allowlist — no bloquea nada hoy.
-- `is_mem_script` en `bash-guard.py` sigue haciendo match por basename+carpeta padre, más laxo que
-  el match exacto ya viable — candidato a simplificar.
-- Ítem 3 del checklist de smoke de fase 4 (exclusión design↔analysis) no se re-ejecutó en vivo —
-  verificado solo por code review. Riesgo bajo, repetir si se toca esa lógica.
-- Fase 5a: la guardia anti-`master` es una lista de 2 nombres (`master`/`main`) — `develop`/`trunk`/
-  `release/*` no están cubiertos. Riesgo bajo (merge siempre local), `git rev-parse --abbrev-ref
-  origin/HEAD` cubriría la rama por defecto real del repo con un comando más. Parcheable cuando se
-  toque esa lógica de nuevo.
+- Fase 5a: la guardia anti-`master` de `implementation-orchestrator` es una lista de 2 nombres
+  (`master`/`main`) — `develop`/`trunk`/`release/*` no cubiertos. Riesgo bajo (merge siempre local),
+  `git rev-parse --abbrev-ref origin/HEAD` lo cubriría. **Relevante para fase 6**: el dominio
+  delivery SÍ tocará remoto de verdad — esta guardia necesita revisión/extensión real ahí, no solo
+  parcheo cosmético.
 - Fase 5a: `git worktree remove` no borra la rama `worktree-agent-<agentId>` — se acumula una rama
-  muerta por fase implementada. Candidato a un `git branch -d` tras merge exitoso, o documentar como
-  intencional.
-- `planner.md` apunta a un plan real de este mismo repo como ejemplo del grano de `- [ ] Step N` a
-  replicar — dogfooding intencional (v1 asume que el plugin corre sobre ESTE repo), documentar si
-  fase 5+ alguna vez distribuye el plugin a otro repo.
+  muerta por fase implementada.
+- Fase 5b: el chequeo `libs` de `requirements.json` sigue siendo no-bloqueante por diseño (ruling 5,
+  split por SRP: `req-check.sh` reporta, `dependency-auditor` verifica de verdad vía comandos del
+  pack). Extensiones de PHP (`ext-pdo` etc.) no son expresables en el esquema actual — documentado en
+  `conventions.md` del pack, sin consumidor real todavía, no bloquea.
+- Fase 5b: piso `php >= 8.2` del pack es conservador (ruling 7) — no verificado contra el floor real
+  de Symfony 8 en su momento; cambio de una línea si se confirma un floor más alto.
+- Fase 5b: `dependency-installer` acotado a gestores de proyecto, nunca `brew`/`apt` (ruling 2) —
+  desviación consciente del spec §7, marcada como revisable.
 
-## Rulings arquitectónicos de fase 5a (resueltos por ruling propio, sesión con autonomía delegada —
-revisar si algo no encaja, aunque ya están implementados)
+## Siguiente paso: fase 6 (delivery) — spec §7/§15, última fase antes de v1 estable
 
-1. **`implementation-orchestrator` nunca encadena, ni en `tier: full`** — a diferencia de analysis/
-   design (que sí encadenan en `full`), este dominio SIEMPRE requiere invocación explícita del owner.
-   Coste si está mal: ninguno operativo (más seguro que el spec exige), solo fricción de un paso
-   manual extra por fase.
-2. **`quality-fixer`/`reviewer` apuntan al worktree de `implementer` por ruta absoluta en el prompt,
-   sin `isolation:` propia** — evita el coste de un segundo worktree por leaf cuando ya existe uno
-   compartible. Coste si está mal: bajo, mismo patrón ya usado por los lentes grill de fase 4.
-3. **El merge lo hace `implementation-orchestrator`, nunca `implementer`** — separa "quien escribe
-   código" de "quien tiene poder de fusión", con la hoja de código en un worktree aislado sin
-   `Agent` tool (jerarquía de 2 niveles, spec §3.2 regla 8). Coste si está mal: ninguno, es más
-   restrictivo que el mínimo del spec.
-
-## Siguiente paso: fase 5b o 5c (spec §7/§15)
-
-Fase 5 se partió en sub-fases por tamaño (ruling de sesión anterior): **5a (hecha)** = núcleo TDD +
-merge. Quedan:
-- **5b: stack pack `php-ddd-symfony8`** (`skills/pack-php-ddd-symfony8/`) — convenciones/plantillas
-  específicas de stack que `implementer`/`test-writer` consumen.
-- **5c: `migration-engineer` + `doc-writer` + `dependency-auditor`/`dependency-installer`** (estos
-  dos últimos diferidos desde fase 1b, dominio requirements).
-Decidir el orden (5b antes de 5c, o viceversa) al empezar — ninguno depende estrictamente del otro,
-pero `dependency-auditor`/`dependency-installer` llevan más tiempo esperando (desde fase 1b). Aún
-sin brainstorming/spec detallado más allá de lo que ya recoge
-`docs/superpowers/specs/2026-09-01-swarm-design.md` §7/§15. Mismo patrón que fases anteriores:
-(brainstorming corto si hace falta) → plan → Subagent-Driven Development → smoke checklist en vivo
-→ review final de rama → **fix wave único si hay hallazgos + re-review escopeada** (patrón que
-salvó fase 5a de un bug Critical real) → merge local a master (sin preguntar, instrucción permanente
-del owner).
-
-Después de 5b/5c: **fase 6 (delivery)** — `delivery-orchestrator`/`release-manager`/`handoff-writer`,
-primer dominio con `git push` real, diseño de seguridad aún más alto que el de implementation (esa
-fase fusiona local; delivery publica). Esa es la última fase antes de poder declarar v1 estable.
+`delivery-orchestrator` + `release-manager` + `handoff-writer` — **primer dominio con `git push`
+real** (todo lo anterior, incluida la fase 5a/5b con `git merge`, se quedaba estrictamente local).
+Diseño de seguridad debe ser AL MENOS tan riguroso como el checkpoint humano de
+`implementation-orchestrator` (nunca encadena automáticamente) — probablemente más: publicar código
+es la acción más consecuente e irreversible que puede hacer el enjambre. Antes de escribir el plan:
+1. Releer spec §7/§15 fase 6 en detalle (rol de cada uno de los 3 agentes, qué activa el dominio).
+2. Decidir el mecanismo de aprobación del owner para un push/PR real — mismo patrón que
+   `dependency-installer` (fase 5b: `approved:` construido SOLO por la raíz vía `AskUserQuestion`,
+   nunca inferido) es el precedente más cercano, pero push/PR tiene mayor radio de alcance que
+   instalar una dependencia — puede necesitar algo más estricto.
+3. Mismo patrón de ejecución que fases anteriores: (brainstorming corto si hace falta) → plan →
+   Subagent-Driven Development → smoke checklist EN VIVO → review final de rama → **fix wave único +
+   re-review escopeada** (el patrón que salvó fase 5a y 5b de bugs Critical reales) → merge local a
+   master (sin preguntar).
+4. Tras fase 6: **v1 estable** — repasar el backlog completo de este handoff, decidir qué se arregla
+   antes de declarar v1 y qué queda como backlog post-v1 documentado.
 
 ## Memoria persistente relevante
 
-Buscar con mem-search si está disponible en esta sesión: convención de nombres estable, routing de
-modelos (Fable/Opus decide y revisa, Sonnet ejecuta planes cerrados), identidad git personal
+Buscar con mem-search si está disponible: convención de nombres estable, routing de modelos
+(Fable/Opus decide y revisa, Sonnet ejecuta planes cerrados), identidad git personal
 (`garcia.gordo.david@gmail.com`), regla de saneado shell compartida (`skills/swarm-protocol/SKILL.md`
-§4.4), la lección de fase 4 (contenido largo → `Write`/`Edit` nativo), y las 3 lecciones nuevas de
-fase 5a arriba (réplica manual de exención de saneado, allowlist sin probar contra comandos reales,
-limpieza de recursos en todos los caminos de salida).
+§4.4), y las 8 lecciones acumuladas arriba (especialmente la 4, 7 y 8 — patrones que ya han recurrido
+más de una vez en fases distintas).
