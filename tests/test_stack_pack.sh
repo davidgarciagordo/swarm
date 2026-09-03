@@ -57,22 +57,47 @@ import json, re, sys
 
 KEYS = {"lint","fix","typecheck","test","test-one","scan-deps","outdated","licenses",
         "scan-secrets","sast","migrate-diff","migrate-status","migrate-up"}
+
+def is_header_or_separator(first_cell):
+    return first_cell in ("clave", "---") or set(first_cell) <= set("- :")
+
+data_lines = 0
+parsed = 0
 rows = 0
 for line in open(sys.argv[1]):
     if not line.startswith("|"):
         continue
-    cells = [c.strip() for c in line.strip().strip("|").split("|")]
-    if len(cells) != 4 or cells[0] in ("clave", "---") or set(cells[0]) <= set("- :"):
+    raw_cells = line.strip().strip("|").split("|")
+    first = raw_cells[0].strip()
+    if is_header_or_separator(first):
         continue
-    key, _cond, cmd, execs = cells
-    assert key in KEYS, "unknown command key: " + key
+    data_lines += 1
+    # No partimos en exactamente 4 celdas por un split naive: el comando (3a columna) puede
+    # contener sus propios "|" literales (p.ej. la alternancia de un regex de grep), que un split
+    # ciego trocea de mas. clave/condicion (las 2 primeras) y ejecutor (la ultima) NUNCA llevan
+    # "|" -- así que partimos desde ambos extremos y unimos lo que quede en medio como el comando
+    # real, backticks y pipes internos intactos.
+    if len(raw_cells) < 4:
+        continue
+    key = raw_cells[0].strip()
+    _cond = raw_cells[1].strip()
+    execs = raw_cells[-1].strip()
+    cmd = "|".join(raw_cells[2:-1]).strip()
+    if key not in KEYS:
+        continue
     m = re.match(r"^`(.+)`$", cmd)
-    assert m, "command cell must be wrapped in backticks: " + cmd
+    if not m:
+        continue
+    parsed += 1
     # Los <placeholders> se sustituyen por un token inocuo antes de pasar por el guard.
     real = re.sub(r"<[^>]+>", "PLACEHOLDER", m.group(1))
     for agent in [e.strip() for e in execs.split("+")]:
         print(json.dumps([("swarm:" + agent), real]))
     rows += 1
+assert parsed == data_lines, (
+    "parser dropped %d of %d table data rows silently (parsed=%d, data_lines=%d)"
+    % (data_lines - parsed, data_lines, parsed, data_lines)
+)
 assert rows >= 12, "expected the full §8 command set, got %d rows" % rows
 PYEOF
 )"

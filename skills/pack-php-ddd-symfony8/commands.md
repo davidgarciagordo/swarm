@@ -25,7 +25,7 @@ tiene comando en este repo y la hoja lo dice explícitamente en vez de inventars
 | scan-deps | existe `composer.lock` | `composer audit --format=json` | dependency-auditor + vulnerability-scanner |
 | outdated | existe `composer.lock` | `composer outdated --direct --format=json` | dependency-auditor |
 | licenses | existe `composer.lock` | `composer licenses --format=json` | dependency-auditor + vulnerability-scanner |
-| scan-secrets | siempre | `grep -rnE "(APP_SECRET|DATABASE_URL|MAILER_DSN|JWT_[A-Z_]*|[A-Z_]*_PASSWORD|[A-Z_]*_TOKEN|BEGIN (RSA|OPENSSH) PRIVATE KEY)" --include=*.php --include=*.yaml --include=*.yml --include=*.env --include=*.dist ." | vulnerability-scanner |
+| scan-secrets | siempre | `grep -rnE "(APP_SECRET|DATABASE_URL|MAILER_DSN|JWT_[A-Z_]*|[A-Z_]*_PASSWORD|[A-Z_]*_TOKEN|BEGIN (RSA|OPENSSH) PRIVATE KEY)" --include=*.php --include=*.yaml --include=*.yml --include=*.env --include=*.dist .` | vulnerability-scanner |
 | sast | existe `deptrac.yaml` o `deptrac.dist.yaml` | `php vendor/bin/deptrac analyse --no-progress` | vulnerability-scanner |
 | sast | existe `phpmd.xml` | `php vendor/bin/phpmd src text phpmd.xml` | vulnerability-scanner |
 | migrate-diff | existe `bin/console` y `doctrine/migrations` en `composer.json` | `php bin/console doctrine:migrations:diff --no-interaction` | migration-engineer |
