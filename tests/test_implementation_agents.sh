@@ -71,5 +71,26 @@ if [ -f "$f" ]; then
   assert_eq "deny" "$(guard "swarm:reviewer" 'git commit -m x')" "reviewer (read-only) cannot commit"
 fi
 
+
+# ---------- T5: implementer (isolation: worktree, único código de aplicación real de este dominio) ----------
+f="$PLUGIN_ROOT/agents/implementer.md"
+assert_eq "0" "$([ -f "$f" ] && echo 0 || echo 1)" "agents/implementer.md exists"
+if [ -f "$f" ]; then
+  front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"; b="$(body "$f")"
+  assert_eq "0" "$(echo "$front" | grep -q '^model: sonnet$' && echo 0 || echo 1)" "implementer model is sonnet (spec §7)"
+  assert_eq "0" "$(echo "$front" | grep -q '^maxTurns: 30$' && echo 0 || echo 1)" "implementer maxTurns is 30 (spec §7)"
+  assert_eq "0" "$(echo "$front" | grep -q '^isolation: worktree$' && echo 0 || echo 1)" "implementer runs in isolation: worktree (spec §7/§9.3)"
+  assert_eq "1" "$(has "$tools" 'AskUserQuestion')" "implementer NEVER has AskUserQuestion"
+  assert_eq "0" "$(has "$tools" 'Write')" "implementer HAS Write (real application code)"
+  assert_eq "0" "$(has "$tools" 'Edit')" "implementer HAS Edit"
+  assert_eq "1" "$(has "$tools" 'Agent')" "implementer is a leaf: spawns nobody (2-level hierarchy, spec §3.2 rule 8)"
+  assert_eq "0" "$(has "$b" 'git commit')" "implementer documents committing its own work in its own worktree"
+  assert_eq "0" "$(has "$b" 'GREEN')" "implementer documents confirming GREEN before committing"
+  assert_eq "0" "$(has "$b" '[x]')" "implementer documents flipping the plan's step checkboxes as part of its commit"
+  assert_eq "allow" "$(guard "swarm:implementer" 'git add -A')" "implementer can git add in its own worktree"
+  assert_eq "allow" "$(guard "swarm:implementer" 'git commit -m x')" "implementer can git commit"
+  assert_eq "deny" "$(guard "swarm:implementer" 'git merge x')" "implementer (leaf) cannot merge — only the orchestrator merges"
+fi
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
