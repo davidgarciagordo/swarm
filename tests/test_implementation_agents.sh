@@ -114,5 +114,26 @@ if [ -f "$f" ]; then
   assert_eq "deny"  "$(guard "swarm:migration-engineer" 'git push origin master')" "migration-engineer cannot push"
 fi
 
+
+# ---------- T5c: doc-writer (fase 5b, condicional, consumidor del formato del pack) ----------
+f="$PLUGIN_ROOT/agents/doc-writer.md"
+assert_eq "0" "$([ -f "$f" ] && echo 0 || echo 1)" "agents/doc-writer.md exists"
+if [ -f "$f" ]; then
+  front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"; b="$(body "$f")"
+  assert_eq "0" "$(echo "$front" | grep -q '^model: sonnet$' && echo 0 || echo 1)" "doc-writer model is sonnet (spec §7)"
+  assert_eq "0" "$(echo "$front" | grep -q '^maxTurns: 15$' && echo 0 || echo 1)" "doc-writer maxTurns is 15 (spec §7)"
+  assert_eq "0" "$(has "$tools" 'Write')" "doc-writer HAS Write (writes real docs)"
+  assert_eq "0" "$(has "$tools" 'Edit')" "doc-writer HAS Edit (updates changelog)"
+  assert_eq "1" "$(has "$tools" 'Agent')" "doc-writer is a leaf: spawns nobody"
+  assert_eq "1" "$(has "$tools" 'AskUserQuestion')" "doc-writer never asks the owner"
+  assert_eq "1" "$(echo "$front" | grep -q '^isolation:' && echo 0 || echo 1)" "doc-writer has NO worktree of its own (reuses implementer's)"
+  assert_eq "0" "$(has "$b" 'worktree:')" "doc-writer documents the worktree: header line"
+  assert_eq "0" "$(has "$b" 'pack:')" "doc-writer documents the pack: header line"
+  assert_eq "0" "$(has "$b" 'Sin pack')" "doc-writer documents the generic fallback (spec §8)"
+  assert_eq "0" "$(has "$b" 'changelog')" "doc-writer covers the changelog (spec §7)"
+  assert_eq "0" "$(has "$b" 'Write')" "doc-writer writes long content with Write, never through a shell arg"
+  assert_eq "0" "$(has "$b" 'DOC ·')" "doc-writer documents its DOC finding tag"
+fi
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
