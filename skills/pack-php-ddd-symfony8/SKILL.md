@@ -26,8 +26,8 @@ recibe la línea `pack:` — cada una cae en su modo genérico documentado.
 | fichero | para quién | contenido |
 |---|---|---|
 | `commands.md` | `quality-fixer`, `test-writer`, `implementer`, `migration-engineer`, `vulnerability-scanner`, `dependency-auditor` | forma canónica de cada comando determinista, con su condición de detección y su ejecutor |
-| `conventions.md` | `implementer`, `test-writer`, `migration-engineer`, `data-model-auditor`, `doc-writer` | capas, layout de directorios, naming, estilo, extensiones de PHP esperadas |
-| `boundaries.md` | TODA hoja que escriba, más `data-model-auditor` (read-only) | qué NO se toca nunca |
+| `conventions.md` | `implementer`, `test-writer`, `quality-fixer`, `data-model-auditor`, `doc-writer`, `vulnerability-scanner` | capas, layout de directorios, naming, estilo, extensiones de PHP esperadas |
+| `boundaries.md` | `implementer`, `test-writer`, `quality-fixer`, `migration-engineer` (escriben), `data-model-auditor`, `vulnerability-scanner` (read-only) | qué NO se toca nunca |
 | `precedents.md` | `doc-writer` | patrones ya en uso que se reutilizan antes de introducir uno nuevo |
 | `requirements.json` | `requirements-orchestrator` → `env-checker` | requisitos de OS/proyecto/librerías que este stack añade a los del plugin |
 

@@ -47,8 +47,11 @@ INTERP_DENIED_FLAGS = {
 # (`composer update` a secas, actualización de TODO el árbol), muy por encima de cualquier
 # paquete aprobado explícitamente por el owner (dependency-installer, fase 5b, `approved:`).
 # Hasta ahora lo único que lo impedía era la prosa de agents/dependency-installer.md — esto es
-# el backstop determinista: se deniega cuando el comando tiene EXACTAMENTE estas dos palabras y
-# nada más (sin paquete), sin importar el agente ni si el prefijo está en su allowlist.
+# el backstop determinista: se deniega si, tras las dos palabras del prefijo, NINGUNA palabra
+# restante deja de empezar por "-" — es decir, ni el caso exacto de dos palabras ni ningún
+# número de flags (`--no-interaction`, `-n`, `-W`…) sin nombre de paquete real cuelan, porque
+# eso sigue siendo "todo el árbol" con el mismo alcance que el bare de dos palabras. En cuanto
+# aparece UNA palabra que no empieza por "-" (el paquete), se permite.
 BARE_TWO_WORD_DENIED = {
     ('composer', 'update'),
 }
@@ -145,7 +148,11 @@ def segment_allowed(segment, allowlist):
         for word in words[1:]:
             if word in FIND_DENIED_FLAGS:
                 return False
-    if len(words) == 2 and (command_word, words[1]) in BARE_TWO_WORD_DENIED:
+    if (
+        len(words) >= 2
+        and (command_word, words[1]) in BARE_TWO_WORD_DENIED
+        and not any(not w.startswith('-') for w in words[2:])
+    ):
         return False
     denied_flags = INTERP_DENIED_FLAGS.get(command_word)
     if denied_flags:
