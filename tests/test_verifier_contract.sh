@@ -31,9 +31,12 @@ assert_eq "0" "$(echo "$body" | grep -qF 'verdict:' && echo 0 || echo 1)" "body 
 assert_eq "0" "$(echo "$body" | grep -qF '## Salida' && echo 0 || echo 1)" "body documents 'Read de agents/<domain>.md, sección ## Salida' as the contract source"
 assert_eq "0" "$(echo "$body" | grep -qF 'mem-files.sh" query' && echo 0 || echo 1)" "body queries mem-files.sh for real findings"
 assert_eq "0" "$(echo "$body" | grep -qF 'run:' && echo 0 || echo 1)" "body filters findings by [run:<run-id>]"
+assert_eq "0" "$(echo "$body" | grep -qF 'query "\[run:' && echo 0 || echo 1)" "body escapes the [run:...] regex bracket expression (unescaped = matches any single char, loses run isolation)"
 assert_eq "0" "$(echo "$body" | grep -qF 'VERIFY' && echo 0 || echo 1)" "body's finding TAG is VERIFY"
-assert_eq "0" "$(echo "$body" | grep -qF 'no ves la transcripción interna' && echo 0 || echo 1)" "body states the honest limitation (no visibility into the domain's internal transcript)"
+assert_eq "0" "$(echo "$body" | grep -qFi 'ves la transcripción interna' && echo 0 || echo 1)" "body states the honest limitation (no visibility into the domain's internal transcript)"
 assert_eq "0" "$(echo "$body" | grep -qF 'files=0' && echo 0 || echo 1)" "body rejects OK with files=0"
+assert_eq "0" "$(echo "$body" | grep -qF '${CLAUDE_PLUGIN_ROOT}/agents/' && echo 0 || echo 1)" "body resolves agents/<domain>.md via \${CLAUDE_PLUGIN_ROOT}, never a bare repo-relative Read (Read doesn't expand env vars)"
+assert_eq "0" "$(echo "$body" | grep -qF 'ls -d "${CLAUDE_PLUGIN_ROOT}/agents/' && echo 0 || echo 1)" "body resolves the domain contract's absolute path via 'ls -d' before Read (Read never expands \${CLAUDE_PLUGIN_ROOT} itself)"
 
 # read-only real contra bash-guard (fichero nuevo, sin helper _run_hook — invoca el hook directo,
 # mismo patrón que tests/test_discovery_orchestrator_spawns.sh)

@@ -226,10 +226,19 @@ verdict: <su veredicto literal completo>")
 - **`KO <motivo>`** (1er intento): `SendMessage(to: "<nombre del dominio>", "verify KO: <motivo> —
   corrige y devuelve tu veredicto otra vez")` — el dominio sigue vivo/resumible (§2bis), su
   respuesta te llega como mensaje en un turno posterior, igual que cualquier `SendMessage` a un
-  agente ya lanzado. Cuando llegue, relanza `Agent(subagent_type: "swarm:verifier", ...)` una
-  SEGUNDA vez con el veredicto corregido — es una instancia nueva bajo el mismo nombre, no hay
-  estado que arrastrar entre los dos intentos (el verificador es puro read-only).
-- **`KO` la segunda vez** (mismo motivo o no): two-strike, igual que
+  agente ya lanzado.
+  - **Si esa respuesta es un veredicto corregido normal** (`OK`/`DONE` u otra línea de cierre EN
+    VERDE equivalente a la que ya tenías), relanza `Agent(subagent_type: "swarm:verifier", ...)`
+    una SEGUNDA vez con el veredicto corregido — es una instancia nueva bajo el mismo nombre, no
+    hay estado que arrastrar entre los dos intentos (el verificador es puro read-only).
+  - **Si esa respuesta es `BLOCKED`** (el dominio agota su propio presupuesto de turnos al
+    corregir — `hooks/validate-output.py` convierte `turns_k >= turns_max` en un `systemMessage`
+    de maxTurns, no en un veredicto normal corregido) **o cualquier otra respuesta que no sea un
+    veredicto corregido de verdad**, NO relances `swarm:verifier` una segunda vez: no hay nada
+    corregido que reverificar. Propaga ese `BLOCKED` literal directamente como la línea de cierre
+    (mismo patrón que "`BLOCKED`/`KO` propagado" del resto de §4) y sigue con `curate` normal.
+- **`KO` la segunda vez** (mismo motivo o no, tras un veredicto corregido REAL que sí volvió a
+  pasar por `swarm:verifier`): two-strike, igual que
   `hooks/validate-output.py` — NO cures nada: la línea de cierre pasa a ser
   `- run cerrado: BLOCKED verificación fallida de <dominio>: <motivo del verifier>` y sigues con
   `curate` normal (el run se cierra `BLOCKED`, nunca en falso verde).
