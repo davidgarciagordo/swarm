@@ -21,5 +21,9 @@ assert_eq "0" "$(has "$body" '## 9. Diseño')" "root has a dedicated §9 Diseño
 # §4 cierre: nuevas líneas de camino terminal para design
 assert_eq "0" "$(has "$body" 'diseño completado')" "root's close section documents the design terminal path"
 
+# tier: light must never chain to design — both termination clauses that make this airtight
+assert_eq "0" "$(has "$body" 'Si `tier: light`, el run termina aquí')" "§5.4 explicitly terminates the run in tier light instead of chaining to design"
+assert_eq "0" "$(has "$body" 'Solo `tier: full`')" "§9.1 gates the whole design domain on tier full"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

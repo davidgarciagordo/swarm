@@ -163,14 +163,6 @@ Fases según spec §15:
 5. **Implementación (planeado).** 7 agentes + `dependency-auditor`/`dependency-installer` + el stack pack `php-ddd-symfony8`.
 6. **Entrega (planeado).** 3 agentes + `/swarm:status`, `/swarm:findings`.
 
-## Ledger de documentación
-
-- 2026-09-03: esta tanda solo cierra el hueco de precisión "construido/planeado" (dominio de diseño
-  de fase 4 marcado correctamente arriba, diagrama mermaid actualizado). La petición aparte y
-  explícita del owner de una **pasada completa de documentación de uso** (qué es el plugin, cómo se
-  instala y cómo se usa cada comando con ejemplos reales) **sigue abierta** — este fix estructural
-  no la satisface.
-
 ## Convención de nombres
 
 Todo agente lanzado va **nombrado con su rol** — el basename de su tipo, sin sufijos ni variantes (`memory-orchestrator`, `analysis-orchestrator`, y en fases futuras `pattern-advisor`, `dependency-installer`, …). Esto es lo que permite que agentes pares se manden `SendMessage` entre sí por nombre sin tener que descubrirlo antes, y que el owner se dirija a un agente concreto directamente — "avisa a `memory-builder` cuando termine" — sin que quien lo pide tenga que averiguar quién es. `memory-orchestrator` es el único caso obligatorio hoy: una única instancia nombrada por run (spec §4.5).

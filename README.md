@@ -163,13 +163,6 @@ Phases from spec §15:
 5. **Implementation (planned).** 7 agents + `dependency-auditor`/`dependency-installer` + the `php-ddd-symfony8` stack pack.
 6. **Delivery (planned).** 3 agents + `/swarm:status`, `/swarm:findings`.
 
-## Documentation ledger
-
-- 2026-09-03: this pass only closes the "built/planned" accuracy gap (phase 4 / design domain
-  marked correctly above, mermaid diagram updated). The owner's separate, explicit request for a
-  **full usage-documentation pass** (what the plugin is, how to install it, and how to use each
-  command with real worked examples) is **still open** — not satisfied by this structural fix.
-
 ## Naming convention
 
 Every spawned agent is launched **named after its role** — the basename of its type, no suffixes or variants (`memory-orchestrator`, `analysis-orchestrator`, and in future phases `pattern-advisor`, `dependency-installer`, …). This is what lets peer agents `SendMessage` each other by name without discovering it first, and lets the owner address a specific agent directly — "tell `memory-builder` when it's done" — without the caller having to look up who that is. `memory-orchestrator` is the one case that's mandatory today: a single named instance per run (spec §4.5).
