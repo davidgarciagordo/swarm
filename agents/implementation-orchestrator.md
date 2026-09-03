@@ -147,8 +147,9 @@ git merge --abort
 ```
 y después sigue el camino normal de "## Limpieza del worktree" más abajo (el worktree de
 `implementer` ya no sirve — el conflicto no se resuelve reintentando el merge sin ayuda). Tu
-veredicto final es `KO merge con conflicto: <ficheros>` (los ficheros que reportó `git merge`/`git
-status` en conflicto) — nunca `DONE`, nunca dejes la rama del run con un merge a medio resolver.
+veredicto final es `KO merge con conflicto: <ficheros>` (los ficheros que reportó `git merge` en
+conflicto — tras el `--abort`, `git status` ya no los muestra) — nunca `DONE`, nunca dejes la rama
+del run con un merge a medio resolver.
 
 ## Limpieza del worktree — SIEMPRE, en CUALQUIER salida terminal desde que tienes `agentId`
 

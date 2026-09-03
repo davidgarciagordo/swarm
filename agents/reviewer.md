@@ -22,7 +22,7 @@ grill de fase 4). Read-only por construcción: nunca `Write`/`Edit` — tú solo
 ## Arranque
 
 1. `RUN`: de tu cabecera (`run-id:` o `adhoc`, protocolo §2). `operation: review` y
-   `worktree: <ruta absoluta, .claude/worktrees/agent-<agentId>>` en tu cabecera, más
+   `worktree: <ruta absoluta, <repo-root>/.claude/worktrees/agent-<agentId>>` en tu cabecera, más
    `base: <sha del commit RED de test-writer>` (el punto de partida del diff — todo lo que
    `implementer`+`quality-fixer` añadieron por encima). El `<agentId>` que necesitas para el diff
    (paso 3) es el basename de esa ruta sin el prefijo `agent-`.
