@@ -64,6 +64,23 @@ JSONEOF
       echo "    }"
       echo "}"
     } > src/Controller/InvoiceController.php
+    mkdir -p "$dir/tests/Unit"
+    {
+      echo "<?php"
+      echo ""
+      echo "namespace Tests\\Unit;"
+      echo ""
+      echo "use PHPUnit\\Framework\\TestCase;"
+      echo "use App\\Foo;"
+      echo ""
+      echo "class FooTest extends TestCase"
+      echo "{"
+      echo "    public function testFooExists(): void"
+      echo "    {"
+      echo "        \$this->assertTrue(class_exists(Foo::class));"
+      echo "    }"
+      echo "}"
+    } > tests/Unit/FooTest.php
     git add -A
     git commit -q -m "chore: initial fixture commit"
   )
