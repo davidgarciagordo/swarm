@@ -117,15 +117,27 @@ sin fallar cuando `gh pr create` no funcionaba — el hueco real era más estrec
 explícitamente que solo crea en GitHub.
 
 Presentadas 3 opciones de alcance (fix mínimo / soporte real de GitLab vía `glab` / arquitectura de
-adaptador por host); **el owner eligió el fix mínimo** (commit `60eca27`, ya en master, review
-Sonnet limpia, 53/53): el mensaje degradado ahora detecta si el remoto es GitHub antes de intentar
-`gh pr create` — si no lo es, da un mensaje genérico sin nombrar `gh`; `action=create` ahora dice
-explícitamente "solo crea en GitHub (v1.1)" y apunta a `action=use` (agnóstico de host, ya
-funcionaba) para un repo que el owner cree él mismo en otra plataforma.
+adaptador por host); **el owner eligió el fix mínimo** (commit `60eca27`, ya en master): el mensaje
+degradado ahora detecta si el remoto es GitHub antes de intentar `gh pr create` — si no lo es, da un
+mensaje genérico sin nombrar `gh`; `action=create` ahora dice explícitamente "solo crea en GitHub
+(v1.1)" y apunta a `action=use` (agnóstico de host, ya funcionaba) para un repo que el owner cree él
+mismo en otra plataforma.
 
-**Diferido, no descartado**: soporte real de creación de repo/apertura de MR en GitLab (vía `glab`,
-mismo nivel de escrutinio de guard que `gh` se llevó en fase 6) sigue siendo backlog genuino si el
-owner lo quiere más adelante — es la opción 2 que no eligió, no algo que "haga falta" arreglar.
+**Review independiente confirmada (2026-09-04, agente `general-purpose`/Sonnet, dispatch separado):
+APPROVED, cero hallazgos.** Verificó punto por punto: el chequeo de host se ejecuta ANTES de
+`gh auth status` (no solo lo menciona en prosa); las 3 ramas de degradación (GitHub+éxito,
+GitHub+fallo, no-GitHub) son completas y sin solape — cualquier URL rara cae en el caso genérico, no
+hay 4º caso sin cubrir; cero regresión en `approved-push:`/re-verificación/`git push` (fuera del
+diff); `agents/orchestrator.md` §12.2bis opción C referenciada correctamente; los 3 asserts nuevos de
+`tests/test_delivery_agents.sh` prueban subcadenas reales introducidas por el commit, no tautologías;
+53/53 en verde; identidad git personal correcta en `60eca27`. **Este ítem queda cerrado — ambos
+huecos concretos que David señaló (consejo `gh` erróneo en host no-GitHub, alcance de `action=create`
+sin documentar) están arreglados y verificados dos veces.**
+
+**Lo único que sigue genuinamente abierto** (no es un gap arreglable a bajo coste, es alcance que el
+owner no eligió): soporte real de creación de repo/apertura de MR en GitLab vía `glab` (mismo nivel
+de escrutinio de guard que `gh` se llevó en fase 6) — era la opción 2 de las 3 presentadas, diferida
+por decisión explícita del owner, no descartada. Candidato de v1.1 si algún día se quiere abordar.
 
 ### Backlog de seguridad/robustez (bajo riesgo hoy, documentado explícitamente en cada fase)
 
