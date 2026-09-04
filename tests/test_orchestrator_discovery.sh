@@ -34,8 +34,8 @@ assert_eq "0" "$(has "$body" 'borra cada barra invertida')" "root strips literal
 assert_eq "0" "$(has "$body" '`--text`/`--fix`/`--line`')" "sanitization rule covers --line too"
 assert_eq "0" "$(has "$body" 'no tiene NINGÚN tratamiento de la barra invertida')" "root explains the bash-guard quote-state mismatch"
 
-# N1 — §5.1 compara objetivo SANEADO contra objetivo SANEADO
-assert_eq "0" "$(has "$body" 'por el **saneado de §5.0**, el mismo que aplicó §5.4')" "skip-check sanitizes the CURRENT objective before comparing"
+# N1 — §5.1 compara texto SANEADO contra texto SANEADO (hoy el campo raw:, ver el gate de §1.0bis)
+assert_eq "0" "$(has "$body" 'por el **saneado de §5.0**, el mismo que aplicaron §5.3/§5.4')" "skip-check sanitizes the CURRENT run's raw argument before comparing"
 
 # N6 — el espejo a buzón es de los SendMessage reenviados, no de toda escritura
 assert_eq "1" "$(has "$body" 'aplica a toda escritura')" "root no longer overstates the mailbox mirror scope"
@@ -49,9 +49,9 @@ assert_eq "0" "$(has "$body" 'maxTurns: 12')" "root explains the turn-budget rea
 assert_eq "0" "$(has "$body" 'KO batch sin responder')" "root defines the verdict when the owner cancels AskUserQuestion"
 assert_eq "0" "$(has "$body" '[pendiente]')" "root records a cancelled batch as a PENDING decision"
 
-# P1-d — objective: en la línea de decisión, y §5.1 matchea contra ese campo
+# P1-d — objective: sigue en la línea de decisión (§5.4); el match de §5.1 va contra raw:
 assert_eq "0" "$(has "$body" 'objective: <objetivo literal saneado>')" "decision line carries the literal objective"
-assert_eq "0" "$(has "$body" 'nunca** contra el texto de las preguntas')" "skip-check matches objective:, not regenerated question text"
+assert_eq "0" "$(has "$body" 'nunca** contra el texto de las preguntas')" "skip-check matches a stored field, never the regenerated question text"
 
 # P2-a — pre-flight del batch antes de llamar a AskUserQuestion
 assert_eq "0" "$(has "$body" 'BLOCKED batch malformado de discovery-orchestrator')" "root blocks on a malformed batch instead of losing all questions"

@@ -116,13 +116,19 @@ sequenceDiagram
 
     User->>O: /swarm:run "<objetivo>" [--tier]
     alt --tier=direct (flag explícito)
-        O->>O: clasifica tier (direct)
+        O->>O: tier forzado a direct (el flag se usa tal cual, no reclasifica)
         O-->>User: OK (sin abrir run)
     else --tier sin especificar, light, o full
         alt objetivo ambiguo (juicio propio de la raíz)
             O->>User: AskUserQuestion (UNA llamada: interpretación + alternativas + reescritura libre)
-            User-->>O: objetivo confirmado/alternativo/reescrito
-            Note over O: raw: + objective: se registran aparte<br/>(la idempotencia compara contra raw:, nunca contra la interpretación)
+            alt el owner confirma / elige alternativa / reescribe
+                User-->>O: objetivo resuelto (el que se usa de aquí en adelante)
+                Note over O: todavía no se escribe nada:<br/>memory-orchestrator no existe hasta que se abre el run
+            else el owner cancela el diálogo
+                User-->>O: (cerrado sin elegir)
+                O-->>User: BLOCKED interpretación de objetivo sin confirmar
+                Note over O: el run nunca se abre: sin run-id no hay summary/curate<br/>ni línea de decisión que escribir
+            end
         end
         O->>O: clasifica tier (direct / light / full)
         alt tier = direct
@@ -138,6 +144,11 @@ sequenceDiagram
                 MO-->>MO: OK (salta build)
             end
             MO-->>O: OK / DONE
+            opt el gate resolvió el objetivo arriba
+                O->>MO: write decision (raw: + objective:, marcada "interpretación resuelta")
+                MO-->>O: written
+            end
+            Note over O: la idempotencia compara contra el campo raw:, nunca contra la interpretación,<br/>y solo sobre una línea que cerró discovery
             alt objetivo de producto, no cerrado ya en decisions.md
                 O->>DO: spawn (run-id, swarm-root, operation: discover, tier, objective)
                 DO->>DO: 4 hojas en UNA tanda (valor, research, opciones, viabilidad)
@@ -146,9 +157,9 @@ sequenceDiagram
                 O->>User: AskUserQuestion (UNA llamada, todas las preguntas)
                 alt el owner responde
                     User-->>O: opciones elegidas / texto libre
-                    O->>MO: write decision (UNA llamada: objective + todas las respuestas)
+                    O->>MO: write decision (UNA llamada: raw: + objective: + todas las respuestas)
                 else el owner cancela el diálogo
-                    O->>MO: write decision (objective + [pendiente] batch sin responder)
+                    O->>MO: write decision (raw: + objective: + [pendiente] batch sin responder)
                 end
             else bugfix / docs / tests / infra, objetivo de refactor/migración, u objetivo ya cerrado
                 O->>O: salta discovery (se reporta como "- discovery omitido: ...")
@@ -162,7 +173,7 @@ sequenceDiagram
 
 `direct` nunca abre run ni toca memoria — la raíz responde ella misma. `light`/`full` abren un run y siempre comprueban el pack antes de hacer nada más; el pack solo se reconstruye si está stale (tree-state hash), nunca incondicionalmente.
 
-Con el pack listo, un objetivo **de producto** (nueva funcionalidad, nuevo producto, cambio de comportamiento visible para el usuario) pasa por discovery antes de cualquier diseño: la raíz lanza `discovery-orchestrator`, que corre sus cuatro hojas en una sola tanda y devuelve **un** batch de hasta cuatro preguntas. La raíz valida cada pregunta, las presenta todas en **una** llamada a `AskUserQuestion` — es el único punto en que `/swarm:run` se vuelve interactivo y te espera — y registra todas las respuestas como **una sola** línea de decisión en `.swarm/decisions.md`, con el `objective:` literal delante para que un run posterior sobre el mismo objetivo detecte que discovery ya corrió en vez de volver a preguntar. Si cierras el diálogo sin responder, el batch se registra igualmente, marcado `[pendiente]`. Discovery se salta en bugfixes puros, docs, tests e infraestructura (ahí design también se salta), en un objetivo de refactor/migración (ahí design NO se salta — ver Diseño abajo), y para un objetivo que `decisions.md` ya cerró; el salto siempre se reporta en la salida.
+Con el pack listo, un objetivo **de producto** (nueva funcionalidad, nuevo producto, cambio de comportamiento visible para el usuario) pasa por discovery antes de cualquier diseño: la raíz lanza `discovery-orchestrator`, que corre sus cuatro hojas en una sola tanda y devuelve **un** batch de hasta cuatro preguntas. La raíz valida cada pregunta, las presenta todas en **una** llamada a `AskUserQuestion` — es el único punto en que `/swarm:run` se vuelve interactivo y te espera — y registra todas las respuestas como **una sola** línea de decisión en `.swarm/decisions.md`, con el argumento crudo sin tocar (`raw:`) delante y detrás el `objective:` resuelto, para que un run posterior sobre el mismo objetivo detecte que discovery ya corrió en vez de volver a preguntar — esa detección compara contra `raw:` (determinista, byte a byte), nunca contra el `objective:`, que puede venir interpretado. Si cierras el diálogo sin responder, el batch se registra igualmente, marcado `[pendiente]`. Discovery se salta en bugfixes puros, docs, tests e infraestructura (ahí design también se salta), en un objetivo de refactor/migración (ahí design NO se salta — ver Diseño abajo), y para un objetivo que `decisions.md` ya cerró; el salto siempre se reporta en la salida.
 
 ### Escritura de memoria / buzón
 

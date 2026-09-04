@@ -81,9 +81,16 @@ Before tier classification, an objective interpretation gate runs: the root judg
 confidence in the objective it was given. A clear objective sees zero change — no new question, no
 new output line. An ambiguous or vaguely worded one triggers a single `AskUserQuestion` offering the
 root's interpretation (plus up to 2 alternatives, plus a free-rewrite option) — the owner's confirmed
-answer becomes the objective used for classification, discovery, and everything downstream. Cross-run
+answer becomes the objective used for classification, discovery, and everything downstream.
+
+The gate itself never writes: nothing in `.swarm/` can be touched until the run opens and
+`memory-orchestrator` is up, so the confirmed interpretation is persisted right after that, as its
+own decision line. Cancelling the question ends the run *before* it ever opens — verdict `BLOCKED
+interpretación de objetivo sin confirmar`, no run directory, no summary, nothing written. Cross-run
 "already asked this" detection stays exact and deterministic regardless: it matches against the
-untouched raw argument, recorded separately, never against a non-deterministic LLM interpretation.
+untouched raw argument, recorded separately, never against a non-deterministic LLM interpretation —
+and only against a line that actually closed a discovery batch, so the gate's own record can never
+make a run skip its own discovery.
 
 **Tiers** (from `agents/orchestrator.md` §1.1 and the spec §9.1):
 
@@ -298,8 +305,9 @@ exact same objective in an earlier run.
 
 **What you get back:** an interactive question dialog (this is the one point in the whole swarm
 where it pauses and waits for you), then a single recorded decision line in `.swarm/decisions.md`
-listing every question and your answer, prefixed with the literal goal text so a later run
-recognizes it. If you dismiss the dialog, your (unanswered) batch is still saved, marked
+listing every question and your answer, prefixed with your untouched raw goal text (`raw:`) and the
+resolved `objective:` — a later run recognizes it by matching that `raw:` field. If you dismiss the
+dialog, your (unanswered) batch is still saved, marked
 `[pendiente]`, instead of being silently lost.
 
 **Real example** (`docs/superpowers/plans/2026-09-02-phase2-smoke-checklist.md`, item 1, run live by
