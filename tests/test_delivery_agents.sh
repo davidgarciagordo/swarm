@@ -29,12 +29,48 @@ assert_eq "0" "$(has "$body" 'BLOCKED aprobación no coincide con el estado real
 assert_eq "0" "$(has "$body" 'operation: prepare-release')" "documents phase A"
 assert_eq "0" "$(has "$body" 'operation: publish-release')" "documents phase B"
 
+# backlog fix: approved-push: gains url= — phase B re-verifies the remote's URL, not just its name
+assert_eq "0" "$(has "$body" 'approved-push: remote=origin branch=feature/export-csv base=master url=')" "the approval line's literal example carries the fourth field, url="
+assert_eq "0" "$(has "$body" 'cuatro campos')" "the gate now names four fields, not three"
+assert_eq "0" "$(has "$body" 'discrepancia: url aprobada')" "a URL mismatch surfaces as its own named discrepancy, same shape as remote/branch/base"
+assert_eq "1" "$(has "$body" 'candidato de v1.1 si alguna vez importa')" "the old accepted-risk note is gone now that the gap is closed"
+
+# C1 fix-of-a-fix (Opus review): url= must compare the PUSH url, never the fetch url — pushurl can
+# diverge from the fetch url and is what git push actually uses.
+assert_eq "0" "$(has "$body" 'git remote get-url --push --all origin')" "the re-verification command is explicitly --push --all, not bare get-url or --push alone"
+assert_eq "0" "$(has "$body" 'pushurl')" "documents WHY --push matters: remote.<name>.pushurl can diverge from the fetch url"
+assert_eq "0" "$(has "$body" 'evil.example.com')" "names the concrete pushurl-hijack scenario the reviewer verified empirically"
+assert_eq "0" "$(has "$body" 'nunca uses `git remote get-url <remote>` a secas')" "phase A explicitly forbids the bare (fetch) form when sourcing the url= value"
+occurrences_push_all_cmd="$(grep -cF 'git remote get-url --push --all origin' "$F")"
+[ "$occurrences_push_all_cmd" -ge 2 ] && push_all_present=0 || push_all_present=1
+assert_eq "0" "$push_all_present" "the literal --push --all command appears at least twice (A source, B re-verification) — found $occurrences_push_all_cmd"
+# I1: the "tal cual / no reformatees" self-contradiction is gone — get-url --push returns a bare URL
+# string with nothing to strip, so there is no reformatting step left to describe.
+assert_eq "0" "$(has "$body" 'sin marcador `(push)`/`(fetch)`, sin')" "documents that get-url --push needs no (fetch)/(push) marker stripped (I1 fixed at the source, not by a stripping rule)"
+# item 3: the PR host-detection reuses the SAME push url, not an independent fetch-url read
+assert_eq "0" "$(has "$body" 'la de PUSH que ya obtuviste en la re-verificación con')" "gh pr create host-detection is explicitly sourced from the push url, consistent with the actual push destination"
+
+# C1' fix-of-a-fix-of-a-fix (2nd Opus review of e4616b8): pushurl/url are MULTI-VALUED in git — a bare
+# `--push` (without `--all`) only shows the FIRST destination, so a second pushurl added between phase
+# A and phase B was invisible to the previous round's comparison. `git push` pushes to ALL of them.
+assert_eq "0" "$(has "$body" 'MULTI-VALUADOS')" "documents that pushurl/url are multi-valued in git, not single-value fields"
+assert_eq "0" "$(has "$body" 'BLOCKED remoto con varios destinos de push')" "phase A refuses outright when the remote already has more than one push destination"
+assert_eq "0" "$(has "$body" 'real <n> destinos de push')" "phase B's discrepancy line names the destination COUNT rather than trying to encode multiple URLs into a single-value url= field"
+assert_eq "0" "$(has "$body" 'no lo intentas comparar línea a línea ni te quedas con la primera')" "explicitly rules out silently narrowing to the first line instead of refusing"
+
 # propiedades permanentes
 assert_eq "0" "$(has "$body" 'BLOCKED HEAD en rama protegida')" "never publishes from a protected branch"
 assert_eq "0" "$(has "$body" 'BLOCKED sin remoto configurado')" "handles the no-remote repo honestly (ruling 3)"
 assert_eq "0" "$(has "$body" '- remoto propuesto:')" "the no-remote BLOCKED carries the preview the root needs to ask the owner (ruling 3)"
 assert_eq "0" "$(has "$body" '- cuenta gh:')" "…and names the authenticated gh account, so an identity mismatch is visible before approving (ruling 14)"
 assert_eq "0" "$(has "$body" 'sin recortar')" "raw git/gh errors are surfaced verbatim, never trimmed or reworded (ruling 14)"
+
+# backlog fix: additive structured SSH-alias hint (ruling 14 stays honest-raw-stderr, extended not replaced)
+assert_eq "0" "$(has "$body" 'cat ~/.ssh/config')" "reads ~/.ssh/config to build the structured hint"
+assert_eq "0" "$(has "$body" 'alias candidatos en ~/.ssh/config')" "documents the candidate-alias suggestion line"
+assert_eq "0" "$(has "$body" 'Extensión aditiva')" "the SSH hint extension is explicitly additive to the raw-stderr surfacing, never a replacement"
+assert_eq "0" "$(has "$body" 'no eliges tú el alias correcto')" "release-manager only names candidates, it never picks or applies one itself"
+assert_eq "0" "$(has "$body" 'No ejecuta')" "the never-execute-set-url property still holds unchanged after the extension"
 assert_eq "0" "$(has "$body" 'BLOCKED árbol sucio')" "refuses to publish a dirty tree (ruling 6)"
 assert_eq "0" "$(has "$body" 'KO tests en rojo')" "a red suite blocks the preview (ruling 4)"
 assert_eq "0" "$(has "$body" 'verde NO verificado')" "an unknown suite is reported as unknown, never as green (ruling 4)"
