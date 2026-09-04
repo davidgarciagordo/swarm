@@ -28,6 +28,10 @@ simules haber orquestado un dominio inexistente ni inventes su veredicto.
 
 ### 1.0 Guardas de invocación (ANTES de clasificar nada)
 
+**Estilo del `<motivo>` en cualquier `BLOCKED` de esta sección (y de §1.0bis, más abajo):** va
+siempre en lenguaje llano — impacto de negocio, nunca jerga interna del proyecto (nunca "tier",
+"run", "idempotencia", nombres de fichero/función salvo que el propio owner los haya mencionado).
+
 Se comprueban en este orden, sobre el argumento crudo de `/swarm:run`. Cualquiera de las dos que
 salte termina ahí: **no abres run, no lanzas a nadie, no construyes pack.**
 
@@ -207,9 +211,24 @@ Ya en la raíz, comprueba que la memoria del repo existe:
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" health
 ```
 
-Exit 1 (`.swarm/` no existe o no es escribible) → tu veredicto es `BLOCKED falta /swarm:init` y lo
-dices en un hallazgo. No abras el run: `mem-manifest.sh open` haría `mkdir -p` y dejaría un
-`.swarm/` a medias, sin `memory.json`.
+Exit 1 con `SWARM_ROOT not found` en stderr (`.swarm/` no existe todavía): NO es un `BLOCKED` —
+inicialízalo tú misma, transparente para el owner, invocando el mismo script real que
+`/swarm:init` usa (`Bash`, mira `commands/init.md`/`scripts/swarm-init.sh` para el comando exacto —
+nunca reimplementes esa lógica a mano):
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/swarm-init.sh"
+```
+
+Tras inicializar con éxito, repite el `health` check una vez (debe salir `ok` ahora) y continúa
+normalmente con la apertura del run — el owner nunca ve nada de esto, es exactamente como si
+`.swarm/` ya hubiera existido.
+
+Exit 1 con `SWARM_ROOT not writable` en stderr (`.swarm/` existe pero el filesystem lo rechaza —
+permisos, disco de solo lectura): esto SÍ es un `BLOCKED` real, auto-inicializar no lo arregla. Tu
+veredicto es `BLOCKED falta /swarm:init` (mismo texto que antes — el owner necesita arreglar
+permisos, no volver a correr `/swarm:init`, así que el mensaje sigue siendo preciso). No abras el
+run: `mem-manifest.sh open` haría `mkdir -p` y dejaría un `.swarm/` a medias, sin `memory.json`.
 
 Con `ok`, abre el run:
 
@@ -346,6 +365,25 @@ y delega en `memory-builder` solo si está stale) — tú no llamas a `mem-stale
 Su `OK` (pack fresco) y su `DONE` (pack reconstruido) valen igual: en ambos casos sigues.
 
 ## 4. Cierre
+
+### 4.0bis Traducción de vocabulario (owner sin conocimientos técnicos)
+
+Antes de emitir tu línea final de veredicto al owner (no a otro agente, no a un `--line` interno —
+solo lo que el owner lee), sustituye el prefijo técnico por su equivalente en lenguaje llano. El
+resto de la línea (el `<motivo>`/detalle) ya debe venir en lenguaje llano por construcción (ver la
+instrucción de estilo de más abajo) — esta sustitución solo cambia la PALABRA del prefijo, nunca el
+contenido:
+
+| prefijo técnico | equivalente owner |
+|---|---|
+| `DONE` | "Listo:" |
+| `BLOCKED <motivo>` | "No he podido continuar: <motivo>" |
+| `KO <motivo>` | "Algo no salió bien: <motivo>" |
+| `OK` | "Todo en orden." |
+
+Esta tabla aplica SOLO a lo que el owner lee — los `--line` internos que pasan a `mem-manifest.sh
+summary` (protocolo, evidencia, ficheros de hallazgos) siguen usando el vocabulario técnico tal
+cual, sin tocar: esos son para el propio enjambre, no para el owner.
 
 **Todo run escribe `run/<id>/summary.md` al cierre (spec §11).** Es el resumen visible de qué pasó,
 y lo escribes TÚ: `discovery-orchestrator` solo espeja ahí sus líneas `- Q…`, y en un run que ni
