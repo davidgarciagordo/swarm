@@ -30,7 +30,8 @@ assert_eq "0" "$(has "$body" 'raw:.*objective:')" "root documents raw: appearing
 
 # --- raw-match reuse path (skip re-interpretation for a raw text already resolved before) ---
 assert_eq "0" "$(has "$body" 'raw:.*es igual')" "§1.0bis describes matching a NEW run's sanitized raw argument against a stored raw: field"
-assert_eq "0" "$(has "$body" '\[pendiente\]')" "the raw-match reuse path explicitly treats a [pendiente] prior line as NOT resolved (mirrors §5.1's existing pendiente handling)"
+bis_section="$(echo "$body" | awk '/^### 1\.0bis/{p=1} /^### 1\.1 Tiers/{p=0} p')"
+assert_eq "0" "$(has "$bis_section" '\[pendiente\]')" "§1.0bis's own raw-match reuse path explicitly handles a [pendiente] prior line as NOT resolved (scoped to §1.0bis, not the whole file — §5.3 also uses this term unrelatedly)"
 
 # --- high-confidence pass-through: zero new output, zero new AskUserQuestion ---
 assert_eq "0" "$(has "$body" 'confianza alta')" "§1.0bis documents the high-confidence pass-through path"
