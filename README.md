@@ -3,7 +3,7 @@
 Claude Code plugin. Single-responsibility agent swarm for the software development lifecycle — analysis, design, implementation, delivery — optimized for quality per token. Full design in `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Built so far: phases 1, 1b, 2, 3, 4, 5a, 5b and 6** — memory subsystem, root orchestrator, requirements domain (environment check + dependency audit + owner-approved dependency install), discovery domain (questions batch presented to the owner via `AskUserQuestion`), analysis domain (read-only codebase audit across 6 lenses), design domain (writes a real implementation plan, adversarially reviewed by grill×3, arbitrated by `design-orchestrator` itself), implementation domain (RED→GREEN TDD per phase in an isolated worktree, with conditional schema-migration and documentation steps, gated by `reviewer` BEFORE a local merge — only by explicit owner invocation, never auto-chained), delivery domain (publishes an already-merged branch — push + PR + handoff — only by explicit, separate owner invocation, gated by an owner-approved `AskUserQuestion` that names remote/branch/base, never merges the PR itself), and the first stack pack (`php-ddd-symfony8`, auto-detected from `composer.json`).
 
 For a full usage guide (installation, the 5 commands, every domain, worked examples, how to read
-the output) see `docs/USAGE.md`.
+the output) see `docs/USAGE.md`. To add a stack pack of your own, see `docs/EXTENDING-PACKS.md`.
 
 ## Install
 
