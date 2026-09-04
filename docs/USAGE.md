@@ -30,52 +30,74 @@ definitions become invokable from anywhere in the conversation. There's nothing 
 build first: it's a set of markdown agent/command/skill files plus a few shell scripts, read
 directly by Claude Code.
 
-Once loaded, run `/swarm:init` once inside the target repo (the repo you actually want to work on —
-it doesn't have to be this one) before doing anything else. That creates the `.swarm/` directory
-this plugin uses for memory. See §3 below.
+You don't need a setup step: the first time you type `/swarm "<goal>"` in the target repo (the
+repo you actually want to work on — it doesn't have to be this one), it creates the `.swarm/`
+directory this plugin uses for memory on its own, transparently, then runs your goal — see §3
+below. `/swarm:init` still exists as a separate command if you ever want to run that step by hand
+(power users, CI) — it's just no longer something you have to know about or run first.
 
 If this plugin is ever published to a marketplace, installation would instead go through Claude
 Code's normal plugin-marketplace flow (`/plugin install swarm` or equivalent) — but that path does
 not exist yet, so don't follow instructions that assume it does.
 
-## 3. The 5 commands
+## 3. Quickstart — the one command you need
+
+```
+/swarm "add CSV export to the invoices list"
+```
+
+That's it. Describe what you want in plain language, in quotes, after `/swarm`. There's no setup
+step to remember first: if `.swarm/` doesn't exist yet in this repo, it gets created for you behind
+the scenes, and your goal runs right after — you never see a separate init step or have to know it
+happened. The root agent reads your goal, asks you real questions when a decision needs a person
+(see §5 below), and reports back a short, plain-language verdict when it's done.
+
+Everything below this point — the 5 underlying slash commands, the `--tier=` flag, the domains — is
+reference material for when you want more control. You don't need any of it to get started.
+
+## 4. The 5 commands
 
 These are the *only* five slash commands this plugin defines — real files under `commands/`:
 `commands/init.md`, `commands/run.md`, `commands/doctor.md`, `commands/status.md`,
 `commands/findings.md`. Nothing else is implemented — don't type anything else expecting it to
-work.
+work. `/swarm "<goal>"` above is `commands/run.md`, documented as the plugin's single entry point;
+the other four are optional, standalone utilities.
 
 ### `/swarm:init`
 
 Bootstraps `.swarm/` in the current repo: the directory tree, `memory.json` (declaring the `files`
 backend as required), `decisions.md` with its header, and a `# swarm` block appended to
 `.gitignore` so the swarm's working state never gets committed. It also runs a health-gate on the
-backend before declaring success. Takes no arguments.
+backend before declaring success. Takes no arguments. You don't need to run this yourself — `/swarm
+"<goal>"` does it for you automatically the first time — it's here for power users and CI who want
+to run it explicitly, or re-check the health-gate on its own.
 
 ```
 /swarm:init
 ```
 
-You run this once per repo, before your first `/swarm:run`. Internally it just executes
-`${CLAUDE_PLUGIN_ROOT}/scripts/swarm-init.sh` and reports the script's own plain-text summary
-verbatim — if the script exits non-zero, the command tells you `/swarm:init` aborted and shows the
-stderr line that explains why (from `docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md`
-item 1: the expected result is `.swarm/` created, `memory.json` with the `files` backend required,
-`decisions.md` with its header, the `.gitignore` block marked `# swarm`, and the health-gate green).
+Internally it just executes `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-init.sh` and reports the script's
+own plain-text summary verbatim — if the script exits non-zero, the command tells you `/swarm:init`
+aborted and shows the stderr line that explains why (from
+`docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md` item 1: the expected result is
+`.swarm/` created, `memory.json` with the `files` backend required, `decisions.md` with its header,
+the `.gitignore` block marked `# swarm`, and the health-gate green).
 
-### `/swarm:run`
+### `/swarm "<goal>"` (a.k.a. `/swarm:run`)
 
 The main entry point. Launches the root `orchestrator` agent on a goal you describe in plain
-language, with an optional tier flag.
+language.
 
 ```
-/swarm:run <goal> [--tier=direct|light|full]
+/swarm "<goal>"
 ```
 
-For example: `/swarm:run "añadir export CSV del listado de facturas" --tier=full`. The command
-always invokes the `swarm:orchestrator` subagent with your exact argument text, even if it's empty
-— the orchestrator itself decides whether the goal is valid and returns its own verdict; the
-outer session never answers on your behalf or asks you to clarify before spawning it.
+For example: `/swarm "añadir export CSV del listado de facturas"`. The command always invokes the
+`swarm:orchestrator` subagent with your exact argument text, even if it's empty — the orchestrator
+itself decides whether the goal is valid and returns its own verdict; the outer session never
+answers on your behalf or asks you to clarify before spawning it. Behind the scenes this still
+classifies a `tier` and still accepts the `--tier=` flag if you want to force one — that's a
+power-user/CI detail covered in the Advanced section below, not something you need for normal use.
 
 Before tier classification, an objective interpretation gate runs: the root judges its own
 confidence in the objective it was given. A clear objective sees zero change — no new question, no
@@ -92,18 +114,9 @@ untouched raw argument, recorded separately, never against a non-deterministic L
 and only against a line that actually closed a discovery batch, so the gate's own record can never
 make a run skip its own discovery.
 
-**Tiers** (from `agents/orchestrator.md` §1.1 and the spec §9.1):
-
-- `direct` — a trivial, single-file, no-architectural-decision goal. The root answers you directly,
-  without opening a run or launching any domain. Nothing gets written to `.swarm/run/`.
-- `light` — a single domain. Judgment leaves (auditors, planner, pattern-advisor, etc.) run on
-  `sonnet` instead of `opus`, no adversarial grill, and the memory pack is only rebuilt if stale.
-- `full` — multi-domain or explicitly critical work. Judgment leaves run on `opus`, and design goes
-  through the grill×3 adversarial review before it's considered done.
-
-If you don't pass `--tier`, the orchestrator classifies it for you by scope. You can always force
-it explicitly with the flag — an invalid value (anything other than exactly `direct`, `light`, or
-`full`, case-sensitive) is rejected outright rather than guessed at.
+The root classifies how much work your goal needs (a trivial one-file fix vs. a full multi-domain
+change) on its own, from the goal text alone — you don't have to know or say anything about this;
+see the Advanced section below if you ever want to see or force that classification directly.
 
 **Routing — how your goal picks a domain.** The root never runs everything; it reads your goal and
 picks the domain(s) that apply:
@@ -136,7 +149,7 @@ picks the domain(s) that apply:
 and 7 — verified live):
 
 ```
-/swarm:run "audita memoria" --tier=light
+/swarm "audita memoria"
 ```
 Result (after a real bug fix mid-smoke): pack rebuilt for real (`context-pack.md` with a real
 `stack: php-ddd-symfony8` line), `index.md` sealed, run closed via `curate`. A second identical run
@@ -144,20 +157,14 @@ against the same, unchanged repo does *not* rebuild the pack — the staleness c
 it (item 3).
 
 ```
-/swarm:run
+/swarm
 ```
 (no argument at all) returns, without opening any run:
 ```
 BLOCKED objetivo vacío — describe qué quieres que haga el enjambre
 ```
 
-```
-/swarm:run "audita memoria" --tier=medium
-```
-(`medium` is not a valid tier) returns, again without opening a run:
-```
-BLOCKED --tier inválido: medium (usa direct, light o full)
-```
+See the Advanced section below for `--tier=`-specific examples (forcing a tier, an invalid value).
 
 ### `/swarm:doctor`
 
@@ -219,10 +226,10 @@ leads with `- warn: modo degradado — swarm-findings.sh falló (exit <code>)`, 
 unreinterpreted listing from at most three files read directly — never silently presented as a
 normal, complete result.
 
-## 4. The domains
+## 5. The domains
 
 Every domain below is a real, built, working part of the swarm today — verified in a live smoke
-test, not just designed on paper. `/swarm:run` routes to these automatically per §3 above; you never
+test, not just designed on paper. `/swarm "<goal>"` routes to these automatically per §4 above; you never
 invoke a domain orchestrator by its subagent name yourself in normal use.
 
 ### Memory
@@ -259,7 +266,7 @@ license risk (`dependency-auditor`, operation `audit-deps`); and, only with your
 itemised approval, it installs or updates exactly the packages you approved (`dependency-installer`,
 operation `install`).
 
-**What triggers it:** `check` runs via `/swarm:doctor` (see §3) — a separate, explicit step, not
+**What triggers it:** `check` runs via `/swarm:doctor` (see §4) — a separate, explicit step, not
 part of the `/swarm:run` pipeline. `audit-deps` and `install` run *inside* a `/swarm:run` (phase
 5b) when your goal is dependency-shaped: "audit the dependencies", "what libraries are outdated",
 "install phpstan", "bump doctrine to 3" — see `agents/orchestrator.md` §11.
@@ -497,7 +504,7 @@ falls back to its own documented generic behavior (detect whichever manifest is 
 newest matching file already in the repo, never invent a command it hasn't seen documented there). A
 pack is purely additive: what it doesn't cover, a leaf resolves with its generic judgment instead.
 
-## 5. How to read the output
+## 6. How to read the output
 
 Every agent in this swarm — root orchestrator, domain orchestrators, and leaves alike — reports
 through the same evidence contract (`docs/superpowers/specs/2026-09-01-swarm-design.md` §6,
@@ -537,7 +544,54 @@ finished on turn 15 of a 30-turn budget), the plan is at that exact path and lin
 adversarial review incorporated one high-priority fix while flagging two lower-priority risks for
 later.
 
-## 6. Frequently asked questions / honest limitations
+## 7. Advanced
+
+This section is for power users and CI — nothing here is required for normal use. §3's quickstart
+covers everything a first-time, non-technical owner needs.
+
+### `--tier=` — forcing the classification
+
+`/swarm "<goal>"` already classifies how much work a goal needs on its own, from the goal text
+alone. You can override that with `--tier=`:
+
+```
+/swarm "<goal>" --tier=direct|light|full
+```
+
+- `direct` — a trivial, single-file, no-architectural-decision goal. The root answers you directly,
+  without opening a run or launching any domain. Nothing gets written to `.swarm/run/`.
+- `light` — a single domain. Judgment leaves (auditors, planner, pattern-advisor, etc.) run on
+  `sonnet` instead of `opus`, no adversarial grill, and the memory pack is only rebuilt if stale.
+- `full` — multi-domain or explicitly critical work. Judgment leaves run on `opus`, and design goes
+  through the grill×3 adversarial review before it's considered done.
+
+If you don't pass `--tier`, the orchestrator classifies it for you by scope. An invalid value
+(anything other than exactly `direct`, `light`, or `full`, case-sensitive) is rejected outright
+rather than guessed at.
+
+Worked examples (`docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md`, items 6-7 —
+verified live):
+
+```
+/swarm "audita memoria" --tier=light
+```
+Forces `light` explicitly instead of letting the root infer it.
+
+```
+/swarm "audita memoria" --tier=medium
+```
+(`medium` is not a valid tier) returns, without opening a run:
+```
+BLOCKED --tier inválido: medium (usa direct, light o full)
+```
+
+### `/swarm:init` and `/swarm:doctor` run standalone
+
+Both are real, independent commands you can invoke directly (`/swarm:init`, `/swarm:doctor` — see
+§4 above) — useful for CI (pre-warm `.swarm/` and check the environment before any goal runs) or
+for re-checking either one on its own without launching a full run.
+
+## 8. Frequently asked questions / honest limitations
 
 **Does the swarm ever push to git, or touch `master`/a remote branch on its own?** No, never.
 `implementation-orchestrator` always merges locally, into the run's own branch — never into
@@ -561,7 +615,7 @@ values. If a domain orchestrator itself returns `BLOCKED`/`KO`, the root propaga
 message rather than paraphrasing it, so what you read is literally what the domain that failed
 said.
 
-**Does it re-read my whole codebase every time?** No — that's the point of the memory domain (§4).
+**Does it re-read my whole codebase every time?** No — that's the point of the memory domain (§5).
 `.swarm/context-pack.md` is built once and reused across runs; it's only rebuilt when the repo's
 tree-state hash shows it's actually stale. Findings are deduplicated by `agent+tag+file:line`
 across runs too, so re-running the same audit twice in a row doesn't produce duplicate findings

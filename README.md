@@ -13,10 +13,19 @@ No marketplace listing yet — local dev only:
 claude --plugin-dir /path/to/multiagents
 ```
 
+## Quickstart
+
+```
+/swarm "add CSV export to the invoices list"
+```
+
+One command, plain language. `.swarm/` initializes itself transparently the first time — no
+separate setup step to run or know about. See `docs/USAGE.md` for the full guide.
+
 ## Commands
 
-- `/swarm:init` — creates `.swarm/` in the target repo, health-gated on the `files` backend.
-- `/swarm:run <goal> [--tier=direct|light|full]` — launches the root orchestrator.
+- `/swarm "<goal>"` (a.k.a. `/swarm:run`) — the single entry point; launches the root orchestrator. `--tier=direct|light|full` is available for power users/CI — see `docs/USAGE.md`'s Advanced section.
+- `/swarm:init` — creates `.swarm/` in the target repo, health-gated on the `files` backend. No longer a required step — `/swarm "<goal>"` runs it for you automatically.
 - `/swarm:doctor` — checks the repo's environment requirements against `requirements.json`.
 - `/swarm:status` — deterministic, no-model-turn summary of the current run, tier, agents, and open findings.
 - `/swarm:findings [agent|TAG] [--all]` — deterministic, no-model-turn filtered read of the swarm's findings.
