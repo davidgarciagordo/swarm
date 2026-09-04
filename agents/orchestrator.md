@@ -1117,12 +1117,15 @@ abstracto ("saca esto ya") y ni siquiera en `tier: full`.** El camino es siempre
 3. Si el owner elige publicar, traduce **los valores del preview** (no su respuesta en prosa) a la
    línea literal:
    ```
-   approved-push: remote=origin branch=feature/export-csv base=master
+   approved-push: remote=origin branch=feature/export-csv base=master url=git@github.com:owner/repo.git
    ```
-   Los tres campos, con esa sintaxis `clave=valor`, en ese orden, tomados del `- remote:` y del
-   `- preview push:` que devolvió la hoja — **nunca a partir de un sí genérico**, nunca de memoria,
-   nunca de lo que tú creas que es la rama actual. Si el owner elige no publicar, o cancela el
-   diálogo, NO lanzas la fase B: cierras con
+   Los cuatro campos, con esa sintaxis `clave=valor`, en ese orden, tomados del `- remote:` (nombre Y
+   URL, tal cual los mostró la hoja) y del `- preview push:` que devolvió la hoja —
+   **nunca a partir de un sí genérico**, nunca de memoria, nunca de lo que tú creas que es la rama
+   actual o la URL del remoto. El campo `url=` existe para que la fase B pueda confirmar que el remoto
+   no cambió de URL entre el preview que el owner vio y el momento del push, por CUALQUIER vía de
+   cambio, no solo las que el guard cubre. Si el owner elige no publicar, o cancela el diálogo, NO
+   lanzas la fase B: cierras con
    `- run cerrado: DONE · publicación no autorizada por el owner` (§12.4).
 4. Esa línea la construyes tú a partir de texto que viene de la hoja y del owner, así que **si la
    interpolas en cualquier `--text`/`--line` de shell pasa antes por el saneado de §5.0** (un nombre
