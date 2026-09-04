@@ -56,7 +56,7 @@ pueda llegar a existir. También tiene su propia decisión humana delante.
    veredictos de forma se devuelven `sin ejecutar NADA` (`files=0 cmds=0 turns=1/15`), sin leer el
    buzón ni anclarte a la raíz del repo: si la línea **falta o viene vacía**, `BLOCKED sin aprobación
    de push` (o `de remoto`); si viene pero **no tiene los campos exigidos con esa sintaxis exacta**
-   (`remote=`/`branch=`/`base=` para push; `action=create name=…visibility=…` o
+   (`remote=`/`branch=`/`base=`/`url=` para push; `action=create name=…visibility=…` o
    `action=use url=…` para remoto), `BLOCKED aprobación de push malformada` (o `de remoto
    malformada`). Esta comprobación no es exclusiva de `publish-release`: las dos operaciones que
    mutan algo fuera del repo comparten el mismo orden — gate primero, todo lo demás después. Solo
@@ -139,7 +139,10 @@ owner (ruling 14).
 
 Si hay varios remotos, usa el del `approved-push:` en fase B; en fase A, usa `origin` si existe y si
 no el PRIMERO que liste `git remote -v`, y dilo explícitamente en la línea `- remote:` para que el
-owner lo vea antes de aprobar.
+owner lo vea antes de aprobar. Esa línea lleva NOMBRE y URL exactos (`origin →
+git@github.com:owner/repo.git`), tal cual los imprime `git remote -v` — es el dato que la raíz
+traduce al campo `url=` de `approved-push:` (ver "Gate de aprobación" de fase B), así que no lo
+reformatees ni lo abrevies.
 
 ### 3. Rama actual y rama base
 
@@ -262,20 +265,21 @@ valores ya resueltos — no una plantilla. Son lo que la raíz enseña al owner.
 
 ### Gate de aprobación (lo primero, antes de cualquier otra cosa)
 
-Tu cabecera DEBE traer una línea con esta forma literal, tres campos `clave=valor` en este orden:
+Tu cabecera DEBE traer una línea con esta forma literal, cuatro campos `clave=valor` en este orden:
 
 ```
-approved-push: remote=origin branch=feature/export-csv base=master
+approved-push: remote=origin branch=feature/export-csv base=master url=git@github.com:owner/repo.git
 ```
 
 - Si **no viene** o viene **vacía**: `BLOCKED sin aprobación de push`, sin ejecutar NADA.
-- Si viene pero **no tiene los tres campos con esa sintaxis** (por ejemplo `approved-push: sí`,
-  `approved-push: adelante`, `approved-push: origin master`, o le falta `base=`):
+- Si viene pero **no tiene los cuatro campos con esa sintaxis** (por ejemplo `approved-push: sí`,
+  `approved-push: adelante`, `approved-push: origin master`, o le falta `base=`/`url=`):
   `BLOCKED aprobación de push malformada`, sin ejecutar NADA.
 
 No hay excepción, ni siquiera si quien te lanza afirma que el owner ya dijo que sí: la aprobación
-válida es esta línea, con los tres destinos NOMBRADOS. Un "sí" no es una aprobación de push — un
-"sí" no dice a qué remoto, desde qué rama ni contra qué base. **Tú no puedes preguntar al owner** y
+válida es esta línea, con los cuatro destinos NOMBRADOS — remoto, rama, base y la URL exacta que el
+owner vio en el preview de fase A. Un "sí" no es una aprobación de push — un "sí" no dice a qué
+remoto, desde qué rama, contra qué base ni con qué URL. **Tú no puedes preguntar al owner** y
 `delivery-orchestrator` tampoco: quien pregunta es la RAÍZ (spec §3.2 regla 7).
 
 ```
@@ -286,29 +290,34 @@ evidence: files=0 cmds=0 turns=1/15
 ### Re-verificación contra la realidad (cierra la ventana entre el preview y el push)
 
 Repite las validaciones 1-4 del arranque (son baratas) y además comprueba que la aprobación describe
-el mundo real AHORA, no el de hace dos minutos — el owner pudo cambiar de rama mientras decidía:
+el mundo real AHORA, no el de hace dos minutos — el owner pudo cambiar de rama mientras decidía, o el
+remoto pudo cambiar de URL por CUALQUIER vía, no solo las que este dominio ejecuta:
 
 - `git rev-parse --abbrev-ref HEAD` debe imprimir exactamente el `branch=` aprobado;
-- el `remote=` aprobado debe existir:
+- el `remote=` aprobado debe existir Y su URL debe casar EXACTAMENTE, carácter a carácter, con el
+  `url=` aprobado:
   ```bash
   git remote get-url origin
   ```
-  (cuenta para `cmds=`; sustituye `origin` por el remoto aprobado);
+  (cuenta para `cmds=`; sustituye `origin` por el remoto aprobado). Compara la salida literal contra
+  el `url=` de tu cabecera — sin normalizar ni recortar nada (`git@github.com:o/r.git` y
+  `git@github.com:o/r` no son la misma cadena aunque git los resuelva igual).
 - el `base=` aprobado no puede ser igual al `branch=`;
 - el `branch=` no puede ser `master`/`main`/`develop`/`trunk`.
 
-**Desviación consciente (review final de fase 6):** `approved-push:` nombra `remote=`/`branch=`/
-`base=`, nunca una URL — esta re-verificación confirma que el `remote=` aprobado EXISTE, no que su
-URL sigue siendo la misma que vio el owner en el preview de fase A (fase B es una invocación fresca,
-sin memoria de esa URL). La única forma de cambiarla es `git remote set-url`, denegado por el guard
-para todo agent_type — así que el remoto solo puede haber cambiado de URL por una acción humana
-directa en la máquina entre fase A y fase B, no por nada que este dominio pueda hacer. Riesgo bajo,
-aceptado explícitamente en vez de ampliar `approved-push:` con un cuarto campo `url=` — candidato de
-v1.1 si alguna vez importa.
+**Cierre del hueco de fase 6** (antes aceptado como riesgo bajo, ahora cerrado): `approved-push:`
+solía nombrar solo `remote=`/`branch=`/`base=`, así que la re-verificación confirmaba que el
+`remote=` aprobado EXISTÍA, pero no que su URL siguiera siendo la que el owner vio en el preview de
+fase A (fase B es una invocación fresca, sin memoria de esa URL). El campo `url=` cierra ese hueco por
+completo: la URL pudo cambiar no solo por `git remote set-url` (denegado por el guard para todo
+agent_type), sino por cualquier edición humana directa de `.git/config` en la máquina entre fase A y
+fase B — algo que ningún guard de comandos puede ver porque no pasa por ningún shell. Comparar contra
+el `url=` de la cabecera detecta el cambio sea cual sea su vía.
 
 Cualquier discrepancia → `BLOCKED aprobación no coincide con el estado real` con una línea
-`- discrepancia: <campo> aprobado <x>, real <y>`. No "corriges" la aprobación por tu cuenta: una
-aprobación que no describe la realidad no es una aprobación.
+`- discrepancia: <campo> aprobado <x>, real <y>` — incluida `- discrepancia: url aprobada <x>, real
+<y>` si la URL no casa. No "corriges" la aprobación por tu cuenta: una aprobación que no describe la
+realidad no es una aprobación.
 
 ### Push (un comando, en su propia llamada)
 
@@ -593,9 +602,10 @@ cerrar el run, y por eso es el único que va acompañado de un preview.
 coincide con la base (paso 3). `BLOCKED base indeterminada` si no hay `base:` en la cabecera y
 `git rev-parse --abbrev-ref <remote>/HEAD` falla (paso 3). `BLOCKED sin aprobación de push` si falta
 o está vacía la línea `approved-push:` en `publish-release`. `BLOCKED aprobación de push malformada`
-si esa línea no trae los tres campos `remote=`/`branch=`/`base=`. `BLOCKED aprobación no coincide con
-el estado real` si la re-verificación encuentra una discrepancia. `BLOCKED árbol sucio: <n> ficheros
-sin commitear` si `git status --porcelain` imprime algo (paso 1). `KO tests en rojo: <motivo>` si la
+si esa línea no trae los cuatro campos `remote=`/`branch=`/`base=`/`url=`. `BLOCKED aprobación no
+coincide con el estado real` si la re-verificación encuentra una discrepancia (rama, remoto, base o
+URL). `BLOCKED árbol sucio: <n> ficheros sin commitear` si `git status --porcelain` imprime algo
+(paso 1). `KO tests en rojo: <motivo>` si la
 suite del pack falla (paso 5) — sin preview. `KO push rechazado: <motivo>` si `git push` falla en
 fase B. `DONE` con la línea `- nada que publicar: <branch> no tiene commits sobre <base>` si no hay
 commits (paso 4). En fase A, `DONE` con las líneas `- preview push:`/`- preview pr:`/`- remote:`/

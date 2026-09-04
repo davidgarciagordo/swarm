@@ -17,6 +17,8 @@ assert_eq "0" "$(has "$body" 'operation: prepare-release')" "root documents phas
 assert_eq "0" "$(has "$body" 'operation: publish-release')" "root documents phase B"
 assert_eq "0" "$(has "$body" 'NUNCA encadenas')" "delivery never auto-chains (same checkpoint as §10)"
 assert_eq "0" "$(has "$body" 'approved-push: remote=')" "root builds the approval line with its exact shape"
+assert_eq "0" "$(has "$body" 'approved-push: remote=origin branch=feature/export-csv base=master url=')" "the constructed header carries the fourth field, url=, pinning the remote's URL between preview and approval"
+assert_eq "0" "$(has "$body" 'Los cuatro campos')" "root names four fields when building the header, not three"
 assert_eq "0" "$(has "$body" 'AskUserQuestion')" "root uses AskUserQuestion for the approval"
 assert_eq "0" "$(has "$body" 'nunca a partir de un sí genérico')" "a bare yes is not an approval"
 assert_eq "0" "$(has "$body" 'verde NO verificado')" "the unverified-green warning must reach the question text (ruling 4)"

@@ -29,6 +29,12 @@ assert_eq "0" "$(has "$body" 'BLOCKED aprobación no coincide con el estado real
 assert_eq "0" "$(has "$body" 'operation: prepare-release')" "documents phase A"
 assert_eq "0" "$(has "$body" 'operation: publish-release')" "documents phase B"
 
+# backlog fix: approved-push: gains url= — phase B re-verifies the remote's URL, not just its name
+assert_eq "0" "$(has "$body" 'approved-push: remote=origin branch=feature/export-csv base=master url=')" "the approval line's literal example carries the fourth field, url="
+assert_eq "0" "$(has "$body" 'cuatro campos')" "the gate now names four fields, not three"
+assert_eq "0" "$(has "$body" 'discrepancia: url aprobada')" "a URL mismatch surfaces as its own named discrepancy, same shape as remote/branch/base"
+assert_eq "1" "$(has "$body" 'candidato de v1.1 si alguna vez importa')" "the old accepted-risk note is gone now that the gap is closed"
+
 # propiedades permanentes
 assert_eq "0" "$(has "$body" 'BLOCKED HEAD en rama protegida')" "never publishes from a protected branch"
 assert_eq "0" "$(has "$body" 'BLOCKED sin remoto configurado')" "handles the no-remote repo honestly (ruling 3)"
