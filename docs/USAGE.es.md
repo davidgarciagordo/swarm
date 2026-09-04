@@ -81,10 +81,17 @@ Antes de clasificar tier corre un gate de interpretación del objetivo: la raíz
 confianza en el objetivo recibido. Un objetivo claro no ve ningún cambio — ni pregunta nueva ni línea
 de output nueva. Uno ambiguo o mal redactado dispara una única `AskUserQuestion` con la interpretación
 de la raíz (más hasta 2 alternativas, más una opción de reescritura libre) — la respuesta confirmada
-del owner pasa a ser el objetivo que usan la clasificación, discovery, y todo lo posterior. La
-detección de "esto ya se preguntó" entre runs sigue siendo exacta y determinista de todos modos:
-compara contra el argumento crudo sin tocar, guardado aparte, nunca contra una interpretación no
-determinista del LLM.
+del owner pasa a ser el objetivo que usan la clasificación, discovery, y todo lo posterior.
+
+El gate en sí no escribe nada: nada de `.swarm/` puede tocarse hasta que el run está abierto y
+`memory-orchestrator` vivo, así que la interpretación confirmada se persiste justo después de eso,
+en su propia línea de decisión. Cancelar la pregunta termina el run *antes* de que llegue a
+abrirse — veredicto `BLOCKED interpretación de objetivo sin confirmar`, sin directorio de run, sin
+resumen, sin escribir nada. La detección de "esto ya se preguntó" entre runs sigue siendo exacta y
+determinista de todos modos: compara contra el argumento crudo sin tocar, guardado aparte, nunca
+contra una interpretación no determinista del LLM — y solo contra una línea que cerró de verdad un
+batch de discovery, así que el propio registro del gate nunca puede hacer que un run se salte su
+propio discovery.
 
 **Tiers** (de `agents/orchestrator.md` §1.1 y el spec §9.1):
 
@@ -310,8 +317,9 @@ objetivo exacto en un run anterior.
 
 **Qué recibes:** un diálogo interactivo de preguntas (es el único punto de todo el enjambre donde se
 pausa y te espera), y después una única línea de decisión registrada en `.swarm/decisions.md` con
-cada pregunta y tu respuesta, con el texto literal del objetivo delante para que un run posterior lo
-reconozca. Si cierras el diálogo sin responder, tu batch (sin responder) se guarda igualmente,
+cada pregunta y tu respuesta, con tu texto crudo sin tocar (`raw:`) delante y el `objective:`
+resuelto detrás — un run posterior lo reconoce comparando contra ese campo `raw:`. Si cierras el
+diálogo sin responder, tu batch (sin responder) se guarda igualmente,
 marcado `[pendiente]`, en vez de perderse en silencio.
 
 **Ejemplo real** (`docs/superpowers/plans/2026-09-02-phase2-smoke-checklist.md`, ítem 1, ejecutado

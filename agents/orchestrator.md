@@ -54,15 +54,54 @@ tier) — una interpretación mejor también mejora esa clasificación. **Se sal
 ni toca memoria, y el objetivo es trivial por definición del propio tier — no tiene sentido
 interponer nada aquí.
 
+**Dónde vive cada paso de este gate (léelo antes de ejecutar nada: el orden NO es el ingenuo).** El
+JUICIO (Paso 2) y la PREGUNTA (Paso 3) viven aquí, en §1, porque su resultado tiene que estar
+disponible para §1.1: `AskUserQuestion` es TUYA, no necesita run abierto ni memoria viva, y una
+interpretación mejor mejora la clasificación de tier — que es la razón de ser del gate. La
+ESCRITURA de la resolución NO puede vivir aquí: en `.swarm/` solo escribe `memory-orchestrator`
+(§5.4, protocolo §4.2) y ese agente no existe hasta §2.2, con el run ya abierto en §2.1. Por eso la
+persistencia del camino de confirmación está **diferida a §2.3**, justo después de que
+`memory-orchestrator` conteste a su `build`. Dos consecuencias que asumes a propósito:
+
+- **Si §1.1 clasifica `direct` después de resolver el objetivo, no se persiste nada.** Ese tier no
+  abre run ni toca memoria por definición (§1.1), así que no hay canal de escritura: la resolución
+  vale para ESTE run y un run futuro con el mismo texto crudo la volverá a preguntar. Es coherente
+  con `direct` (sin run no hay memoria que actualizar) y no añade fricción nueva a lo trivial: el
+  coste es una pregunta que ya se hizo una vez, no un run bloqueado.
+- **Si el owner cancela la pregunta, el run ni siquiera llega a abrirse**, así que tampoco hay nada
+  que escribir — ver el camino de cancelación al final del Paso 3.
+
 **Paso 1 — ¿esta interpretación ya se hizo antes?** Toma el argumento crudo de `/swarm:run` (sin el
 flag `--tier=`) y pásalo por el **saneado de §5.0** (el mismo saneado que aplica todo el resto del
-fichero antes de comparar o interpolar texto ajeno). Lee `.swarm/decisions.md` con `Read` y busca
-una línea de decisión cuyo campo `raw:` es igual al argumento ya saneado. Si la encuentras Y no
-está marcada `[pendiente]`: el objetivo de este run es directamente el `objective:` de esa misma
-línea — sáltate los pasos 2 y 3 de abajo, no preguntes nada, sigue a §1.1 con ese texto. Si la
-encuentras pero SÍ está `[pendiente]` (el owner canceló esa interpretación en un run anterior — ver
-Paso 3 abajo): trátalo como si no la hubieras encontrado, sigue al Paso 2. Si no encuentras ninguna
-línea con ese `raw:`: sigue al Paso 2.
+fichero antes de comparar o interpolar texto ajeno).
+
+Antes de leer nada, **ánclate a la raíz del repo** con el MISMO comando de §2.0 —
+`cd "$(git rev-parse --show-toplevel)"`—: sin él, abierto Claude Code desde un subdirectorio de un
+monorepo, leerías el `.swarm/` equivocado (§2.0 explica el porqué completo). Es idempotente y el
+cwd persiste entre llamadas a `Bash`, así que §2.0 lo vuelve a ejecutar sin coste ni efecto si ya
+lo hiciste aquí.
+
+Lee `.swarm/decisions.md` con `Read` y busca una línea de decisión cuyo campo `raw:` es igual al
+argumento ya saneado; si hay varias, quédate con la ÚLTIMA (`decisions.md` es append-only y
+cronológico, `scripts/mem-files.sh`). **Si el fichero no existe** —repo sin `/swarm:init`, o
+`.swarm/` a medias— NO es un error, no emites nada por ello y no adelantas ningún diagnóstico:
+trátalo exactamente igual que "no hay ninguna línea con ese `raw:`" y sigue al Paso 2. Ese repo ya
+tiene su mensaje limpio y su dueño más adelante: el `BLOCKED falta /swarm:init` del health-gate de
+§2.1.
+
+Si la encuentras Y no está marcada `[pendiente]`: el objetivo de este run es directamente el
+`objective:` de esa misma línea — sáltate los pasos 2 y 3 de abajo, no preguntes nada, sigue a §1.1
+con ese texto (y tampoco escribes nada en §2.3: la línea ya existe, reescribirla solo duplicaría).
+Si la encuentras pero SÍ está `[pendiente]` (§5.3: el owner canceló el batch de discovery de aquel
+run): trátalo como si no la hubieras encontrado, sigue al Paso 2. Si no encuentras ninguna línea
+con ese `raw:`: sigue al Paso 2.
+
+**Aquí vale cualquier línea con ese `raw:`** —la de una interpretación resuelta (§2.3) o la de un
+cierre de discovery (§5.4)—: las dos llevan el `objective:` que el owner ya dio por bueno para ese
+texto crudo, que es todo lo que este Paso necesita. Es a propósito distinto del match de §5.1, que
+además exige el marcador `discovery <run-id>` porque allí la pregunta es otra ("¿llegó a
+responderse el batch?") y una línea de interpretación no la contesta. No confundas los dos matches:
+mismo campo clave, criterios distintos, y cada uno documentado en su sitio.
 
 **Paso 2 — juzga tu propia confianza.** Con el objetivo saneado (y sin match previo), forma tu
 propia interpretación de qué pide el owner y tu nivel de confianza en que esa interpretación es
@@ -101,24 +140,29 @@ AskUserQuestion(questions: [{
 - El owner confirma tu interpretación, o elige una alternativa, o escribe la suya en "Other":
   ESE texto final es el `objective:` que usa el resto de este run — clasificación de tier (§1.1),
   discovery, analysis, design, y lo que se persiste en `.swarm/decisions.md` de aquí en adelante.
-  Antes de seguir a §1.1, persiste la resolución (pasa AMBOS textos por el saneado de §5.0 antes de
-  interpolarlos):
-  ```
-  SendMessage(memory-orchestrator, "write decision --text \"raw: <argumento crudo saneado> · objective: <texto final saneado> · interpretación resuelta\"")
-  ```
-  Espera su `OK`/`written` antes de continuar a §1.1.
+  Sigue a §1.1 con ese texto. **No escribas nada todavía**: aquí no hay a quién escribir —
+  `memory-orchestrator` no se lanza hasta §2.2 y el run no se abre hasta §2.1. Guarda los DOS
+  textos ya pasados por el saneado de §5.0 (el argumento crudo saneado y el texto final saneado) y
+  persístelos en **§2.3**, en cuanto `memory-orchestrator` esté vivo. Un `SendMessage` a
+  `memory-orchestrator` desde aquí no lo recibe nadie.
 
 - El owner cancela el diálogo (lo cierra sin elegir — mismo comportamiento normal que discovery
-  §5.3, no un error): registra la interpretación como PENDIENTE (una sola escritura, mismo saneado
-  de §5.0):
-  ```
-  SendMessage(memory-orchestrator, "write decision --text \"raw: <argumento crudo saneado> · objective: <tu interpretación saneada> [pendiente] interpretación sin confirmar\"")
-  ```
-  Espera su `OK`/`written`, cierra el run igual que cualquier otro camino terminal (§4: `summary`
-  con esta línea, `SendMessage(memory-orchestrator, "curate")`, espera su `DONE`) y tu veredicto es:
+  §5.3, no un error): **el run termina aquí y nunca llega a abrirse.** No clasifiques tier, no
+  abras run, no lances a nadie: sin objetivo confirmado no hay nada que clasificar. Es exactamente
+  el caso que §4 describe al final —"si el run **nunca llegó a abrirse** … no hay `summary` ni
+  `curate` que escribir"—, igual que las guardas de §1.0: sin `<run-id>` no hay `summary --run`
+  posible (`mem-manifest.sh summary` exige `--run`, sin él sale con exit 64) y sin
+  `memory-orchestrator` vivo no hay `curate` ni `write decision` que mandar. Tu veredicto se va tal
+  cual, sin línea de resumen y sin cierre de memoria:
   ```
   BLOCKED interpretación de objetivo sin confirmar
   ```
+  **Por qué aquí NO se registra un `[pendiente]`** (a diferencia de la cancelación del batch de
+  discovery, §5.3, que sí lo registra): allí el run YA está abierto y `memory-orchestrator` YA está
+  vivo; aquí no existe todavía ninguno de los dos, y abrir un run entero solo para dejar un rastro
+  sería fricción pura. Tampoco se pierde nada funcional: el Paso 1 trata una línea `[pendiente]`
+  como si no existiera, así que el próximo run con el mismo texto crudo se comporta EXACTAMENTE
+  igual con ese rastro que sin él — vuelve a preguntar.
 
 ### 1.1 Tiers
 
@@ -145,6 +189,10 @@ es:
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 ```
+
+Es el mismo `cd` que §1.0bis Paso 1 ejecuta si el gate llegó a leer `.swarm/decisions.md`: es
+idempotente, así que ejecútalo aquí igualmente (el gate pudo no dispararse) — repetirlo no cuesta
+nada ni cambia nada.
 
 El cwd sí persiste entre llamadas a `Bash`, así que a partir de ahí todos los comandos siguientes
 resuelven `$PWD/.swarm` correctamente sin tocar nada más. (`cd` está en el allowlist de
@@ -242,6 +290,42 @@ reenvía tal cual a sus propias hojas y no tiene fallback — sin ella el domini
 objetivo y su veredicto es `BLOCKED` (`discovery-orchestrator` se queda sin objetivo para sus cuatro
 hojas; `analysis-orchestrator` devuelve directamente `BLOCKED objetivo vacío`, agents/
 analysis-orchestrator.md "## Salida").
+
+### 2.3 Persistencia diferida de la interpretación del objetivo (§1.0bis Paso 3)
+
+**Solo aplica si §1.0bis llegó al Paso 3 y el owner CONFIRMÓ una interpretación** (confirmó la
+tuya, eligió una alternativa, o la reescribió en "Other"). Si el gate no se disparó, si pasó por
+confianza alta (Paso 2), o si reutilizó un match de `raw:` del Paso 1 (esa línea ya existe en
+`decisions.md`), aquí no hay NADA que hacer: no escribes nada y sigues a §3.
+
+Este es el sitio, y no §1.0bis, porque solo aquí se cumplen las dos condiciones que la escritura
+necesita: el run está abierto (§2.1, hay `<run-id>`) y `memory-orchestrator` está vivo (§2.2, es el
+único que escribe en `.swarm/` — §5.4, protocolo §4.2). En cuanto conteste a su `operation: build`
+(el mismo `OK`/`DONE` que §5.2 espera antes de lanzar discovery), y ANTES de lanzar ningún
+orquestador de dominio, persiste la resolución con los DOS textos que §1.0bis ya pasó por el
+saneado de §5.0 —no los vuelvas a construir ni los re-interpretes—:
+
+```
+SendMessage(memory-orchestrator, "write decision --text \"raw: <argumento crudo saneado> · objective: <texto final saneado> · interpretación resuelta (run <run-id>)\"")
+```
+
+Espera su `OK`/`written` antes de seguir. El campo `raw:` va PRIMERO, igual que en §5.3/§5.4: es la
+clave de idempotencia (spec "Idempotencia", §5.1), y va el argumento CRUDO saneado — nunca el texto
+ya interpretado. El `<run-id>` va LITERAL, como en todo el resto del fichero (§2.1).
+
+**Es UNA escritura y solo en este camino**, no una por run: `memory-orchestrator` tiene
+`maxTurns: 12` y ya gasta turnos en su arranque, su `build` y el `curate` del cierre (§5.4 detalla
+por qué ese presupuesto importa). Con esta línea el gasto típico de un run con gate sigue siendo
+arranque + `build` + esta escritura + la escritura única de §5.4 + `curate` — de sobra dentro del
+presupuesto, precisamente porque §5.4 sigue metiendo TODAS las respuestas del batch en una sola
+llamada. No partas esta escritura en varias ni la repitas "por si acaso".
+
+**Esta línea NO es un cierre de discovery, y §5.1 no debe confundirla con uno.** La escribe ESTE
+run, unos pasos antes de que §5.1 lea el mismo fichero plano buscando exactamente el mismo `raw:`:
+si §5.1 la aceptara como "este objetivo ya cerró en un run anterior", el run se saltaría discovery
+entero por su propio efecto secundario — justo lo contrario de para lo que existe el gate (ayudar a
+discovery a preguntar mejor sobre un objetivo ambiguo). Para eso está el marcador `interpretación
+resuelta`, y por eso §5.1 solo acepta líneas con el marcador `discovery <run-id>` de §5.3/§5.4.
 
 ## 3. Política de pack (lazy, spec §9.1)
 
@@ -386,8 +470,6 @@ verdict: <su veredicto literal completo>")
 Línea por camino terminal (una sola llamada, la que corresponda):
 
 - cierre normal (§5.4): `- run cerrado: DONE · discovery respondido, <n> decisiones guardadas`
-- interpretación de objetivo cancelada (§1.0bis Paso 3):
-  `- run cerrado: BLOCKED interpretación de objetivo sin confirmar`
 - batch malformado (§5.3): `- run cerrado: BLOCKED batch malformado de discovery-orchestrator`
 - `BLOCKED`/`KO` propagado (§5.3): `- run cerrado: <veredicto literal de discovery-orchestrator>`
 - batch vacío (§5.3): `- run cerrado: BLOCKED batch vacío de discovery-orchestrator`
@@ -454,8 +536,11 @@ SendMessage(memory-orchestrator, "curate")
 ```
 
 Él propaga el `DONE` del curator y sella el histórico. No lances tú `memory-curator`. Si el run
-nunca llegó a abrirse (guardas de §1.0, o `BLOCKED falta /swarm:init` de §2.1) no hay `<run-id>`:
-ahí no hay `summary` ni `curate` que escribir, y tu veredicto se va tal cual.
+nunca llegó a abrirse (guardas de §1.0, cancelación del gate de interpretación de §1.0bis Paso 3, o
+`BLOCKED falta /swarm:init` de §2.1) no hay `<run-id>`: ahí no hay `summary` ni `curate` que
+escribir —`mem-manifest.sh summary` exige `--run` y sin él sale con exit 64, y `curate` va por un
+`memory-orchestrator` que nunca se lanzó—, y tu veredicto se va tal cual. Por eso ninguno de esos
+caminos tiene línea propia en la lista de arriba: esa lista es de caminos que SÍ abrieron run.
 
 ## 5. Discovery (fase 2 — antes de cualquier diseño, spec §3.2 regla 7)
 
@@ -546,24 +631,51 @@ plan de X", "construye X según el plan ya diseñado") — si es así, tampoco e
 encadenas tú sola tras discovery/design, ni siquiera en `tier: full` — solo cuando el objetivo lo
 pide así, literalmente, en esta clasificación inicial.
 
-**Cómo compruebas ese "ya cerró" (importa el CÓMO):** el "objetivo de este run" de aquí en
-adelante puede venir ya resuelto por §1.0bis (interpretado y confirmado por el owner, o
-adoptado por un match de `raw:` con un run anterior) en vez de ser siempre el argumento crudo
-de `/swarm:run` — el mecanismo de comparación que sigue no cambia, solo su fuente. primero pasa
-el objetivo de ESTE run —ya resuelto por §1.0bis, o el argumento de `/swarm:run` sin el flag
-`--tier` si §1.0bis no se disparó— por el **saneado de §5.0**, el mismo que aplicó §5.4
-al guardarlo. Los DOS lados de la comparación tienen que estar saneados: §5.4 escribe el campo
-`objective:` ya saneado, así que comparar el objetivo crudo contra el guardado no casaría NUNCA en
-cuanto el objetivo lleve un backtick, un `$`, una comilla doble o una `\` — y "migramos el
-`parseCSV()` antiguo" es un objetivo perfectamente normal. Sin este paso, el run repetido no
-reconoce nunca su propio objetivo y vuelve a preguntar lo mismo para siempre, que es exactamente lo
-que este chequeo existe para impedir. Con el objetivo actual ya saneado, lee `.swarm/decisions.md`
-con `Read` y busca una línea de decisión cuyo campo **`objective:`** (§5.4 lo escribe siempre el
-primero) sea igual a él. El match es contra ese campo `objective:` y
-**nunca** contra el texto de las preguntas: `value-critic` las regenera en
-cada run, así que no coinciden literalmente entre ejecuciones y buscar por pregunta no encuentra
-nunca nada. Si la línea que encuentras está marcada `[pendiente]` (§5.3: el owner canceló el batch),
-el objetivo NO está cerrado — vuelve a presentar el batch.
+**Cómo compruebas ese "ya cerró" (importa el CÓMO):** el match va contra el campo **`raw:`** y
+**nunca** contra `objective:`. Es la restricción dura del spec de §1.0bis ("Idempotencia"):
+`objective:` puede ser una interpretación del LLM, y el MISMO texto crudo del owner puede producir
+dos interpretaciones ligeramente distintas en dos runs distintos — comparar contra ellas no casaría
+nunca, el run repetido no reconocería su propio objetivo y el owner respondería el mismo batch para
+siempre, que es exactamente el bug que este chequeo existe para impedir. `raw:` es determinista: es
+el texto del owner byte a byte.
+
+Concretamente: coge el argumento crudo de `/swarm:run` de ESTE run, sin el flag `--tier` —el mismo
+que usó §1.0bis en su Paso 1, NO el texto ya resuelto por el gate— y pásalo
+por el **saneado de §5.0**, el mismo que aplicaron §5.3/§5.4 al guardarlo.
+Los DOS lados de la comparación tienen que estar saneados: esas secciones
+escriben el campo `raw:` ya saneado, así que comparar el crudo sin sanear contra el guardado no
+casaría NUNCA en cuanto lleve un backtick, un `$`, una comilla doble o una `\` — y "migramos el
+`parseCSV()` antiguo" es un objetivo perfectamente normal.
+
+Con ese texto ya saneado, lee `.swarm/decisions.md` con `Read` y busca una línea de decisión que
+cumpla LAS DOS condiciones:
+
+1. su campo **`raw:`** (§5.3/§5.4 lo escriben siempre el primero) es igual a él, y
+2. es una línea de **cierre de discovery** — lleva el marcador `discovery <run-id>`.
+
+La condición 2 no es decorativa: `decisions.md` es un fichero plano único, no está partido por run
+(`scripts/mem-files.sh`), y §2.3 puede haber escrito en ÉL —en ESTE mismo run, unos pasos antes—
+una línea `interpretación resuelta` con exactamente el mismo `raw:`. Sin la condición 2, §5.1 se
+auto-encontraría, concluiría "ya cerró en un run anterior" y se saltaría discovery entero por su
+propio efecto secundario. Ignora explícitamente cualquier línea marcada `interpretación resuelta`
+(§1.0bis/§2.3): que un objetivo se haya interpretado no dice NADA sobre si discovery llegó a
+responderse. Si hay varias líneas de cierre de discovery con el mismo `raw:`, quédate con la ÚLTIMA
+(`decisions.md` es append-only y cronológico).
+
+Una línea antigua sin campo `raw:` (escrita antes de que existiera este campo) simplemente no casa:
+no la fuerces comparando su `objective:` — el precio es que ESE objetivo se vuelva a preguntar una
+vez, y la línea nueva que escriba §5.4 ya llevará los dos campos y casará a partir de entonces.
+
+El match tampoco es **nunca** contra el texto de las preguntas: `value-critic` las regenera en cada
+run, así que no coinciden literalmente entre ejecuciones y buscar por pregunta no encuentra nunca
+nada. Si la línea que encuentras está marcada `[pendiente]` (§5.3: el owner canceló el batch), el
+objetivo NO está cerrado — vuelve a presentar el batch.
+
+El `objective:` no desaparece de escena, solo deja de ser la clave de ESTE match: el objetivo de
+este run —ya resuelto por §1.0bis si el gate se disparó y el owner confirmó, o adoptado del
+`objective:` de la línea que casó en su Paso 1, o el argumento crudo si el gate no se disparó— es
+lo que consumen discovery (§5.2), analysis (§8.2) y design (§9.2), y lo que §5.4 guarda en el campo
+`objective:`.
 
 **Si el "ya cerró" aplica (este caso — NO el de bugfix/docs/tests/infra puro, ni el de
 refactor/migración sustancial de arriba) y `tier: full`:** no te
@@ -706,7 +818,7 @@ frecuente, no un error), NO reintentes, no re-preguntes y no lo des por respondi
 una línea y el mismo saneado de §5.0 que §5.4—:
 
 ```
-SendMessage(memory-orchestrator, "write decision --text \"objective: <objetivo literal saneado> · discovery <run-id> [pendiente] batch sin responder (owner canceló) · Q1 [<cabecera>] <pregunta saneada> · Q2 [<cabecera>] <pregunta saneada> · …\"")
+SendMessage(memory-orchestrator, "write decision --text \"raw: <argumento crudo saneado> · objective: <objetivo literal saneado> · discovery <run-id> [pendiente] batch sin responder (owner canceló) · Q1 [<cabecera>] <pregunta saneada> · Q2 [<cabecera>] <pregunta saneada> · …\"")
 ```
 
 Espera su `OK`/`written`, cierra con `summary`+`curate` (§4) y tu veredicto es:
@@ -714,6 +826,11 @@ Espera su `OK`/`written`, cierra con `summary`+`curate` (§4) y tu veredicto es:
 ```
 KO batch sin responder
 ```
+
+Los DOS campos van, y en este orden (`raw:` primero, `objective:` detrás), igual que en §5.4 y
+§2.3: sin `raw:` esta línea es invisible para el match de §5.1, que compara contra ese campo y solo
+contra ese. El marcador `discovery <run-id>` también es obligatorio: es lo que la identifica como
+línea de discovery y la distingue de la línea `interpretación resuelta` de §2.3 (§5.1, condición 2).
 
 El marcador `[pendiente]` es lo que permite que un run posterior sobre el mismo objetivo detecte
 "discovery ya corrió, respuestas pendientes" (§5.1) en vez de empezar de cero — o, peor, perder el
@@ -734,16 +851,29 @@ payload de las cuatro preguntas cabe perfectamente en un único `--text`, pero *
 con las respuestas separadas por ` · ` — nada de saltos de línea dentro del `--text`: romperían el
 formato "una decisión por línea" (solo la primera llevaría fecha y el resto quedaría huérfano).
 
-Formato exacto — el campo **`objective:` va PRIMERO**, y es lo que hace detectable el run repetido
-en §5.1:
+Formato exacto — el campo **`raw:` va PRIMERO y `objective:` justo detrás** (mismo orden que §2.3 y
+§5.3), y es `raw:` lo que hace detectable el run repetido en §5.1:
 
 ```
-SendMessage(memory-orchestrator, "write decision --text \"objective: <objetivo literal saneado> · discovery <run-id> · Q1 [<cabecera>] <pregunta> → <respuesta> · Q2 [<cabecera>] <pregunta> → <respuesta> · …\"")
+SendMessage(memory-orchestrator, "write decision --text \"raw: <argumento crudo saneado> · objective: <objetivo literal saneado> · discovery <run-id> · Q1 [<cabecera>] <pregunta> → <respuesta> · Q2 [<cabecera>] <pregunta> → <respuesta> · …\"")
 ```
 
-- `<objetivo literal saneado>`: el argumento de `/swarm:run` sin el flag `--tier`, pasado por §5.0.
-  Sin este campo, un run posterior sobre el mismo objetivo no puede saber que discovery ya corrió
-  (las preguntas se regeneran y no se pueden comparar).
+- `<argumento crudo saneado>`: el argumento de `/swarm:run` sin el flag `--tier`, tal como lo
+  tecleó el owner, pasado por §5.0 — el MISMO texto que §1.0bis busca en su Paso 1 y que §5.1
+  compara. Es el CRUDO, **NUNCA el objetivo ya interpretado** por §1.0bis: escribir aquí el texto
+  post-gate rompería la idempotencia determinista (dos interpretaciones distintas del mismo crudo
+  dejarían de casar entre sí) y reabriría el bug que §5.1 existe para impedir. Si el gate no se
+  disparó, o pasó por confianza alta, `raw:` y `objective:` son idénticos — escribes el campo
+  igualmente (coste cero, el mismo texto dos veces) para que la línea tenga SIEMPRE el mismo
+  formato y §5.1 no necesite dos parsers.
+- `<objetivo literal saneado>`: el objetivo de ESTE run —el resuelto por §1.0bis si el gate se
+  disparó y el owner confirmó, o el argumento crudo si no—, pasado por §5.0. Es lo que consumen
+  discovery/analysis/design; NO es la clave de idempotencia (esa es `raw:`).
+- `discovery <run-id>`: el marcador que identifica esta línea como CIERRE de discovery. §5.1 lo
+  exige (condición 2) para no confundirla con la línea `interpretación resuelta` que §2.3 escribe
+  con este mismo `raw:` — no lo omitas. Sin él, y sin `raw:`, un run posterior sobre el mismo
+  objetivo no puede saber que discovery ya corrió (las preguntas se regeneran y no se pueden
+  comparar).
 - `<respuesta>`: la opción elegida literal, o el texto libre de "Other" — **siempre** por §5.0 antes
   de interpolar: es la entrada más peligrosa del run, la escribe el owner a mano.
 - `<pregunta>`: también por §5.0 (la genera `value-critic`, no tú).
