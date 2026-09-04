@@ -53,5 +53,17 @@ assert_eq "0" "$(has "$body" 'Algo no salió bien:')" "vocabulary table maps KO 
 assert_eq "0" "$(has "$body" 'Todo en orden.')" "vocabulary table maps OK -> 'Todo en orden.'"
 assert_eq "0" "$(has "$body" 'lenguaje llano')" "orchestrator has a plain-language instruction for its own output"
 
+# ===== Task 2: discovery-orchestrator.md + release-manager.md =====
+DF="$PLUGIN_ROOT/agents/discovery-orchestrator.md"
+dbody="$(awk '/^---$/{n++; next} n>=2{print}' "$DF")"
+assert_eq "0" "$(has "$dbody" 'lenguaje llano')" "discovery-orchestrator has the plain-language question style instruction"
+assert_eq "0" "$(has "$dbody" 'rec: <letra>')" "discovery-orchestrator still instructs correctly populating rec: to point at the recommended option"
+assert_eq "1" "$(has "$dbody" '(recomendada)')" "discovery-orchestrator does NOT instruct embedding a (recomendada) suffix in the option text — marking is the root's §5.3 job, not duplicated here"
+assert_eq "0" "$(has "$dbody" 'orchestrator.md §5.3')" "discovery-orchestrator points to the root's existing §5.3 mechanism as the single place the recommended option gets marked"
+
+RF="$PLUGIN_ROOT/agents/release-manager.md"
+rbody="$(awk '/^---$/{n++; next} n>=2{print}' "$RF")"
+assert_eq "0" "$(has "$rbody" 'lenguaje llano')" "release-manager has the plain-language message style instruction"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
