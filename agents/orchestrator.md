@@ -344,8 +344,11 @@ Línea por camino terminal (una sola llamada, la que corresponda):
 - URL de remoto pegada inválida (§12.2bis/§12.4): `- run cerrado: BLOCKED url de remoto malformada`
 - `BLOCKED`/`KO` propagado de delivery (§12.3): `- run cerrado: <veredicto literal de
   delivery-orchestrator>`
-- ninguno de los tres dominios aplica (bugfix/refactor/docs/infra, §5.1 + §8.1 + §9.1): usa la línea
-  COMBINADA, `- run cerrado: <tu veredicto> · discovery, analysis y diseño omitidos: <motivo
+- ninguno de los tres dominios aplica (bugfix/docs/tests/infra puro, §5.1 + §8.1 + §9.1 — o
+  refactor/migración sustancial en `tier: light`, donde design tampoco corre pero por el gate de
+  tier de §9.1, no por falta de decisiones: en `tier: full` refactor/migración YA NO cae aquí, ver
+  el matiz de §5.1/§9.1 — ahí design SÍ corre y cierra con su propia línea `diseño completado`): usa
+  la línea COMBINADA, `- run cerrado: <tu veredicto> · discovery, analysis y diseño omitidos: <motivo
   compartido>` — **una sola llamada**, no varias líneas por separado. Es el camino preferido cuando
   los tres dominios se saltan por el MISMO motivo de fondo (el objetivo no es "de producto" ni "de
   análisis" — y sin decisiones de producto, §9.1 dice que design también se salta). Las líneas
@@ -353,11 +356,11 @@ Línea por camino terminal (una sola llamada, la que corresponda):
   la clasificación de cada dominio difiera de verdad entre sí (objetivo ambiguo que casa con uno
   pero no con el otro) — pero §4 sigue exigiendo UNA sola llamada de `summary` por cierre, así que
   si los motivos son el mismo, usa siempre la combinada. `design` NO tiene una línea `diseño
-  omitido` propia en ESTE camino (bugfix/refactor/docs/infra): su omisión pliega aquí porque
-  discovery y analysis TAMBIÉN se saltaron por el mismo motivo. Cuando discovery se salta por un
-  motivo distinto — porque analysis corre en su lugar (§8.1) — design se omite igual (§9.1) pero
-  esa omisión ya queda cubierta por el veredicto de analysis (§8.4) y no necesita ninguna línea ni
-  llamada propia (§9.4 detalla ambos casos).
+  omitido` propia en ESTE camino (bugfix/docs/tests/infra puro, o refactor/migración en tier
+  `light`): su omisión pliega aquí porque discovery y analysis TAMBIÉN se saltaron por el mismo
+  motivo. Cuando discovery se salta por un motivo distinto — porque analysis corre en su lugar
+  (§8.1) — design se omite igual (§9.1) pero esa omisión ya queda cubierta por el veredicto de
+  analysis (§8.4) y no necesita ninguna línea ni llamada propia (§9.4 detalla ambos casos).
 
 Y solo después, el cierre de memoria:
 
@@ -415,9 +418,22 @@ manda la del skill.
 
 Solo en tiers `light`/`full` (nunca `direct`), y solo si el objetivo es "de producto": nueva
 funcionalidad, nuevo producto, cambio de comportamiento visible para el usuario, o cualquier
-formulación del tipo "qué construimos / cómo lo hacemos". **Se salta** para bugfix, refactor,
-docs, tests, tareas de infraestructura, y para un objetivo que `.swarm/decisions.md` YA cerró en un
-run anterior.
+formulación del tipo "qué construimos / cómo lo hacemos". **Se salta** para bugfix, docs, tests,
+tareas de infraestructura puras, para refactor/migración sustancial de diseño (ver el matiz nuevo
+justo abajo — el salto de discovery en este caso NO implica el salto de design), y para un objetivo
+que `.swarm/decisions.md` YA cerró en un run anterior.
+
+**Refactor/migración sustancial de diseño (matiz nuevo — discovery se salta igual, pero design NO).**
+Palabras clave del objetivo (case-insensitive): refactor, refactoriza, migra, migración, rediseña,
+rediseño, reestructura, restructuring — el objetivo pide explícitamente un rediseño/reestructuración
+de código ya existente ("mejor diseño posible", "aplica SOLID/KISS"…), no solo corregir un fallo
+puntual. Aquí no hay decisión de producto que preguntarle al owner (nada para un batch de
+`AskUserQuestion`), así que discovery se salta igual que para bugfix/docs/infra — pero, a diferencia
+de esos, en `tier: full` §9.1 SÍ encadena `design-orchestrator`: le pasas el objetivo literal, sin
+contexto de decisiones de discovery (no existen para este camino — el "Contexto de arranque" de
+`design-orchestrator` ya lee `.swarm/decisions.md` como contexto opcional para sus hojas y tolera que
+esté vacío o sin match, no lo exige). En `tier: light` no encadena, igual que cualquier otro caso
+(§9.1: `light` = un solo dominio).
 
 Antes de saltarte discovery por este motivo, comprueba si el objetivo casa con la clasificación "de
 análisis" de §8.1 — si es así, no es un salto sin más: ve a §8 en vez de terminar aquí.
@@ -443,7 +459,8 @@ cada run, así que no coinciden literalmente entre ejecuciones y buscar por preg
 nunca nada. Si la línea que encuentras está marcada `[pendiente]` (§5.3: el owner canceló el batch),
 el objetivo NO está cerrado — vuelve a presentar el batch.
 
-**Si el "ya cerró" aplica (este caso — NO el de bugfix/refactor/docs/infra) y `tier: full`:** no te
+**Si el "ya cerró" aplica (este caso — NO el de bugfix/docs/tests/infra puro, ni el de
+refactor/migración sustancial de arriba) y `tier: full`:** no te
 quedes solo con la línea `- discovery omitido: …` de abajo — encadena §9 (design) usando las
 decisiones ya cerradas como contexto, exactamente igual que §5.4 encadena tras un batch recién
 respondido (spec §9.1: en `full`, hay decisiones de producto para diseñar, vengan de este run o de
@@ -453,8 +470,10 @@ nunca a la vez a §8. Si en cambio el objetivo casa con "de análisis" (§8.1), 
 párrafo de arriba y este párrafo no aplica. En `tier: light` no encadenas (spec §9.1: `light` = un
 solo dominio): la línea `- discovery omitido: …` es todo lo que emites antes de cerrar (§4).
 
-Si lo saltas por el tipo de objetivo (bugfix/refactor/docs/infra) o —en tier `light`— porque ya
-cerró, dilo en una línea `- discovery omitido: <motivo>`.
+Si lo saltas por el tipo de objetivo (bugfix/docs/tests/infra puro, o refactor/migración sustancial
+de arriba) o —en tier `light`— porque ya cerró, dilo en una línea `- discovery omitido: <motivo>` —
+esta línea es de discovery únicamente; si el objetivo era de refactor/migración y `tier: full`, sigue
+en §9.1 para la línea de design correspondiente (que en ese caso NO se omite).
 
 ### 5.2 Lanzamiento (secuencial respecto a memoria)
 
@@ -671,7 +690,7 @@ evidence: files=2 cmds=5 turns=7/30
 - decisión previa: Q1 [Valor] ¿export CSV para quién? → admins
 ```
 
-Run cuyo objetivo no casa con ningún dominio de decisión (bugfix/refactor/docs/infra) —
+Run cuyo objetivo no casa con ningún dominio de decisión (bugfix/docs/tests/infra puro) —
 situación DISTINTA de la anterior: aquí no hay dominio de producto/análisis/diseño que orquestar,
 solo memoria abre y cierra el run (§4, línea combinada):
 
@@ -679,6 +698,18 @@ solo memoria abre y cierra el run (§4, línea combinada):
 DONE
 evidence: files=2 cmds=4 turns=5/30
 - discovery, analysis y diseño omitidos: objetivo de bugfix (no es de producto ni de análisis)
+```
+
+Run cuyo objetivo pide un refactor/migración sustancial en `tier: full` (§5.1, matiz nuevo) —
+discovery se salta igual que el caso de arriba (no hay decisión de producto que preguntar), pero
+design SÍ corre, con el objetivo literal y sin contexto de decisiones de discovery:
+
+```
+DONE
+evidence: files=3 cmds=6 turns=12/30
+- discovery omitido: objetivo de refactor/migración sustancial, sin decisión de producto que preguntar
+PLAN · docs/superpowers/plans/2026-09-03-refactor-facturacion-solid.md:1 · plan listo, 5 fases → revisar antes de fase 5
+- grill: 2 P1 incorporados (acoplamiento circular, migración de datos en caliente), 1 P2 anotado como riesgo
 ```
 
 Run en el que el owner canceló el diálogo de preguntas (§5.3): el batch queda registrado como
@@ -792,13 +823,24 @@ Camino terminal adicional para el `summary` de §4:
 ### 9.1 Cuándo
 
 **Solo `tier: full`** (spec §9.1: `light` = un solo dominio — discovery/analysis corren solos y
-el run termina ahí, nunca encadenan a design). En `full`, tras §5.4 (decisiones recién grabadas) o
-tras el camino "ya cerró" de §5.1 (decisiones de un run anterior), lanza `design-orchestrator` con
-esas decisiones como contexto — nunca en el mismo turno que discovery (discovery tiene que haber
-cerrado sus decisiones primero, secuencial, misma razón que discovery→memory-orchestrator en §5.2).
-Si discovery se saltó por completo (bugfix/refactor/docs/infra — §5.1), design TAMBIÉN se salta:
-no hay decisiones de producto contra las que diseñar. Dilo en una línea `- diseño omitido: <motivo
-compartido con discovery>`.
+el run termina ahí, nunca encadenan a design). En `full`, design corre por dos vías independientes —
+ya no son la misma condición encadenada:
+
+1. **Vía decisiones de producto.** Tras §5.4 (decisiones recién grabadas) o tras el camino "ya
+   cerró" de §5.1 (decisiones de un run anterior), lanza `design-orchestrator` con esas decisiones
+   como contexto — nunca en el mismo turno que discovery (discovery tiene que haber cerrado sus
+   decisiones primero, secuencial, misma razón que discovery→memory-orchestrator en §5.2).
+2. **Vía refactor/migración sustancial (§5.1, matiz nuevo).** Aunque discovery se saltó (no hay
+   decisiones de producto que preguntar), lanza `design-orchestrator` igual con el objetivo literal,
+   sin contexto de decisiones de discovery — no es una contradicción: el salto de discovery y el
+   salto de design son ahora dos juicios independientes por tipo de objetivo, no uno encadenado al
+   otro. `design-orchestrator` ya tolera un `.swarm/decisions.md` vacío o sin match (lo lee como
+   contexto opcional para sus hojas, no lo exige).
+
+Si discovery se saltó por bugfix/docs/tests/infra puro (§5.1 — sin palabra clave de
+refactor/migración), design TAMBIÉN se salta: no hay decisiones de producto ni un objetivo de
+rediseño contra el que diseñar. Dilo en una línea `- diseño omitido: <motivo compartido con
+discovery>`.
 
 ### 9.2 Lanzamiento
 
@@ -838,14 +880,17 @@ camino terminal (§4: `summary` saneado con la línea de este camino y después
 
 ### 9.4 Cierre — nueva línea de resumen (extiende §4)
 
-- diseño completado (`DONE`): `- run cerrado: DONE · diseño completado, plan en <ruta>`
+- diseño completado (`DONE`), vía decisiones de producto O vía refactor/migración (§9.1 — las dos
+  vías cierran igual): `- run cerrado: DONE · diseño completado, plan en <ruta>`
 - `BLOCKED`/`KO` propagado de design: `- run cerrado: <veredicto literal de design-orchestrator>`
-- diseño omitido (discovery también se saltó, §9.1): NO es una línea de cierre propia — depende de
-  POR QUÉ se saltó discovery. En el camino de bugfix/refactor/docs/infra, pliega en la línea
-  COMBINADA de §4 (`discovery, analysis y diseño omitidos: <motivo compartido>`). Si discovery se
-  saltó porque analysis corre en su lugar (§8.1, objetivo "de análisis"), tu omisión no necesita
-  línea propia — el cierre ya lo cubre el veredicto de análisis (§8.4: `análisis completado` o su
-  `BLOCKED`/`KO`). En ningún caso design abre una llamada `summary` aparte.
+- diseño omitido, caso bugfix/docs/tests/infra puro (discovery también se saltó por el MISMO
+  motivo, §9.1): NO es una línea de cierre propia — pliega en la línea COMBINADA de §4 (`discovery,
+  analysis y diseño omitidos: <motivo compartido>`). Si discovery se saltó porque analysis corre en
+  su lugar (§8.1, objetivo "de análisis"), tu omisión tampoco necesita línea propia — el cierre ya
+  lo cubre el veredicto de análisis (§8.4: `análisis completado` o su `BLOCKED`/`KO`). En ningún caso
+  design abre una llamada `summary` aparte en estos dos casos plegados — y en el camino de
+  refactor/migración de §9.1, design nunca se omite en `tier: full`, así que este párrafo no le
+  aplica (usa la línea `diseño completado` de arriba).
 
 ## 10. Implementación (fase 5 — SOLO por invocación explícita, nunca encadenada, spec §7 "Implementación")
 
