@@ -556,6 +556,37 @@ def _has_unresolvable_substitution(word):
     return '$(' in word or '`' in word or '${' in word
 
 
+# `git worktree remove` (implementation-orchestrator, discovery-orchestrator) solo borra el
+# directorio del worktree, nunca la rama `worktree-agent-<agentId>` que la plataforma crea al abrir
+# un worktree de `isolation: worktree` (implementer, feasibility-spiker) — sin un borrado explícito
+# esa rama queda huérfana en `git branch` para siempre, una por cada fase completada (backlog real).
+# `git branch -D <rama>` es SIEMPRE potencialmente destructivo (fuerza el borrado aunque no esté
+# mergeada), así que la única forma permitida es exactamente ESA rama huérfana: prefijo
+# `worktree-agent-` seguido del `agentId` (observado en vivo con forma hexadecimal minúscula, p. ej.
+# `ae25ffb99d186c453`; el charset se deja algo más amplio —alfanumérico— para no acoplarse a un
+# detalle de implementación de cómo la plataforma genera el id). Nunca `master`/`main`/cualquier otra
+# rama, nunca el flag `-d` en minúscula (semántica distinta: solo borra si está mergeada — sigue sin
+# tener sitio aquí, la forma permitida es única y explícita), nunca borrado de más de una rama.
+WORKTREE_AGENT_BRANCH_RE = re.compile(r'^worktree-agent-[A-Za-z0-9]+$')
+
+
+def branch_delete_segment_denied(words):
+    """True si este `git branch` cae fuera de la ÚNICA forma permitida: `git branch -D
+    worktree-agent-<agentId>` — nada más. `git branch` a secas (listar), `-d`, cualquier otro flag,
+    cualquier otra rama o más de una rama se deniegan.
+    """
+    rest = words[2:]
+    if rest[:1] != ['-D']:
+        return True
+    branch_args = rest[1:]
+    if len(branch_args) != 1:
+        return True
+    branch = _unquote(branch_args[0])
+    if _has_unresolvable_substitution(branch):
+        return True
+    return not WORKTREE_AGENT_BRANCH_RE.fullmatch(branch)
+
+
 # Forma de un token de remoto/rama que el guard acepta en un `git push`. Cerrar el charset aquí, y
 # no solo en el gate estructural, cierra a nivel de parser general una clase que las dos rondas
 # anteriores no vieron y que encontré en el barrido adversarial de esta ronda: la EXPANSIÓN DE BRACE
@@ -800,6 +831,9 @@ def segment_allowed(segment, allowlist):
         return False
     if len(words) >= 2 and (command_word, words[1]) == ('git', 'push'):
         if push_segment_denied(words):
+            return False
+    if len(words) >= 2 and (command_word, words[1]) == ('git', 'branch'):
+        if branch_delete_segment_denied(words):
             return False
     if len(words) >= 2:
         group = (command_word, words[1])

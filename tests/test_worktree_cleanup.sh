@@ -39,6 +39,11 @@ if [ -f "$ORCH" ]; then
   # cae por la regla de corte — sin esto, el worktree se fuga igual que antes del fix, por otra vía.
   assert_eq "0" "$(has "$b" 'warn: feasibility-spiker sin respuesta')" "cut-rule timeout path names the spiker warn line"
   assert_eq "2" "$(grep -cF 'git worktree remove .claude/worktrees/agent-' "$ORCH")" "cleanup runs in BOTH paths: on DONE/BLOCKED (1bis) and on cut-rule timeout"
+  # `git worktree remove` only deletes the directory, never the `worktree-agent-<agentId>` branch
+  # the platform created — orphan branch leak, same shape as the worktree leak this file already
+  # covers. discovery-orchestrator must delete it too, in BOTH paths (1bis + cut-rule timeout).
+  assert_eq "0" "$(has "$b" 'git branch -D worktree-agent-')" "orchestrator body deletes the orphaned branch left by git worktree remove"
+  assert_eq "2" "$(grep -cF 'git branch -D worktree-agent-' "$ORCH")" "branch cleanup runs in BOTH paths: on DONE/BLOCKED (1bis) and on cut-rule timeout"
 fi
 
 # ---------- 2. el allowlist real: solo discovery-orchestrator puede `git worktree` ----------
@@ -53,6 +58,18 @@ assert_eq "deny"  "$(guard 'swarm:discovery-orchestrator' 'git commit -m x')" "d
 assert_eq "deny"  "$(guard 'swarm:discovery-orchestrator' 'git push')"        "discovery-orchestrator still has no general git (push denied)"
 assert_eq "allow" "$(guard 'swarm:discovery-orchestrator' 'git worktree list')" "git worktree list also allowed (same two-word prefix)"
 
+# ---------- 2bis. mismo huérfano, pero de RAMA: `git worktree remove` no borra `worktree-agent-<id>` ----------
+CMD_BR='git branch -D worktree-agent-ae25ffb99d186c453'
+assert_eq "allow" "$(guard 'swarm:discovery-orchestrator' "$CMD_BR")" "discovery-orchestrator CAN delete the spiker's orphaned branch"
+assert_eq "deny"  "$(guard 'swarm:value-critic' "$CMD_BR")"           "value-critic canNOT delete branches"
+assert_eq "deny"  "$(guard 'swarm:feasibility-spiker' "$CMD_BR")"     "the spiker canNOT delete its own branch (it runs inside the worktree, its parent does it)"
+assert_eq "deny"  "$(guard 'swarm:options-generator' "$CMD_BR")"      "options-generator canNOT delete branches"
+assert_eq "deny"  "$(guard 'swarm:discovery-orchestrator' 'git branch -D master')" "discovery-orchestrator cannot delete master via git branch -D"
+assert_eq "deny"  "$(guard 'swarm:discovery-orchestrator' 'git branch -D main')"   "discovery-orchestrator cannot delete main via git branch -D"
+assert_eq "deny"  "$(guard 'swarm:discovery-orchestrator' 'git branch -d worktree-agent-ae25ffb99d186c453')" "discovery-orchestrator cannot use the lowercase -d form"
+assert_eq "deny"  "$(guard 'swarm:discovery-orchestrator' 'git branch -D some-other-branch')" "discovery-orchestrator cannot delete a branch outside the worktree-agent- prefix"
+assert_eq "deny"  "$(guard 'swarm:discovery-orchestrator' 'git branch')" "discovery-orchestrator cannot run bare git branch (list)"
+
 # ---------- 3. feasibility-spiker ya NO miente sobre el auto-borrado ----------
 SPK="$PLUGIN_ROOT/agents/feasibility-spiker.md"
 assert_eq "0" "$([ -f "$SPK" ] && echo 0 || echo 1)" "agents/feasibility-spiker.md exists"
@@ -61,6 +78,7 @@ if [ -f "$SPK" ]; then
   assert_eq "1" "$(has "$b" 'se descarta solo')" "spiker no longer claims the worktree discards itself (FALSE: auto-cleanup only when nothing changed)"
   assert_eq "0" "$(has "$b" 'discovery-orchestrator')" "spiker attributes the cleanup to its parent discovery-orchestrator"
   assert_eq "0" "$(has "$b" 'git worktree remove')" "spiker names the command its parent runs"
+  assert_eq "0" "$(has "$b" 'git branch -D worktree-agent-')" "spiker also names the branch-delete command its parent runs (the worktree remove alone leaves the branch orphaned)"
   assert_eq "0" "$(has "$b" 'No es automático')" "spiker states explicitly that the cleanup is NOT automatic"
 fi
 
