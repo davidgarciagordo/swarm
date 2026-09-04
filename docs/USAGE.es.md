@@ -440,6 +440,18 @@ comprobado de verdad.
 
 ### Stack packs
 
+```mermaid
+flowchart LR
+    R["repo target"] -->|"memory-builder escanea una vez"| D{"¿marcador encontrado?"}
+    D -->|"sí"| SP["stack: php-ddd-symfony8<br/>en context-pack.md"]
+    D -->|"no"| G["stack: generic<br/>en context-pack.md"]
+    SP -->|"cabecera pack: &lt;ruta&gt;"| Leaves["implementer, test-writer, quality-fixer,<br/>migration-engineer, doc-writer,<br/>data-model-auditor, vulnerability-scanner,<br/>dependency-auditor"]
+    G -->|"no se envía cabecera pack:"| Leaves2["cada hoja cae en su propio<br/>juicio genérico documentado"]
+```
+
+¿Quieres añadir un segundo pack, para un stack propio? Mira `docs/EXTENDING-PACKS.es.md` — la guía
+paso a paso que complementa esta sección, con un ejemplo real trabajado.
+
 **Qué es:** conocimiento específico de un stack — convenciones de naming/capas, la forma canónica de
 cada comando de lint/test/scan, patrones ya en uso en el código, límites que nunca se tocan, y
 requisitos extra de OS/librerías — que las hojas del enjambre leen en vez de adivinar de forma

@@ -424,6 +424,18 @@ approval question's text, so you approve knowing the green isn't actually confir
 
 ### Stack packs
 
+```mermaid
+flowchart LR
+    R["target repo"] -->|"memory-builder scans once"| D{"marker found?"}
+    D -->|"yes"| SP["stack: php-ddd-symfony8<br/>in context-pack.md"]
+    D -->|"no"| G["stack: generic<br/>in context-pack.md"]
+    SP -->|"pack: &lt;path&gt; header"| Leaves["implementer, test-writer, quality-fixer,<br/>migration-engineer, doc-writer,<br/>data-model-auditor, vulnerability-scanner,<br/>dependency-auditor"]
+    G -->|"no pack: header sent"| Leaves2["each leaf falls back to its own<br/>documented generic judgment"]
+```
+
+Want to add a second pack, for a stack of your own? See `docs/EXTENDING-PACKS.md` — the step-by-step
+companion to this section, with a real worked example.
+
 **What it is:** stack-specific knowledge — naming/layering conventions, the canonical form of each
 lint/test/scan command, patterns already in use in the codebase, boundaries nothing should touch,
 and extra OS/library requirements — that swarm leaves read instead of guessing generically. There is
