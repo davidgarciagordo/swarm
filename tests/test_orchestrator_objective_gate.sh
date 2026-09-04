@@ -38,7 +38,7 @@ assert_eq "0" "$(has "$body" 'confianza alta')" "§1.0bis documents the high-con
 assert_eq "0" "$(has "$body" 'sin línea de output nueva')" "§1.0bis explicitly states the high-confidence path emits no new output line (happy path stays free)"
 
 # --- low-confidence branch: ONE AskUserQuestion, same one-batch pattern as discovery ---
-assert_eq "0" "$(has "$body" 'AskUserQuestion')" "§1.0bis low-confidence path uses a real AskUserQuestion"
+assert_eq "0" "$(has "$bis_section" 'AskUserQuestion')" "§1.0bis low-confidence path uses a real AskUserQuestion (scoped to §1.0bis, not the whole file — AskUserQuestion also appears elsewhere, e.g. frontmatter tools list, discovery §5.3)"
 assert_eq "0" "$(has "$front" 'AskUserQuestion')" "root's own tools: frontmatter already includes AskUserQuestion (pre-existing, verify not accidentally removed)"
 assert_eq "0" "$(has "$body" 'hasta 2 alternativas')" "the question offers up to 2 alternatives, matching the spec"
 assert_eq "0" "$(has "$body" 'quiero re-escribirlo yo')" "the question offers a free-rewrite option via Other"
@@ -47,7 +47,7 @@ assert_eq "0" "$(has "$body" 'quiero re-escribirlo yo')" "the question offers a 
 assert_eq "0" "$(has "$body" 'ESE texto final es el')" "whichever outcome the owner picks becomes the objective: used from here on"
 
 # --- decision line written BEFORE tier classification, with raw: + objective: fields ---
-assert_eq "0" "$(has "$body" 'write decision --text')" "§1.0bis writes a decision line via the same write decision --text mechanism as discovery"
+assert_eq "0" "$(has "$bis_section" 'write decision --text')" "§1.0bis writes a decision line via the same write decision --text mechanism as discovery (scoped to §1.0bis — the same call shape also appears in discovery §5.3, unrelated to this task)"
 assert_eq "0" "$(has "$body" '\\\"raw: ')" "the write decision call's --text starts with raw: (mirrors discovery's objective:-first convention, adapted for this gate)"
 
 # --- owner cancels: BLOCKED, [pendiente], mirrors discovery §5.3's cancel handling exactly ---
