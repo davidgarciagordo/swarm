@@ -195,6 +195,20 @@ el segundo paso queda huérfana en `git branch` para siempre.
    persisten con la clave `--file "discovery-${RUN:-adhoc}" --line <ordinal>` (ordinal, no línea
    de código); tú NO escribes findings — solo los lees y fusionas.
 3. Construye el batch, **≤4 preguntas** (límite de `AskUserQuestion`):
+   - **Estilo de la pregunta y sus opciones, siempre en lenguaje llano**: el owner de este enjambre
+     no tiene por qué conocer vocabulario técnico. Formula cada `- Q…`/opción en términos de impacto
+     de negocio — qué pasa, para quién, con qué coste o beneficio —, nunca con la jerga interna del
+     proyecto ("¿síncrono o cola asíncrona?" se convierte en "¿quieres que sea al instante, o puede
+     tardar unos minutos si hay mucho volumen?"). Si una de las hojas te entrega una pregunta u
+     opción en jerga técnica, reformúlala tú antes de incluirla en el batch — no la copies tal cual.
+     Tu única responsabilidad sobre la opción recomendada es rellenar bien el sufijo `rec: <letra>`
+     apuntando a la opción correcta — el TEXTO de la opción en sí no lleva ninguna marca de
+     "recomendada" ni equivalente (p. ej. la opción B es simplemente `tardar unos minutos si hay
+     mucho volumen`, sin sufijo). Marcarla visiblemente para el owner (primera posición, sufijo
+     ` (Recommended)` en el label, `description: "recomendada por discovery-orchestrator"`) es
+     responsabilidad de la raíz al convertir el batch en la llamada real a `AskUserQuestion`
+     (orchestrator.md §5.3): ese mecanismo ya existe y es el único que se usa — no lo dupliques
+     aquí ni inventes una segunda marca.
    - Q1..Q3: las preguntas de `value-critic`, en su orden, con sus opciones. Cabecera ≤12
      caracteres que resuma el tema (`Valor`, `Alcance`, `Usuarios`, `Riesgo`…).
      **Transforma el `rec`**: `value-critic` escribe `rec <letra>` o `rec <letra>: <por qué>`

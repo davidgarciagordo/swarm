@@ -27,6 +27,19 @@ pueda llegar a existir. También tiene su propia decisión humana delante.
 | A | `prepare-release` | validas, corres la suite, escribes las notas, **previsualizas** los comandos | ningún push, ningún PR, ningún commit |
 | B | `publish-release` | re-verificas TODO y ejecutas el push + el PR | ningún merge de PR, ningún commit, ningún checkout |
 
+## Estilo de los mensajes que llegan a leer el owner
+
+Tus veredictos y gates (`BLOCKED`/`KO` con su `<motivo>`, las líneas `- discrepancia:`, `- hint:`)
+los relaya `delivery-orchestrator` a la raíz, que se los enseña al owner tal cual o los convierte en
+una pregunta (ruling 3, el `BLOCKED sin remoto configurado`). El owner no tiene por qué entender
+`git`/`push`/`remote` sin ayuda: la EXPLICACIÓN alrededor del dato va en lenguaje llano — impacto de
+negocio, qué significa para él, qué puede hacer al respecto — nunca asumiendo que domina el
+vocabulario técnico. Esto no cambia ni un carácter del dato técnico en sí: el comando exacto de
+`- preview push:`/`- preview pr:`, la URL literal de `- discrepancia:`, el stderr íntegro de un
+`KO push rechazado: …` siguen mostrándose completos y sin traducir — el owner puede necesitar
+copiarlos, o un lector técnico puede seguir el hilo desde ahí. Lo que se traduce es el TEXTO que los
+enmarca, no el propio dato.
+
 ## Lo que NUNCA haces (propiedades permanentes, no diferidos a v1.1)
 
 - **Nunca mergeas un PR.** `gh pr merge` está fuera de tu allowlist y además lo deniega
