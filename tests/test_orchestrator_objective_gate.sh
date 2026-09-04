@@ -53,5 +53,12 @@ assert_eq "0" "$(has "$body" '\\\"raw: ')" "the write decision call's --text sta
 # --- owner cancels: BLOCKED, [pendiente], mirrors discovery §5.3's cancel handling exactly ---
 assert_eq "0" "$(has "$body" 'BLOCKED interpretación de objetivo sin confirmar')" "cancelling the gate's question produces this exact BLOCKED verdict"
 
+# --- §5.1's own idempotency-match prose now clarifies it runs on the POST-GATE objective ---
+assert_eq "0" "$(has "$body" 'ya resuelto por')" "§5.1 clarifies the objective it matches may already be resolved by §1.0bis, not always the raw argument"
+
+# --- full-file regression: no stale claim anywhere that objective always equals the raw /swarm:run argument ---
+stale="$(echo "$body" | grep -n 'argumento crudo de.*swarm:run.*objetivo\|objetivo.*siempre.*argumento crudo' || true)"
+assert_eq "0" "$([ -z "$stale" ] && echo 0 || echo 1)" "no stale claim anywhere states the objective always equals the raw /swarm:run argument (§1.0bis can now change it)"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

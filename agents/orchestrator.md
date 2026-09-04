@@ -546,8 +546,12 @@ plan de X", "construye X según el plan ya diseñado") — si es así, tampoco e
 encadenas tú sola tras discovery/design, ni siquiera en `tier: full` — solo cuando el objetivo lo
 pide así, literalmente, en esta clasificación inicial.
 
-**Cómo compruebas ese "ya cerró" (importa el CÓMO):** primero pasa el objetivo de ESTE run —el
-argumento de `/swarm:run` sin el flag `--tier`— por el **saneado de §5.0**, el mismo que aplicó §5.4
+**Cómo compruebas ese "ya cerró" (importa el CÓMO):** el "objetivo de este run" de aquí en
+adelante puede venir ya resuelto por §1.0bis (interpretado y confirmado por el owner, o
+adoptado por un match de `raw:` con un run anterior) en vez de ser siempre el argumento crudo
+de `/swarm:run` — el mecanismo de comparación que sigue no cambia, solo su fuente. primero pasa
+el objetivo de ESTE run —ya resuelto por §1.0bis, o el argumento de `/swarm:run` sin el flag
+`--tier` si §1.0bis no se disparó— por el **saneado de §5.0**, el mismo que aplicó §5.4
 al guardarlo. Los DOS lados de la comparación tienen que estar saneados: §5.4 escribe el campo
 `objective:` ya saneado, así que comparar el objetivo crudo contra el guardado no casaría NUNCA en
 cuanto el objetivo lleve un backtick, un `$`, una comilla doble o una `\` — y "migramos el
