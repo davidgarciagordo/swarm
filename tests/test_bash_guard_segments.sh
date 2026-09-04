@@ -188,5 +188,15 @@ assert_eq "deny" "$(decision "$(json "$M" "git status 1>&2& $PAYLOAD")")" \
 assert_eq "deny" "$(decision "$(json "$M" "git status & $PAYLOAD")")" \
   "the plain background & still splits (round 1 fix preserved)"
 
+# ---------- substitution catching is GENERAL, not scoped to push/gh/remote ----------
+# all_segments()/_find_command_substitutions() run for every agent_type on every command — this
+# locks that in for a plain non-mutation agent with a payload that has nothing to do with git push.
+assert_eq "deny" "$(decision "$(json "$M" 'git log --oneline -5 $(rm -rf /)')")" \
+  "\$(...) command substitution is denied for a generic agent_type on a non-push payload (denied for the substitution body, not because the outer command is disallowed)"
+assert_eq "deny" "$(decision "$(json "$M" 'git log --oneline -5 `rm -rf /`')")" \
+  "backtick command substitution is denied for a generic agent_type on a non-push payload (denied for the substitution body, not because the outer command is disallowed)"
+assert_eq "allow" "$(decision "$(json "$M" 'git log --oneline -5 $(git rev-parse HEAD)')")" \
+  "\$(...) around an ALLOWED command still allows (no false positive from the general substitution check)"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

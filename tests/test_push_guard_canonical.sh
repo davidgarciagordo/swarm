@@ -199,5 +199,13 @@ assert_eq "deny" "$(guard $A 'gh --repo owner/repo pr merge 12')" "T1: gh --repo
 assert_eq "deny" "$(guard $A 'gh -R owner/repo pr create --title x')" "T1: gh -R o/r pr create (missing --base/--head) still denies"
 assert_eq "allow" "$(guard $A 'git push -u origin feature/x')" "T1: plain legitimate push is unaffected by the trigger fix"
 
+# --- v1.1 backlog: PROTECTED_REFS extended beyond master/main/develop/trunk ---
+assert_eq "deny" "$(guard $A 'git push origin stable')" "stable is now a protected ref"
+assert_eq "deny" "$(guard $A 'git push origin release')" "release is now a protected ref"
+assert_eq "deny" "$(guard $A 'git push origin production')" "production is now a protected ref"
+assert_eq "deny" "$(guard $A 'git push origin prod')" "prod is now a protected ref"
+assert_eq "deny" "$(guard $A 'git push origin STABLE')" "protected-ref check stays case-insensitive for the new names too"
+assert_eq "allow" "$(guard $A 'git push origin feature/x')" "an ordinary feature branch is still unaffected"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
