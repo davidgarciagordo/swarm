@@ -34,6 +34,7 @@ orchestrator (raíz · opus)
 ├─ discovery-orchestrator (sonnet)      → value-critic · research-analyst · options-generator · feasibility-spiker
 ├─ analysis-orchestrator (sonnet)       → opportunity-analyst · architecture-auditor · security-auditor
 │                                          · vulnerability-scanner · performance-analyst · data-model-auditor
+│                                          · solid-auditor
 ├─ design-orchestrator (sonnet)         → planner · pattern-advisor · domain-modeler · grill×3 (externos)
 ├─ implementation-orchestrator (sonnet) → implementer · test-writer · migration-engineer
 │                                          · quality-fixer · reviewer · doc-writer
@@ -267,6 +268,7 @@ devuelve UN batch (preguntas + opciones); la RAÍZ lo presenta con `AskUserQuest
 | `vulnerability-scanner` | leaf | haiku | 10 | ejecuta scanners del pack (deps/CVE/secrets/SAST); modelo solo para residual |
 | `performance-analyst` | leaf | sonnet | 15 | consultas N+1, índices, cache, colas, hot paths |
 | `data-model-auditor` | leaf | sonnet | 15 | drift esquema ↔ mapeos ↔ migraciones; integridad referencial |
+| `solid-auditor` | leaf | opus | 15 | violaciones SOLID/principios de diseño cross-language, cross-stack |
 
 ### Diseño
 | agente | rol | modelo | maxTurns | responsabilidad |
