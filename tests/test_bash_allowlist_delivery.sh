@@ -15,6 +15,10 @@ guard() {
   if echo "$out" | grep -q '"permissionDecision": "deny"'; then echo deny; else echo allow; fi
 }
 
+has_file() { # has_file <path> <pattern> -> "0" (found) | "1" (not found)
+  grep -qF -- "$2" "$1" && echo 0 || echo 1
+}
+
 # --- release-manager: lee el repo, corre la suite del pack, empuja UNA rama, abre UN PR ---
 assert_eq "allow" "$(guard swarm:release-manager 'git status --porcelain')" "release-manager can read the working tree state"
 assert_eq "allow" "$(guard swarm:release-manager 'git remote -v')" "release-manager can list remotes"
@@ -45,10 +49,16 @@ assert_eq "deny"  "$(guard swarm:release-manager 'git remote set-url origin http
 # what `git remote -v`/`git remote get-url` (no flag) prints. Comparing the fetch url would let a
 # pushurl planted between phase A and phase B go undetected: same fetch url on both sides (matches,
 # no discrepancy), but the push lands somewhere else entirely.
-assert_eq "allow" "$(guard swarm:release-manager 'git remote get-url --push origin')" "release-manager can read the PUSH url specifically (reuses the existing bare git remote entry, no new allowlist entry needed)"
-# --- fixture: prove the fetch/push divergence this fix defends against is REAL git behaviour, not a
-# hypothetical — a repo with remote.origin.pushurl set really does answer differently to `git remote
-# get-url origin` (fetch) vs `git remote get-url --push origin` (push, what git push actually uses).
+assert_eq "allow" "$(guard swarm:release-manager 'git remote get-url --push --all origin')" "release-manager can read ALL push urls (reuses the existing bare git remote entry, no new allowlist entry needed)"
+# --- C1' fix-of-a-fix-of-a-fix (2nd Opus review of e4616b8): `--push` WITHOUT `--all` only prints the
+# FIRST push url — but remote.<name>.pushurl (and, absent that, remote.<name>.url) is MULTI-VALUED in
+# git, and `git push` pushes to ALL of them. A second `pushurl` line added between phase A and phase B
+# defeats a bare `--push` comparison exactly like a bare (no-flag) comparison was defeated by a single
+# pushurl in the previous round: the first line stays the same benign url (matches, no discrepancy),
+# while the push ALSO lands on the second, attacker-controlled destination.
+assert_eq "deny"  "$(guard swarm:release-manager 'git config --get-all remote.origin.pushurl')" "git config is denied outright (write-capable command family) — --all on get-url is the only available route, confirmed"
+
+# --- fixture 1: single pushurl — fetch vs push still diverge (previous round's regression stays covered)
 fixture_dir="$(mktemp -d "${TMPDIR:-/tmp}/swarm-pushurl-fixture.XXXXXX")"
 (
   cd "$fixture_dir" || exit 1
@@ -57,17 +67,44 @@ fixture_dir="$(mktemp -d "${TMPDIR:-/tmp}/swarm-pushurl-fixture.XXXXXX")"
   git config remote.origin.pushurl git@evil.example.com:attacker/repo.git
 )
 fetch_url="$(git -C "$fixture_dir" remote get-url origin)"
-push_url="$(git -C "$fixture_dir" remote get-url --push origin)"
+push_url="$(git -C "$fixture_dir" remote get-url --push --all origin)"
 assert_eq "1" "$([ "$fetch_url" != "$push_url" ] && echo 1 || echo 0)" "fixture: with pushurl set, fetch and push URLs really do diverge — comparing the fetch url would have approved a push to $push_url while showing the owner $fetch_url"
 assert_eq "https://github.com/owner/repo.git" "$fetch_url" "fixture: fetch url is the benign one the owner would see if the doc compared the wrong url"
 assert_eq "git@evil.example.com:attacker/repo.git" "$push_url" "fixture: push url is where git push actually goes — this is what release-manager.md now mandates comparing"
 rm -rf "$fixture_dir"
-# --- and the doc itself: both phase A (source of url=) and phase B (re-verification) must say --push,
-# literally, not just "the url" — a prose regression here is exactly what the reviewer's finding was.
-push_cmd_occurrences="$(grep -c 'git remote get-url --push origin' "$PLUGIN_ROOT/agents/release-manager.md")"
-assert_eq "2" "$push_cmd_occurrences" "release-manager.md prescribes 'git remote get-url --push origin' literally at least twice (phase A preview source, phase B re-verification)"
-bare_geturl_leftover="$(grep -c 'git remote get-url origin$' "$PLUGIN_ROOT/agents/release-manager.md" || true)"
-assert_eq "0" "$bare_geturl_leftover" "no leftover bare 'git remote get-url origin' (without --push) as a standalone command in release-manager.md"
+
+# --- fixture 2 (NEW, C1'): TWO pushurls — `--push` alone (no --all) only prints the FIRST, silently
+# hiding the second, attacker-added destination. `--push --all` is the only form that reveals both, and
+# release-manager.md's rule is: more than one line → BLOCKED, never "compare against the first".
+fixture2_dir="$(mktemp -d "${TMPDIR:-/tmp}/swarm-pushurl-multi-fixture.XXXXXX")"
+(
+  cd "$fixture2_dir" || exit 1
+  git init -q
+  git remote add origin https://github.com/owner/repo.git
+  git config --add remote.origin.pushurl git@legit.example.com:owner/repo.git
+  git config --add remote.origin.pushurl git@evil.example.com:attacker/repo.git
+)
+push_first_only="$(git -C "$fixture2_dir" remote get-url --push origin)"
+push_all_lines="$(git -C "$fixture2_dir" remote get-url --push --all origin)"
+push_all_count="$(echo "$push_all_lines" | wc -l | tr -d ' ')"
+assert_eq "git@legit.example.com:owner/repo.git" "$push_first_only" "fixture: --push WITHOUT --all silently prints only the first (benign) destination — this is the exact gap that let a second pushurl through undetected"
+assert_eq "2" "$push_all_count" "fixture: --push --all reveals BOTH destinations — this is what phase A/B must use to see the attacker's added pushurl"
+assert_eq "0" "$(echo "$push_all_lines" | grep -qF 'evil.example.com' && echo 0 || echo 1)" "fixture: the attacker's destination is only visible with --all, never with bare --push"
+rm -rf "$fixture2_dir"
+
+# --- and the doc itself: both phase A (source of url=) and phase B (re-verification) must say
+# --push --all, literally, and the multi-line case must be a named BLOCKED/discrepancia — a prose
+# regression here is exactly what both rounds of the reviewer's finding were.
+push_all_cmd_occurrences="$(grep -c 'git remote get-url --push --all origin' "$PLUGIN_ROOT/agents/release-manager.md")"
+[ "$push_all_cmd_occurrences" -ge 2 ] && push_all_ok=0 || push_all_ok=1
+assert_eq "0" "$push_all_ok" "release-manager.md prescribes 'git remote get-url --push --all origin' literally at least twice (phase A preview source, phase B re-verification) — found $push_all_cmd_occurrences"
+assert_eq "0" "$(has_file "$PLUGIN_ROOT/agents/release-manager.md" 'BLOCKED remoto con varios destinos de push')" "documents the new BLOCKED verdict for a remote with more than one push destination"
+assert_eq "0" "$(has_file "$PLUGIN_ROOT/agents/release-manager.md" 'destinos de push')" "documents the discrepancia line naming the destination COUNT, not trying to encode multiple URLs into url="
+# no leftover single-line "git remote get-url --push origin" (missing --all) as a standalone fenced
+# command anywhere — checked WITHOUT a trailing '$' anchor bug: trims each line fully and compares it
+# for EXACT equality against the vulnerable form, so trailing text on the same line cannot hide a match.
+bare_push_leftover="$(awk '{ line=$0; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line); if (line == "git remote get-url --push origin") print }' "$PLUGIN_ROOT/agents/release-manager.md" | wc -l | tr -d ' ')"
+assert_eq "0" "$bare_push_leftover" "no leftover standalone 'git remote get-url --push origin' command (missing --all) anywhere in release-manager.md"
 
 # --- backlog fix: SSH identity diagnosis reads ~/.ssh/config (read-only, additive to ruling 14) ---
 # `cat`/`grep` are bare, argument-unrestricted allowlist entries for release-manager already (same
