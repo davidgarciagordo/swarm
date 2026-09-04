@@ -38,7 +38,7 @@ assert_eq "0" "$(has "$body" 'Solo `tier: full`')" "§9.1 gates the whole design
 # now, e.g. "bugfix/docs/tests/infra puro — o refactor/migración en tier light", which must NOT
 # false-positive: there's real prose between the two words, not a direct enumeration joiner).
 flat_body="$(echo "$body" | tr '\n' ' ')"
-bundled="$(echo "$flat_body" | grep -oE 'bugfix[,/] ?refactor|refactor[,/] ?bugfix' || true)"
+bundled="$(echo "$flat_body" | grep -oE 'bugfix[,/] *refactor|refactor[,/] *bugfix' || true)"
 assert_eq "" "$bundled" "no bugfix<->refactor enumeration-joined bundling remains anywhere in the file (regression sweep, catches slash- and comma-joined variants, and any future variant)"
 
 # §5.1 documents the new keyword-driven sub-classification for refactor/migración

@@ -282,8 +282,10 @@ researches prior art (`research-analyst`), one generates 2-3 real approaches wit
 Claude Code presents to you directly with `AskUserQuestion`.
 
 **What triggers it:** a product-shaped goal ("add X", "build a new feature that does Y", any
-user-visible behavior change) in tier `light` or `full`. Skipped for bugfixes, refactors, docs,
-tests, and infra work, and skipped (without re-asking) if `.swarm/decisions.md` already closed the
+user-visible behavior change) in tier `light` or `full`. Skipped for pure bugfixes, docs, tests, and
+infra work (no design work needed either — see Design below) — and skipped, but NOT design, for a
+substantial refactor/migration objective (no product decision to ask, but the design pipeline still
+runs in `tier: full`) — and skipped (without re-asking) if `.swarm/decisions.md` already closed the
 exact same objective in an earlier run.
 
 **What you get back:** an interactive question dialog (this is the one point in the whole swarm

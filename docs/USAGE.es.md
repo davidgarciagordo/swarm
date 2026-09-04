@@ -293,8 +293,11 @@ cuatro preguntas que Claude Code te presenta directamente con `AskUserQuestion`.
 
 **Qué lo dispara:** un objetivo con forma de producto ("añade X", "construye una funcionalidad
 nueva que haga Y", cualquier cambio de comportamiento visible para el usuario) en tier `light` o
-`full`. Se salta para bugfixes, refactors, docs, tests y tareas de infraestructura, y se salta (sin
-volver a preguntar) si `.swarm/decisions.md` ya cerró el mismo objetivo exacto en un run anterior.
+`full`. Se salta para bugfixes, docs, tests y tareas de infraestructura puros (diseño también se
+salta ahí — ver más abajo) — y se salta, pero diseño NO, para un objetivo de refactor/migración
+sustancial (sin decisión de producto que preguntar, pero el pipeline de diseño sí corre en
+`tier: full`) — y se salta (sin volver a preguntar) si `.swarm/decisions.md` ya cerró el mismo
+objetivo exacto en un run anterior.
 
 **Qué recibes:** un diálogo interactivo de preguntas (es el único punto de todo el enjambre donde se
 pausa y te espera), y después una única línea de decisión registrada en `.swarm/decisions.md` con
