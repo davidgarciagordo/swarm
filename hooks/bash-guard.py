@@ -75,7 +75,12 @@ PUSH_DENIED_FLAGS = (
 
 # Ramas cuyo destino NUNCA se empuja desde el enjambre. Extiende la guarda de 2 nombres que
 # implementation-orchestrator aplica en local (backlog de fase 5a: `develop`/`trunk` no cubiertos).
-PROTECTED_REFS = ('master', 'main', 'develop', 'trunk')
+# Lista ESTÁTICA a propósito, no una consulta a `git rev-parse --abbrev-ref origin/HEAD` (backlog
+# de fase 6, ruling explícito): este fichero no ejecuta subprocesos en ningún otro sitio — es
+# análisis puro sobre el string del comando, rápido y sin punto de fallo nuevo (sin repo, sin
+# `origin`, git ausente). Cubre la inmensa mayoría de nombres de rama por defecto reales; una rama
+# protegida con un nombre fuera de esta lista sigue siendo backlog, no una regresión.
+PROTECTED_REFS = ('master', 'main', 'develop', 'trunk', 'stable', 'release', 'production', 'prod')
 
 # C2 (fase 6, review adversarial): `HEAD` y `@` son alias AMBIGUOS del commit actual — no dicen a
 # simple vista qué rama del remoto se toca, y con el checkout equivocado apuntan a `master`/`main`
