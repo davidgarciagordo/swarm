@@ -30,7 +30,7 @@ definitions become invokable from anywhere in the conversation. There's nothing 
 build first: it's a set of markdown agent/command/skill files plus a few shell scripts, read
 directly by Claude Code.
 
-You don't need a setup step: the first time you type `/swarm "<goal>"` in the target repo (the
+You don't need a setup step: the first time you type `/swarm:run "<goal>"` in the target repo (the
 repo you actually want to work on — it doesn't have to be this one), it creates the `.swarm/`
 directory this plugin uses for memory on its own, transparently, then runs your goal — see §3
 below. `/swarm:init` still exists as a separate command if you ever want to run that step by hand
@@ -43,10 +43,10 @@ not exist yet, so don't follow instructions that assume it does.
 ## 3. Quickstart — the one command you need
 
 ```
-/swarm "add CSV export to the invoices list"
+/swarm:run "add CSV export to the invoices list"
 ```
 
-That's it. Describe what you want in plain language, in quotes, after `/swarm`. There's no setup
+That's it. Describe what you want in plain language, in quotes, after `/swarm:run`. There's no setup
 step to remember first: if `.swarm/` doesn't exist yet in this repo, it gets created for you behind
 the scenes, and your goal runs right after — you never see a separate init step or have to know it
 happened. The root agent reads your goal, asks you real questions when a decision needs a person
@@ -60,7 +60,7 @@ reference material for when you want more control. You don't need any of it to g
 These are the *only* five slash commands this plugin defines — real files under `commands/`:
 `commands/init.md`, `commands/run.md`, `commands/doctor.md`, `commands/status.md`,
 `commands/findings.md`. Nothing else is implemented — don't type anything else expecting it to
-work. `/swarm "<goal>"` above is `commands/run.md`, documented as the plugin's single entry point;
+work. `/swarm:run "<goal>"` above is `commands/run.md`, documented as the plugin's single entry point;
 the other four are optional, standalone utilities.
 
 ### `/swarm:init`
@@ -68,9 +68,9 @@ the other four are optional, standalone utilities.
 Bootstraps `.swarm/` in the current repo: the directory tree, `memory.json` (declaring the `files`
 backend as required), `decisions.md` with its header, and a `# swarm` block appended to
 `.gitignore` so the swarm's working state never gets committed. It also runs a health-gate on the
-backend before declaring success. Takes no arguments. You don't need to run this yourself — `/swarm
-"<goal>"` does it for you automatically the first time — it's here for power users and CI who want
-to run it explicitly, or re-check the health-gate on its own.
+backend before declaring success. Takes no arguments. You don't need to run this yourself —
+`/swarm:run "<goal>"` does it for you automatically the first time — it's here for power users and
+CI who want to run it explicitly, or re-check the health-gate on its own.
 
 ```
 /swarm:init
@@ -83,16 +83,16 @@ aborted and shows the stderr line that explains why (from
 `.swarm/` created, `memory.json` with the `files` backend required, `decisions.md` with its header,
 the `.gitignore` block marked `# swarm`, and the health-gate green).
 
-### `/swarm "<goal>"` (a.k.a. `/swarm:run`)
+### `/swarm:run "<goal>"`
 
 The main entry point. Launches the root `orchestrator` agent on a goal you describe in plain
 language.
 
 ```
-/swarm "<goal>"
+/swarm:run "<goal>"
 ```
 
-For example: `/swarm "añadir export CSV del listado de facturas"`. The command always invokes the
+For example: `/swarm:run "añadir export CSV del listado de facturas"`. The command always invokes the
 `swarm:orchestrator` subagent with your exact argument text, even if it's empty — the orchestrator
 itself decides whether the goal is valid and returns its own verdict; the outer session never
 answers on your behalf or asks you to clarify before spawning it. Behind the scenes this still
@@ -149,7 +149,7 @@ picks the domain(s) that apply:
 and 7 — verified live):
 
 ```
-/swarm "audita memoria"
+/swarm:run "audita memoria"
 ```
 Result (after a real bug fix mid-smoke): pack rebuilt for real (`context-pack.md` with a real
 `stack: php-ddd-symfony8` line), `index.md` sealed, run closed via `curate`. A second identical run
@@ -157,7 +157,7 @@ against the same, unchanged repo does *not* rebuild the pack — the staleness c
 it (item 3).
 
 ```
-/swarm
+/swarm:run
 ```
 (no argument at all) returns, without opening any run:
 ```
@@ -229,7 +229,7 @@ normal, complete result.
 ## 5. The domains
 
 Every domain below is a real, built, working part of the swarm today — verified in a live smoke
-test, not just designed on paper. `/swarm "<goal>"` routes to these automatically per §4 above; you never
+test, not just designed on paper. `/swarm:run "<goal>"` routes to these automatically per §4 above; you never
 invoke a domain orchestrator by its subagent name yourself in normal use.
 
 ### Memory
@@ -551,11 +551,11 @@ covers everything a first-time, non-technical owner needs.
 
 ### `--tier=` — forcing the classification
 
-`/swarm "<goal>"` already classifies how much work a goal needs on its own, from the goal text
+`/swarm:run "<goal>"` already classifies how much work a goal needs on its own, from the goal text
 alone. You can override that with `--tier=`:
 
 ```
-/swarm "<goal>" --tier=direct|light|full
+/swarm:run "<goal>" --tier=direct|light|full
 ```
 
 - `direct` — a trivial, single-file, no-architectural-decision goal. The root answers you directly,
@@ -573,12 +573,12 @@ Worked examples (`docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md`, 
 verified live):
 
 ```
-/swarm "audita memoria" --tier=light
+/swarm:run "audita memoria" --tier=light
 ```
 Forces `light` explicitly instead of letting the root infer it.
 
 ```
-/swarm "audita memoria" --tier=medium
+/swarm:run "audita memoria" --tier=medium
 ```
 (`medium` is not a valid tier) returns, without opening a run:
 ```

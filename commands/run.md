@@ -1,5 +1,5 @@
 ---
-description: "/swarm — punto de entrada único del enjambre: describe lo que quieres en lenguaje natural, sin pasos previos."
+description: "/swarm:run — punto de entrada único del enjambre: describe lo que quieres en lenguaje natural, sin pasos previos."
 argument-hint: "<objetivo>"
 allowed-tools: Agent, Read, Bash, SendMessage, AskUserQuestion
 ---
