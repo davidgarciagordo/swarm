@@ -294,11 +294,12 @@ answers (full history vs. a synchronous endpoint) that `value-critic` had alread
 ### Analysis
 
 **What it does for you:** a read-only audit of your codebase. `analysis-orchestrator` picks a subset
-of up to six lenses — architecture
+of up to seven lenses — architecture
 (`architecture-auditor`), security (`security-auditor`), dependency/secret scanning
 (`vulnerability-scanner`), performance (`performance-analyst`), schema/data-model drift
-(`data-model-auditor`), and technical-debt/ROI opportunities (`opportunity-analyst`) — chosen by
-keyword match against your goal, run in parallel, and forwarded to you as findings.
+(`data-model-auditor`), technical-debt/ROI opportunities (`opportunity-analyst`), and cross-language
+design-principle violations — SOLID, coupling, cohesion, leaky abstractions (`solid-auditor`) —
+chosen by keyword match against your goal, run in parallel, and forwarded to you as findings.
 
 **What triggers it:** an explicitly analysis-shaped goal ("audit X", "review the security of Y",
 "find performance issues", "audita todo") in tier `light` or `full`. It never runs in the same run as

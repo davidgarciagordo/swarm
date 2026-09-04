@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/test_bash_allowlist_analysis.sh — las 7 agentes del dominio analysis (spec §7 "Análisis")
+# tests/test_bash_allowlist_analysis.sh — las 8 agentes del dominio analysis (spec §7 "Análisis")
 # tienen su entrada en hooks/bash-allowlist.json: read-only, mismo patrón que value-critic (fase
 # 2) — git status/log/diff/show/rev-parse, ls/cat/head/tail/wc/grep, scripts/mem-*.
 set -u
@@ -14,7 +14,7 @@ guard() { # guard <agent_type> <command> -> "allow" | "deny"
   if echo "$out" | grep -q '"permissionDecision": "deny"'; then echo deny; else echo allow; fi
 }
 
-for agent in opportunity-analyst architecture-auditor security-auditor vulnerability-scanner performance-analyst data-model-auditor analysis-orchestrator; do
+for agent in opportunity-analyst architecture-auditor security-auditor vulnerability-scanner performance-analyst data-model-auditor solid-auditor analysis-orchestrator; do
   assert_eq "allow" "$(guard "swarm:$agent" 'cat .swarm/context-pack.md')" "$agent can cat the pack"
   assert_eq "allow" "$(guard "swarm:$agent" 'grep -rn TODO src')" "$agent can grep the repo"
   assert_eq "allow" "$(guard "swarm:$agent" '${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh write finding --agent x --tag X --file src/App/Foo.php --line 1 --run adhoc --text t --fix f')" "$agent can write findings via mem-files.sh"
@@ -24,9 +24,9 @@ for agent in opportunity-analyst architecture-auditor security-auditor vulnerabi
   assert_eq "deny" "$(guard "swarm:$agent" 'find . -name x')" "$agent cannot find (differentiates from the 'default' fallback, which DOES allow find — Important finding from task review)"
 done
 
-# Regression guard: confirm these 7 agents are NOT silently relying on the "default" fallback
+# Regression guard: confirm these 8 agents are NOT silently relying on the "default" fallback
 # (which lacks a real per-agent allowlist and would mask a deleted entry) — default allows
-# `find`, the 7 real entries deliberately don't, so this is the one command that tells them apart.
+# `find`, the 8 real entries deliberately don't, so this is the one command that tells them apart.
 assert_eq "allow" "$(guard 'swarm:totally-unknown-agent' 'find . -name x')" "sanity: an agent with NO allowlist entry at all falls back to default, which DOES allow find (confirms the differentiator is real, not a guard bug)"
 
 # analysis-orchestrator additionally needs mem-manifest.sh register/summary (launches leaves, mirrors merged findings)

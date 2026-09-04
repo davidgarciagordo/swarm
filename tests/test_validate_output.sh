@@ -120,17 +120,17 @@ EOF
 )"
 assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "a malformed -Q line (no rec:) over 120 chars is still rejected, not exempted"
 
-# Análisis (fix Task 6, review 2026-09-02): una línea `- lentes: ...` real con las 6 hojas del
-# dominio analysis (agents/analysis-orchestrator.md "## Salida") supera con normalidad los 120
-# chars -- confirmado en vivo a 231 chars. Debe seguir aceptándose SOLO por reconocer el
-# vocabulario fijo `- lentes: ...`/`- sin hallazgos: ...` (DISCOVERY_OTHER_RE ampliada), no por
-# venir con "- " delante.
-long_real_lentes="- lentes: opportunity-analyst, architecture-auditor, security-auditor, vulnerability-scanner, performance-analyst, data-model-auditor, motivo: objetivo casó con seguridad, rendimiento, arquitectura, datos y oportunidades de negocio"
+# Análisis (fix Task 6, review 2026-09-02; ampliado a 7 hojas con solid-auditor): una línea
+# `- lentes: ...` real con las 7 hojas del dominio analysis (agents/analysis-orchestrator.md
+# "## Salida") supera con normalidad los 120 chars -- confirmado en vivo por encima de 231 chars.
+# Debe seguir aceptándose SOLO por reconocer el vocabulario fijo `- lentes: ...`/`- sin hallazgos:
+# ...` (DISCOVERY_OTHER_RE ampliada), no por venir con "- " delante.
+long_real_lentes="- lentes: opportunity-analyst, architecture-auditor, security-auditor, vulnerability-scanner, performance-analyst, data-model-auditor, solid-auditor, motivo: objetivo casó con seguridad, rendimiento, arquitectura, datos, oportunidades de negocio y principios de diseño"
 out="$(python3 "$HOOK" <<EOF
 {"agent_type": "swarm:analysis-orchestrator", "last_assistant_message": "DONE\nevidence: files=1 cmds=6 turns=8/20\n$long_real_lentes"}
 EOF
 )"
-assert_eq "" "$out" "a real 231-char - lentes: line with all 6 lenses is accepted"
+assert_eq "" "$out" "a real long - lentes: line with all 7 lenses is accepted"
 
 # Una línea "- " cualquiera que NO case con el vocabulario fijo de analysis (ni lentes/sin
 # hallazgos/hallazgos adicionales/BLOCKED) NO se exime solo por parecerse -- sigue sujeta al cap,
