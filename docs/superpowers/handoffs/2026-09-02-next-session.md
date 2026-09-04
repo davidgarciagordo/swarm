@@ -129,16 +129,25 @@ owner lo quiere más adelante — es la opción 2 que no eligió, no algo que "h
 
 ### Backlog de seguridad/robustez (bajo riesgo hoy, documentado explícitamente en cada fase)
 
-- `hooks/bash-guard.py` sigue sin inspeccionar `$(...)`/backticks dentro de argumentos SIN COMILLAS
-  de un comando ya permitido (con comillas sí lo cubre el saneado de §4.4) — preexistente desde fase
-  1, confirmado en cada fase desde entonces. **Más relevante ahora que existe un agente con
-  `git push` real** (fase 6) — candidato a hardening dedicado antes de dar `Bash` mutante a más
-  agentes.
+- ~~`hooks/bash-guard.py` sigue sin inspeccionar `$(...)`/backticks dentro de argumentos SIN
+  COMILLAS de un comando ya permitido~~ — **RESUELTO, verificado 2026-09-04**: ya no es un hueco
+  real. `all_segments()`/`_find_command_substitutions()` (endurecidas durante el hardening de fase
+  6, rondas 1-2) inspeccionan `$(...)`/backticks/`<(...)`/`>(...)` en cualquier posición del texto,
+  con o sin comillas, para TODO `agent_type` — no solo push/gh/remote. Confirmado con guard real:
+  `git log --oneline -5 $(rm -rf /)` y su forma con backticks deniegan hoy para un agente genérico
+  (`swarm:memory-orchestrator`), atribuido al cuerpo de la sustitución, no al comando externo.
+  Regresión bloqueada en `tests/test_bash_guard_segments.sh` (commit `5b5c2e1`). La nota original
+  quedó obsoleta tras el hardening de fase 6 sin que el backlog se actualizara — este párrafo cierra
+  ese desfase.
 - `release-manager` no crea tags ni edita `CHANGELOG.md` (ruling 7, fase 6) — desviación consciente
   de la letra del spec §7.
-- La lista de ramas protegidas de `hooks/bash-guard.py` es de 4 nombres fijos
-  (`master`/`main`/`develop`/`trunk`), no la rama base real del remoto — `git rev-parse
-  --abbrev-ref origin/HEAD` la cubriría con un comando más.
+- ~~La lista de ramas protegidas de `hooks/bash-guard.py` es de 4 nombres fijos~~ — **AMPLIADA,
+  2026-09-04**: extendida a 8 (`master`/`main`/`develop`/`trunk`/`stable`/`release`/`production`/
+  `prod`, commit `5b5c2e1`, review Opus limpia, 54/54). El owner eligió explícitamente ampliar la
+  lista estática sobre la alternativa dinámica (`git rev-parse --abbrev-ref origin/HEAD`), que
+  habría sido la primera llamada a `subprocess` del fichero — riesgo/superficie nuevos frente a
+  coste marginal bajo. Sigue siendo lista fija por nombre exacto (no cubre `release/<slug>` ni
+  variantes con guion) — backlog genuino solo si algún día un equipo real lo pide.
 - `release-manager` publica la rama actual, nunca crea `release/<slug>` (ruling 5, fase 6) —
   desviación consciente.
 - El modo de fallo de identidad SSH (lección 12 arriba) se **reporta** literal pero no se detecta de
