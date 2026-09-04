@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # tests/test_analysis_orchestrator_spawns.sh — cuarta aplicación de la lección de fase 1: un
 # orquestador que lanza hojas que NO preexisten necesita Agent(<hojas>) en su frontmatter.
-# analysis-orchestrator selecciona un SUBCONJUNTO de sus 6 hojas según el objetivo (a diferencia
-# de discovery, que siempre lanza las 4) — pero las 6 tienen que estar en Agent(...) porque
+# analysis-orchestrator selecciona un SUBCONJUNTO de sus 7 hojas según el objetivo (a diferencia
+# de discovery, que siempre lanza las 4) — pero las 7 tienen que estar en Agent(...) porque
 # cualquiera de ellas puede ser la elegida en un run dado.
 set -u
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,7 +18,7 @@ front="$(awk '/^---$/{n++; next} n==1{print} n==2{exit}' "$F")"
 tools="$(echo "$front" | grep '^tools:')"
 agent_clause="$(echo "$tools" | sed -n 's/.*Agent(\([^)]*\)).*/\1/p')"
 assert_eq "1" "$([ -z "$agent_clause" ] && echo 0 || echo 1)" "tools: has an Agent(...) clause"
-for leaf in opportunity-analyst architecture-auditor security-auditor vulnerability-scanner performance-analyst data-model-auditor; do
+for leaf in opportunity-analyst architecture-auditor security-auditor vulnerability-scanner performance-analyst data-model-auditor solid-auditor; do
   assert_eq "0" "$(echo "$agent_clause" | grep -qF "$leaf" && echo 0 || echo 1)" "Agent(...) includes $leaf"
 done
 assert_eq "0" "$(echo "$tools" | grep -qF 'SendMessage' && echo 0 || echo 1)" "tools: includes SendMessage"

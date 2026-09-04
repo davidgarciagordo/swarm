@@ -81,5 +81,12 @@ check_leaf data-model-auditor sonnet 15 DATA
 f="$PLUGIN_ROOT/agents/data-model-auditor.md"
 [ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'migraci')" "data-model-auditor documents schema/migration drift (spec §7)"
 
+
+# ---------- T6: solid-auditor (SOLID/design-principle violations, cross-language by design) ----------
+check_leaf solid-auditor opus 15 SOLID
+f="$PLUGIN_ROOT/agents/solid-auditor.md"
+[ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'SRP')" "solid-auditor documents SRP (spec §7)"
+[ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'architecture-auditor')" "solid-auditor documents its boundary vs architecture-auditor"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
