@@ -118,6 +118,11 @@ sequenceDiagram
     alt tier = direct
         O-->>User: OK (no run opened)
     else tier = light or full
+        alt objective ambiguous (root's own judgment)
+            O->>User: AskUserQuestion (ONE call: interpretation + alternatives + free rewrite)
+            User-->>O: confirmed/alternative/rewritten objective
+            Note over O: raw: + objective: recorded separately<br/>(idempotency matches raw:, never the interpretation)
+        end
         O->>O: open run (run-id, .swarm/run/<id>/)
         O->>MO: spawn (run-id, swarm-root, operation: build)
         MO->>MO: check staleness (tree-hash)
