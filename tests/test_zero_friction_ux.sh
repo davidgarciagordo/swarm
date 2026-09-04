@@ -53,6 +53,13 @@ assert_eq "0" "$(has "$body" 'Algo no salió bien:')" "vocabulary table maps KO 
 assert_eq "0" "$(has "$body" 'Todo en orden.')" "vocabulary table maps OK -> 'Todo en orden.'"
 assert_eq "0" "$(has "$body" 'lenguaje llano')" "orchestrator has a plain-language instruction for its own output"
 
+# --- §1.0bis Paso 3's own AskUserQuestion example got the plain-language treatment too, not just
+# the BLOCKED paths (found missing during the pre-publish audit — Task 1's own worked example
+# still said "Lo interpreto como" meta-language until this fix) ---
+bis_section="$(echo "$body" | awk '/^### 1\.0bis/{p=1} /^### 1\.1 Tiers/{p=0} p')"
+assert_eq "1" "$(has "$bis_section" 'Lo interpreto como')" "§1.0bis Paso 3's AskUserQuestion example no longer uses meta-language about the interpretation process"
+assert_eq "0" "$(has "$bis_section" 'Estilo, siempre en lenguaje llano')" "§1.0bis Paso 3 has its own explicit plain-language style instruction, matching discovery §5.3's"
+
 # ===== Task 2: discovery-orchestrator.md + release-manager.md =====
 DF="$PLUGIN_ROOT/agents/discovery-orchestrator.md"
 dbody="$(awk '/^---$/{n++; next} n>=2{print}' "$DF")"

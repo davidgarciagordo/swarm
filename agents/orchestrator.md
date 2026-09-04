@@ -130,13 +130,19 @@ mismo tipo de juicio que ya aplicas en las tablas de keywords "ilustrativas, no 
 - la opción "Other" de `AskUserQuestion` sirve como "quiero re-escribirlo yo" — texto libre del
   owner, sin ninguna sugerencia tuya de por medio
 
+**Estilo, siempre en lenguaje llano (misma disciplina que discovery §5.3):** el owner no tiene por
+qué conocer vocabulario técnico. Ni la pregunta ni las opciones dicen "interpreto tu objetivo como"
+ni jerga similar — pregunta en términos de lo que se va a hacer, no de tu proceso interno de
+lectura. Cada opción describe en impacto de negocio qué se construiría, nunca la jerga interna del
+proyecto.
+
 ```
 AskUserQuestion(questions: [{
-  question: "Tu objetivo: '<argumento crudo del owner>'. Lo interpreto como: '<tu interpretación>'. ¿Confirmas o prefieres otra?",
+  question: "¿Qué quieres que haga exactamente?",
   header: "Objetivo",
   multiSelect: false,
   options: [
-    { label: "<tu interpretación> (recomendada)", description: "<en qué te basas>" },
+    { label: "<tu interpretación, en una frase clara> (recomendada)", description: "<en qué te basas>" },
     { label: "<alternativa 1, si la hay>", description: "<en qué te basas>" }
   ]
 }])
