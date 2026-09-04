@@ -35,6 +35,20 @@ assert_eq "0" "$(has "$body" 'cuatro campos')" "the gate now names four fields, 
 assert_eq "0" "$(has "$body" 'discrepancia: url aprobada')" "a URL mismatch surfaces as its own named discrepancy, same shape as remote/branch/base"
 assert_eq "1" "$(has "$body" 'candidato de v1.1 si alguna vez importa')" "the old accepted-risk note is gone now that the gap is closed"
 
+# C1 fix-of-a-fix (Opus review): url= must compare the PUSH url, never the fetch url — pushurl can
+# diverge from the fetch url and is what git push actually uses.
+assert_eq "0" "$(has "$body" 'git remote get-url --push origin')" "the re-verification command is explicitly --push, not bare get-url"
+assert_eq "0" "$(has "$body" 'pushurl')" "documents WHY --push matters: remote.<name>.pushurl can diverge from the fetch url"
+assert_eq "0" "$(has "$body" 'evil.example.com')" "names the concrete pushurl-hijack scenario the reviewer verified empirically"
+assert_eq "0" "$(has "$body" 'nunca uses `git remote get-url <remote>` a secas')" "phase A explicitly forbids the bare (fetch) form when sourcing the url= value"
+occurrences_push_cmd="$(grep -cF 'git remote get-url --push origin' "$F")"
+assert_eq "2" "$occurrences_push_cmd" "the literal --push command appears at least once per phase (A source, B re-verification)"
+# I1: the "tal cual / no reformatees" self-contradiction is gone — get-url --push returns a bare URL
+# string with nothing to strip, so there is no reformatting step left to describe.
+assert_eq "0" "$(has "$body" 'sin marcador `(push)`/`(fetch)`, sin')" "documents that get-url --push needs no (fetch)/(push) marker stripped (I1 fixed at the source, not by a stripping rule)"
+# item 3: the PR host-detection reuses the SAME push url, not an independent fetch-url read
+assert_eq "0" "$(has "$body" 'la de PUSH que ya obtuviste en la re-verificación con')" "gh pr create host-detection is explicitly sourced from the push url, consistent with the actual push destination"
+
 # propiedades permanentes
 assert_eq "0" "$(has "$body" 'BLOCKED HEAD en rama protegida')" "never publishes from a protected branch"
 assert_eq "0" "$(has "$body" 'BLOCKED sin remoto configurado')" "handles the no-remote repo honestly (ruling 3)"

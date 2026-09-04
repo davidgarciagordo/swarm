@@ -40,6 +40,35 @@ assert_eq "allow" "$(guard swarm:release-manager 'git remote add origin https://
 assert_eq "deny"  "$(guard swarm:release-manager 'gh repo delete owner/repo')" "…and nothing else under gh repo"
 assert_eq "deny"  "$(guard swarm:release-manager 'git remote set-url origin https://example.com/x.git')" "…and never rewrites an existing remote URL (ruling 14)"
 
+# --- C1 fix-of-a-fix (Opus review of f1722a6): the url= re-verification must compare the PUSH url,
+# not the fetch url — `git push` uses remote.<name>.pushurl when it is set, and it can diverge from
+# what `git remote -v`/`git remote get-url` (no flag) prints. Comparing the fetch url would let a
+# pushurl planted between phase A and phase B go undetected: same fetch url on both sides (matches,
+# no discrepancy), but the push lands somewhere else entirely.
+assert_eq "allow" "$(guard swarm:release-manager 'git remote get-url --push origin')" "release-manager can read the PUSH url specifically (reuses the existing bare git remote entry, no new allowlist entry needed)"
+# --- fixture: prove the fetch/push divergence this fix defends against is REAL git behaviour, not a
+# hypothetical — a repo with remote.origin.pushurl set really does answer differently to `git remote
+# get-url origin` (fetch) vs `git remote get-url --push origin` (push, what git push actually uses).
+fixture_dir="$(mktemp -d "${TMPDIR:-/tmp}/swarm-pushurl-fixture.XXXXXX")"
+(
+  cd "$fixture_dir" || exit 1
+  git init -q
+  git remote add origin https://github.com/owner/repo.git
+  git config remote.origin.pushurl git@evil.example.com:attacker/repo.git
+)
+fetch_url="$(git -C "$fixture_dir" remote get-url origin)"
+push_url="$(git -C "$fixture_dir" remote get-url --push origin)"
+assert_eq "1" "$([ "$fetch_url" != "$push_url" ] && echo 1 || echo 0)" "fixture: with pushurl set, fetch and push URLs really do diverge — comparing the fetch url would have approved a push to $push_url while showing the owner $fetch_url"
+assert_eq "https://github.com/owner/repo.git" "$fetch_url" "fixture: fetch url is the benign one the owner would see if the doc compared the wrong url"
+assert_eq "git@evil.example.com:attacker/repo.git" "$push_url" "fixture: push url is where git push actually goes — this is what release-manager.md now mandates comparing"
+rm -rf "$fixture_dir"
+# --- and the doc itself: both phase A (source of url=) and phase B (re-verification) must say --push,
+# literally, not just "the url" — a prose regression here is exactly what the reviewer's finding was.
+push_cmd_occurrences="$(grep -c 'git remote get-url --push origin' "$PLUGIN_ROOT/agents/release-manager.md")"
+assert_eq "2" "$push_cmd_occurrences" "release-manager.md prescribes 'git remote get-url --push origin' literally at least twice (phase A preview source, phase B re-verification)"
+bare_geturl_leftover="$(grep -c 'git remote get-url origin$' "$PLUGIN_ROOT/agents/release-manager.md" || true)"
+assert_eq "0" "$bare_geturl_leftover" "no leftover bare 'git remote get-url origin' (without --push) as a standalone command in release-manager.md"
+
 # --- backlog fix: SSH identity diagnosis reads ~/.ssh/config (read-only, additive to ruling 14) ---
 # `cat`/`grep` are bare, argument-unrestricted allowlist entries for release-manager already (same
 # as ls/head/tail) — reading ~/.ssh/config needs no new allowlist entry, it reuses these verbatim.
