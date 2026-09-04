@@ -99,9 +99,18 @@ picks the domain(s) that apply:
   routes to **analysis** instead — read-only, no questions asked. Discovery and analysis are
   mutually exclusive in the same run: if your goal reads as "product", analysis never runs, and vice
   versa.
-- A bugfix, refactor, docs change, or infrastructure task skips discovery and analysis — the root
-  just says so in the output (`- discovery omitido: ...`) and, in `tier: full` with no product
-  decisions to design against, design is skipped too.
+- A pure bugfix, docs change, test tweak, or infrastructure task skips discovery, analysis, AND
+  design — the root just says so in the output (`- discovery omitido: ...`, folded into a combined
+  omission line at close).
+- A **refactor or migration objective** that explicitly asks for a redesign ("refactor X with
+  SOLID", "migrate the old parser to a better design") skips discovery too (there's no product
+  decision to ask about), but — unlike a plain bugfix — **design still runs** in `tier: full`: the
+  root chains `design-orchestrator` straight from the objective, with no discovery decisions as
+  context (it doesn't need any). This only fires when the objective is genuinely asking for a
+  redesign, not just mentioning something that happens to be called a "migration" in passing (a
+  bugfix on an existing migration stays a bugfix). It's mutually exclusive with an **analysis**
+  goal the same way discovery is: if the objective reads as both "audit X" and "restructure X",
+  analysis wins and design does not chain.
 - **Implementation** never auto-chains after discovery or design, in any tier — it only runs when
   you explicitly ask the swarm to build a plan that already exists ("implement the plan for X",
   "build X per the design already written"). This is a deliberate human checkpoint: writing and
@@ -302,7 +311,10 @@ keyword match against your goal, run in parallel, and forwarded to you as findin
 
 **What triggers it:** an explicitly analysis-shaped goal ("audit X", "review the security of Y",
 "find performance issues", "audita todo") in tier `light` or `full`. It never runs in the same run as
-discovery — a goal is either "product" (discovery) or "analysis" (this domain), never both.
+discovery — a goal is either "product" (discovery) or "analysis" (this domain), never both. It also
+takes precedence over the refactor/migration path to design (see Design below): a goal like "audit
+X's architecture and restructure it" matches both, and analysis wins — design does not chain. Want
+both an audit and a redesign? Run them as two separate objectives.
 
 **What you get back:** a list of findings, each one line: `TAG · file:line · problem → fix`, plus a
 line naming which lenses ran and why. No questions asked — analysis never invokes `AskUserQuestion`.
@@ -324,9 +336,16 @@ lenses (`working-methods:grill-architect/operator/engineer` — the platform-arc
 the real-user lens, and the technical-engineering lens), and `design-orchestrator` itself arbitrates
 their findings and revises the plan — without ever asking you anything mid-design.
 
-**What triggers it:** only `tier: full`, and only after discovery has closed its decisions (either
-in this same run, or in an earlier one over the same objective). It's never launched in `tier:
-light` (light is single-domain by design), and it's skipped whenever discovery was also skipped.
+**What triggers it:** only `tier: full`, via either of two independent paths. (1) After discovery
+has closed its decisions (either in this same run, or in an earlier one over the same objective) —
+the classic path. (2) Directly from a **refactor/migration objective** ("refactor X with SOLID",
+"migrate the old parser to a better design") even though discovery skipped for it — there's no
+product decision to design against there, but there is a real redesign to do, and this is the path
+that does it, fed the literal objective with no discovery context. It's never launched in `tier:
+light` (light is single-domain by design) regardless of path, and it's skipped only when discovery
+skipped for a pure bugfix/docs/tests/infra reason (no product decision AND no redesign objective) —
+or when the objective also matched analysis, which takes precedence over this path (see Analysis
+above).
 
 **What you get back:** a single `PLAN · <path>:1 · <short summary>` line pointing at the real plan
 file on disk, plus a `- grill: ...` line summarizing what the adversarial review changed or flagged.
