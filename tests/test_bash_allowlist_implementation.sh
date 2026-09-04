@@ -40,5 +40,18 @@ assert_eq "allow" "$(guard "swarm:implementation-orchestrator" 'git worktree rem
 assert_eq "deny" "$(guard "swarm:implementation-orchestrator" 'git push origin master')" "implementation-orchestrator cannot push"
 assert_eq "deny" "$(guard "swarm:test-writer" 'git merge x')" "test-writer (leaf) cannot git merge — only the orchestrator merges"
 
+# `git worktree remove` only deletes the directory, not the `worktree-agent-<agentId>` branch the
+# platform created for `implementer`'s `isolation: worktree` — implementation-orchestrator also
+# needs `git branch -D`, narrowly scoped to ONLY that branch-name shape (never master/main, never
+# an unrelated branch, never the lowercase -d form).
+assert_eq "allow" "$(guard "swarm:implementation-orchestrator" 'git branch -D worktree-agent-abc123')" "implementation-orchestrator can delete the implementer's orphaned worktree branch"
+assert_eq "deny"  "$(guard "swarm:implementation-orchestrator" 'git branch -D master')" "implementation-orchestrator cannot delete master via git branch -D"
+assert_eq "deny"  "$(guard "swarm:implementation-orchestrator" 'git branch -D main')" "implementation-orchestrator cannot delete main via git branch -D"
+assert_eq "deny"  "$(guard "swarm:implementation-orchestrator" 'git branch -d worktree-agent-abc123')" "implementation-orchestrator cannot use the lowercase -d form"
+assert_eq "deny"  "$(guard "swarm:implementation-orchestrator" 'git branch -D some-other-branch')" "implementation-orchestrator cannot delete a branch outside the worktree-agent- prefix"
+assert_eq "deny"  "$(guard "swarm:implementation-orchestrator" 'git branch -D')" "implementation-orchestrator cannot run git branch -D with no branch name"
+assert_eq "deny"  "$(guard "swarm:implementation-orchestrator" 'git branch')" "implementation-orchestrator cannot run bare git branch (list)"
+assert_eq "deny"  "$(guard "swarm:test-writer" 'git branch -D worktree-agent-abc123')" "test-writer (leaf) cannot git branch — only the orchestrator cleans up"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

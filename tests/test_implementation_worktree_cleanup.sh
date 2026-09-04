@@ -38,6 +38,16 @@ assert_eq "0" "$(has "$b" 'HEAD` es literalmente `master` o `main`')" "Salida wo
 assert_eq "0" "$(has "$b" '## Limpieza del worktree')" "orchestrator body has a dedicated worktree-cleanup section"
 assert_eq "1" "$(grep -cF 'git worktree remove <repo-root>/.claude/worktrees/agent-' "$F")" "the literal cleanup command appears exactly ONCE (one shared section, unlike discovery-orchestrator's two inline copies)"
 
+# `git worktree remove` only deletes the directory, never the `worktree-agent-<agentId>` branch the
+# platform created for implementer's `isolation: worktree` — the shared cleanup section must also
+# delete it, in its OWN call, right after the worktree remove. The fenced example uses a CONCRETE
+# agentId (not the `<agentId del paso 2>` placeholder used elsewhere in prose): bash-guard.py's new
+# `git branch -D` shape-check rejects the literal placeholder text, same reason release-manager.md's
+# `git push` example uses a real branch name instead of a placeholder (test_agent_bash_blocks_allowed.sh
+# runs every fenced ```bash block through the real guard for that agent_type).
+assert_eq "0" "$(has "$b" 'git branch -D worktree-agent-')" "orchestrator body deletes the orphaned implementer branch right after the worktree remove"
+assert_eq "1" "$(grep -cF 'git branch -D worktree-agent-abc123' "$F")" "the fenced branch-delete example appears exactly ONCE (same shared section)"
+
 # every terminal path from step 2 onward must point at the shared section by name
 for path_marker in \
   'el worktree (ver "## Limpieza del worktree" más abajo).** Si `BLOCKED`' \
