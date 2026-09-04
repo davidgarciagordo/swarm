@@ -1,6 +1,6 @@
 ---
-description: Lanza el orquestador raíz del enjambre swarm sobre un objetivo, con tier opcional.
-argument-hint: <objetivo> [--tier=direct|light|full]
+description: "/swarm — punto de entrada único del enjambre: describe lo que quieres en lenguaje natural, sin pasos previos."
+argument-hint: "<objetivo>"
 allowed-tools: Agent, Read, Bash, SendMessage, AskUserQuestion
 ---
 

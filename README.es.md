@@ -14,10 +14,20 @@ Todavía no hay listing en el marketplace — solo desarrollo local:
 claude --plugin-dir /ruta/a/multiagents
 ```
 
+## Empezar rápido
+
+```
+/swarm "añade export CSV al listado de facturas"
+```
+
+Un comando, en lenguaje natural. `.swarm/` se inicializa solo, de forma transparente, la primera
+vez — sin ningún paso de preparación aparte que ejecutar o conocer. Ver `docs/USAGE.es.md` para la
+guía completa.
+
 ## Comandos
 
-- `/swarm:init` — crea `.swarm/` en el repo target, health-gated sobre el backend `files`.
-- `/swarm:run <objetivo> [--tier=direct|light|full]` — lanza el orquestador raíz.
+- `/swarm "<objetivo>"` (alias de `/swarm:run`) — el punto de entrada único; lanza el orquestador raíz. `--tier=direct|light|full` está disponible para usuarios avanzados/CI — ver la sección Avanzado de `docs/USAGE.es.md`.
+- `/swarm:init` — crea `.swarm/` en el repo target, health-gated sobre el backend `files`. Ya no es un paso obligatorio — `/swarm "<objetivo>"` lo ejecuta por ti automáticamente.
 - `/swarm:doctor` — verifica los requisitos de entorno del repo contra `requirements.json`.
 - `/swarm:status` — resumen determinista, sin turno de modelo, del run actual, tier, agentes y hallazgos abiertos.
 - `/swarm:findings [agente|TAG] [--all]` — consulta filtrada determinista, sin turno de modelo, de los hallazgos del enjambre.
