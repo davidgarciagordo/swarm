@@ -30,10 +30,16 @@ responder las preguntas que el sistema le hace.
 
 ## Arquitectura — 4 piezas
 
-### 1. Punto de entrada único: `/swarm "<lo que quiero>"`
+### 1. Punto de entrada único: `/swarm:run "<lo que quiero>"`
 
-Fusiona lo que hoy son 3 comandos separados (`/swarm:init` → `/swarm:doctor` → `/swarm:run`) en
-uno. Si `.swarm/` no existe, el propio comando lo inicializa transparentemente — nunca bloquea con
+**Corrección tras revisión (2026-09-04):** los comandos de un plugin de Claude Code van SIEMPRE
+namespaced como `/<plugin>:<comando>` — no existe un bare `/swarm` sin dos puntos. El "punto de
+entrada único" real es `/swarm:run`, que YA es un solo comando hoy — lo que se simplifica no es su
+nombre, es que deja de exigir ejecutar `/swarm:init` por separado antes. La versión anterior de
+este spec (y los documentos que de ella salieron) asumía incorrectamente un alias bare `/swarm`;
+esa asunción queda descartada.
+
+Si `.swarm/` no existe, `/swarm:run` lo inicializa transparentemente — nunca bloquea con
 `BLOCKED falta /swarm:init` pidiendo al usuario que sepa que existe un comando aparte.
 
 **Implementación concreta:** `commands/run.md` (el `.md` que hoy invoca `swarm:orchestrator`) pasa
@@ -120,7 +126,7 @@ recalibración es puramente de superficie: qué comando se escribe y qué texto 
   en su descripción principal.
 - `docs/USAGE.md`/`.es.md` — reescribir el quickstart: un solo comando, ejemplo real sin jerga;
   mover `--tier=` a una sección "avanzado" separada.
-- `README.md`/`.es.md` — el ejemplo de invocación del quickstart pasa a `/swarm "<objetivo>"`.
+- `README.md`/`.es.md` — el ejemplo de invocación del quickstart pasa a `/swarm:run "<objetivo>"`.
 
 ## Testing
 
