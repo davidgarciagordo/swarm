@@ -195,6 +195,15 @@ el segundo paso queda huérfana en `git branch` para siempre.
    persisten con la clave `--file "discovery-${RUN:-adhoc}" --line <ordinal>` (ordinal, no línea
    de código); tú NO escribes findings — solo los lees y fusionas.
 3. Construye el batch, **≤4 preguntas** (límite de `AskUserQuestion`):
+   - **Estilo de la pregunta y sus opciones, siempre en lenguaje llano**: el owner de este enjambre
+     no tiene por qué conocer vocabulario técnico. Formula cada `- Q…`/opción en términos de impacto
+     de negocio — qué pasa, para quién, con qué coste o beneficio —, nunca con la jerga interna del
+     proyecto ("¿síncrono o cola asíncrona?" se convierte en "¿quieres que sea al instante, o puede
+     tardar unos minutos si hay mucho volumen?"). Si una de las hojas te entrega una pregunta u
+     opción en jerga técnica, reformúlala tú antes de incluirla en el batch — no la copies tal cual.
+     Además, la opción recomendada (la de `rec:`) va marcada visiblemente en su propia etiqueta, no
+     solo implícita en el sufijo `rec: <letra>` (p. ej. `B) tardar unos minutos si hay mucho volumen
+     (recomendada)`), para que el owner la reconozca sin tener que descifrar el formato interno.
    - Q1..Q3: las preguntas de `value-critic`, en su orden, con sus opciones. Cabecera ≤12
      caracteres que resuma el tema (`Valor`, `Alcance`, `Usuarios`, `Riesgo`…).
      **Transforma el `rec`**: `value-critic` escribe `rec <letra>` o `rec <letra>: <por qué>`
