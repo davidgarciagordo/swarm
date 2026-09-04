@@ -150,7 +150,7 @@ el segundo paso queda huérfana en `git branch` para siempre.
    y, en su PROPIA llamada, la rama que ese worktree deja huérfana (mismo fallo blando, línea
    `- warn: rama del spiker no borrada: <motivo>`):
    ```bash
-   git branch -D worktree-agent-<agentId del spawn>
+   git branch -D worktree-agent-abc123
    ```
    Si nunca te llegó su `agentId` (el lanzamiento falló), no hay ruta ni rama que borrar: sáltatelo
    sin warn, igual que en 1bis.
@@ -177,7 +177,7 @@ el segundo paso queda huérfana en `git branch` para siempre.
    plataforma creó al abrir el worktree — bórrala también, en su PROPIA llamada, mismo fallo
    blando (línea `- warn: rama del spiker no borrada: <motivo en ≤8 palabras>`):
    ```bash
-   git branch -D worktree-agent-<agentId del spawn>
+   git branch -D worktree-agent-abc123
    ```
    Si no lanzaste al spiker (paso 4 del arranque) o nunca
    te llegó su `agentId`, no hay nada que borrar: sáltate el paso sin warn.

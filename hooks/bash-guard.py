@@ -584,7 +584,7 @@ def branch_delete_segment_denied(words):
     branch = _unquote(branch_args[0])
     if _has_unresolvable_substitution(branch):
         return True
-    return not WORKTREE_AGENT_BRANCH_RE.match(branch)
+    return not WORKTREE_AGENT_BRANCH_RE.fullmatch(branch)
 
 
 # Forma de un token de remoto/rama que el guard acepta en un `git push`. Cerrar el charset aquí, y
