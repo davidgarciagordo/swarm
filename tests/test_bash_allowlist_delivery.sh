@@ -89,7 +89,7 @@ push_all_lines="$(git -C "$fixture2_dir" remote get-url --push --all origin)"
 push_all_count="$(echo "$push_all_lines" | wc -l | tr -d ' ')"
 assert_eq "git@legit.example.com:owner/repo.git" "$push_first_only" "fixture: --push WITHOUT --all silently prints only the first (benign) destination — this is the exact gap that let a second pushurl through undetected"
 assert_eq "2" "$push_all_count" "fixture: --push --all reveals BOTH destinations — this is what phase A/B must use to see the attacker's added pushurl"
-assert_eq "0" "$(echo "$push_all_lines" | grep -qF 'evil.example.com' && echo 0 || echo 1)" "fixture: the attacker's destination is only visible with --all, never with bare --push"
+assert_eq "0" "$(echo "$push_all_lines" | grep -qF 'evil.example.com' && echo 0 || echo 1)" "fixture: --all's output includes the attacker's destination (the preceding assertion already proved bare --push omits it)"
 rm -rf "$fixture2_dir"
 
 # --- and the doc itself: both phase A (source of url=) and phase B (re-verification) must say
@@ -105,6 +105,12 @@ assert_eq "0" "$(has_file "$PLUGIN_ROOT/agents/release-manager.md" 'destinos de 
 # for EXACT equality against the vulnerable form, so trailing text on the same line cannot hide a match.
 bare_push_leftover="$(awk '{ line=$0; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line); if (line == "git remote get-url --push origin") print }' "$PLUGIN_ROOT/agents/release-manager.md" | wc -l | tr -d ' ')"
 assert_eq "0" "$bare_push_leftover" "no leftover standalone 'git remote get-url --push origin' command (missing --all) anywhere in release-manager.md"
+
+# round 1's original regression class (bare, no --push at all) — kept as its own check
+# rather than folded into the --all check above, so a future edit can't silently drop
+# BOTH flags and still pass a single combined assertion.
+bare_geturl_leftover="$(awk '{ line=$0; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line); if (line == "git remote get-url origin") print }' "$PLUGIN_ROOT/agents/release-manager.md" | wc -l | tr -d ' ')"
+assert_eq "0" "$bare_geturl_leftover" "no leftover standalone 'git remote get-url origin' command (missing --push --all entirely) anywhere in release-manager.md"
 
 # --- backlog fix: SSH identity diagnosis reads ~/.ssh/config (read-only, additive to ruling 14) ---
 # `cat`/`grep` are bare, argument-unrestricted allowlist entries for release-manager already (same
