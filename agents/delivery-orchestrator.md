@@ -86,9 +86,14 @@ approved-remote: <la línea literal de tu cabecera>   ← SOLO en configure-remo
 ```
 
 Forma real de esa línea (la que trae tu propia cabecera y reenvías carácter a carácter, nunca
-reconstruida): `approved-push: remote=origin branch=feature/export-csv base=master
-url=git@github.com:owner/repo.git` — los cuatro campos `remote=`/`branch=`/`base=`/`url=` que exige
-el gate de `release-manager`.
+reconstruida — la cabecera es SIEMPRE una sola línea, aunque el ejemplo de abajo se muestre en un
+bloque para que no se corte):
+
+```
+approved-push: remote=origin branch=feature/export-csv base=master url=git@github.com:owner/repo.git
+```
+
+Los cuatro campos `remote=`/`branch=`/`base=`/`url=` que exige el gate de `release-manager`.
 
 En `operation: configure-remote` **no resuelves el pack** (paso 4 del arranque): configurar un remoto
 no corre ninguna suite, así que la línea `pack:` sobra y la omites.

