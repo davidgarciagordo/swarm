@@ -101,9 +101,18 @@ y elige el/los dominio(s) que aplican:
   rendimiento en Z") enruta en su lugar a **analysis** — read-only, sin preguntas. Discovery y
   analysis son mutuamente excluyentes en el mismo run: si tu objetivo se lee como "de producto",
   analysis nunca corre, y viceversa.
-- Un bugfix, un refactor, un cambio de docs o una tarea de infraestructura se saltan discovery y
-  analysis — la raíz simplemente lo dice en la salida (`- discovery omitido: ...`) y, en `tier:
-  full` sin decisiones de producto contra las que diseñar, design también se salta.
+- Un bugfix puro, un cambio de docs, un test, o una tarea de infraestructura se saltan discovery,
+  analysis Y design — la raíz simplemente lo dice en la salida (`- discovery omitido: ...`, plegado
+  en una línea de omisión combinada al cerrar).
+- Un objetivo de **refactor o migración** que pide explícitamente un rediseño ("refactoriza X con
+  SOLID", "migra el parser antiguo a un mejor diseño") también se salta discovery (no hay decisión
+  de producto que preguntar), pero — a diferencia de un bugfix puro — **design SÍ corre** en `tier:
+  full`: la raíz encadena `design-orchestrator` directamente desde el objetivo, sin contexto de
+  decisiones de discovery (no le hace falta). Esto solo dispara cuando el objetivo pide de verdad un
+  rediseño, no cuando solo menciona de pasada algo que técnicamente se llama "migración" (un bugfix
+  sobre una migración existente sigue siendo un bugfix). Es mutuamente excluyente con un objetivo de
+  **análisis**, igual que discovery: si el objetivo se lee a la vez como "audita X" y "reestructura
+  X", analysis gana y design no encadena.
 - **Implementation** nunca encadena automáticamente tras discovery o design, en ningún tier — solo
   corre cuando pides explícitamente al enjambre que construya un plan que ya existe ("implementa el
   plan de X", "construye X según el diseño ya escrito"). Es un checkpoint humano deliberado: escribir
@@ -284,8 +293,11 @@ cuatro preguntas que Claude Code te presenta directamente con `AskUserQuestion`.
 
 **Qué lo dispara:** un objetivo con forma de producto ("añade X", "construye una funcionalidad
 nueva que haga Y", cualquier cambio de comportamiento visible para el usuario) en tier `light` o
-`full`. Se salta para bugfixes, refactors, docs, tests y tareas de infraestructura, y se salta (sin
-volver a preguntar) si `.swarm/decisions.md` ya cerró el mismo objetivo exacto en un run anterior.
+`full`. Se salta para bugfixes, docs, tests y tareas de infraestructura puros (diseño también se
+salta ahí — ver más abajo) — y se salta, pero diseño NO, para un objetivo de refactor/migración
+sustancial (sin decisión de producto que preguntar, pero el pipeline de diseño sí corre en
+`tier: full`) — y se salta (sin volver a preguntar) si `.swarm/decisions.md` ya cerró el mismo
+objetivo exacto en un run anterior.
 
 **Qué recibes:** un diálogo interactivo de preguntas (es el único punto de todo el enjambre donde se
 pausa y te espera), y después una única línea de decisión registrada en `.swarm/decisions.md` con
@@ -314,7 +326,10 @@ paralelo, y reenviadas a ti como hallazgos.
 **Qué lo dispara:** un objetivo explícitamente con forma de análisis ("audita X", "revisa la
 seguridad de Y", "busca problemas de rendimiento", "audita todo") en tier `light` o `full`. Nunca
 corre en el mismo run que discovery — un objetivo es "de producto" (discovery) o "de análisis"
-(este dominio), nunca ambos.
+(este dominio), nunca ambos. También gana precedencia sobre el camino de refactor/migración a
+design (ver Diseño abajo): un objetivo como "audita la arquitectura de X y reestructúrala" casa con
+los dos, y analysis gana — design no encadena. ¿Quieres las dos cosas (auditoría Y rediseño)? Son
+dos objetivos, dos runs.
 
 **Qué recibes:** una lista de hallazgos, cada uno en una línea: `TAG · fichero:línea · problema →
 fix`, más una línea nombrando qué lentes corrieron y por qué. Sin preguntas — analysis nunca invoca
@@ -338,10 +353,16 @@ por una revisión adversarial de tres lentes externas
 lente de usuario real, y la lente de ingeniería técnica), y `design-orchestrator` mismo arbitra sus
 hallazgos y revisa el plan — sin preguntarte nada nunca durante el diseño.
 
-**Qué lo dispara:** solo `tier: full`, y solo después de que discovery haya cerrado sus decisiones
-(ya sea en este mismo run, o en uno anterior sobre el mismo objetivo). Nunca se lanza en `tier:
-light` (light es de un solo dominio por diseño), y se salta siempre que discovery también se
-saltó.
+**Qué lo dispara:** solo `tier: full`, por cualquiera de DOS vías independientes. (1) Después de que
+discovery haya cerrado sus decisiones (ya sea en este mismo run, o en uno anterior sobre el mismo
+objetivo) — la vía clásica. (2) Directamente desde un **objetivo de refactor/migración** ("refactoriza
+X con SOLID", "migra el parser antiguo a un mejor diseño") aunque discovery se haya saltado para
+él — ahí no hay decisión de producto contra la que diseñar, pero SÍ hay un rediseño real que hacer,
+y esta es la vía que lo cubre, alimentada con el objetivo literal y sin contexto de discovery. Nunca
+se lanza en `tier: light` (light es de un solo dominio por diseño) sea cual sea la vía, y se salta
+solo cuando discovery se saltó por un motivo de bugfix/docs/tests/infra puro (sin decisión de
+producto NI objetivo de rediseño) — o cuando el objetivo también casaba con análisis, que tiene
+precedencia sobre esta vía (ver Análisis arriba).
 
 **Qué recibes:** una única línea `PLAN · <ruta>:1 · <resumen corto>` apuntando al fichero de plan
 real en disco, más una línea `- grill: ...` resumiendo qué cambió o se marcó en la revisión
