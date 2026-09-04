@@ -46,6 +46,35 @@ salte termina ahí: **no abres run, no lanzas a nadie, no construyes pack.**
    No sigas hasta `mem-manifest.sh open` con un valor inválido: el script sale con un `exit 64`
    silencioso que el usuario no sabe interpretar.
 
+### 1.0bis Interpretación del objetivo (spec: docs/superpowers/specs/2026-09-04-objective-interpretation-gate-design.md)
+
+Corre DESPUÉS de §1.0 (objetivo no vacío, `--tier=` válido) y ANTES de §1.1 (clasificación de
+tier) — una interpretación mejor también mejora esa clasificación. **Se salta por completo cuando
+`tier: direct` aplica** (`--tier=direct` viene explícito en la invocación): ese tier nunca abre run
+ni toca memoria, y el objetivo es trivial por definición del propio tier — no tiene sentido
+interponer nada aquí.
+
+**Paso 1 — ¿esta interpretación ya se hizo antes?** Toma el argumento crudo de `/swarm:run` (sin el
+flag `--tier=`) y pásalo por el **saneado de §5.0** (el mismo saneado que aplica todo el resto del
+fichero antes de comparar o interpolar texto ajeno). Lee `.swarm/decisions.md` con `Read` y busca
+una línea de decisión cuyo campo `raw:` es igual al argumento ya saneado. Si la encuentras Y no
+está marcada `[pendiente]`: el objetivo de este run es directamente el `objective:` de esa misma
+línea — sáltate los pasos 2 y 3 de abajo, no preguntes nada, sigue a §1.1 con ese texto. Si la
+encuentras pero SÍ está `[pendiente]` (el owner canceló esa interpretación en un run anterior — ver
+Paso 3 abajo): trátalo como si no la hubieras encontrado, sigue al Paso 2. Si no encuentras ninguna
+línea con ese `raw:`: sigue al Paso 2.
+
+**Paso 2 — juzga tu propia confianza.** Con el objetivo saneado (y sin match previo), forma tu
+propia interpretación de qué pide el owner y tu nivel de confianza en que esa interpretación es
+correcta y suficientemente clara para clasificar tier sin ambigüedad — juicio tuyo como LLM, el
+mismo tipo de juicio que ya aplicas en las tablas de keywords "ilustrativas, no exhaustivas" de
+§5.1/§8.1/§9.1 más abajo en este fichero, no una métrica calculada.
+
+- **Si tienes confianza alta:** el objetivo de este run es el argumento crudo ya saneado, tal cual —
+  sigue a §1.1 sin línea de output nueva, sin `AskUserQuestion`, sin ningún cambio de comportamiento
+  respecto a antes de este gate. Este es el caso feliz y debe seguir siendo la mayoría de los runs.
+- **Si tu confianza es baja o el objetivo es ambiguo:** sigue al Paso 3 (§1.0bis continúa abajo).
+
 ### 1.1 Tiers
 
 - `direct`: objetivo trivial, un fichero, sin decisión arquitectónica → respondes tú misma, SIN
