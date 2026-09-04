@@ -89,9 +89,11 @@ Lee `.swarm/decisions.md` con `Read` y busca una línea de decisión cuyo campo 
 argumento ya saneado; si hay varias, quédate con la ÚLTIMA (`decisions.md` es append-only y
 cronológico, `scripts/mem-files.sh`). **Si el fichero no existe** —repo sin `/swarm:init`, o
 `.swarm/` a medias— NO es un error, no emites nada por ello y no adelantas ningún diagnóstico:
-trátalo exactamente igual que "no hay ninguna línea con ese `raw:`" y sigue al Paso 2. Ese repo ya
-tiene su mensaje limpio y su dueño más adelante: el `BLOCKED falta /swarm:init` del health-gate de
-§2.1.
+trátalo exactamente igual que "no hay ninguna línea con ese `raw:`" y sigue al Paso 2. Ese caso
+("`.swarm/` no existe todavía") ya no genera ningún mensaje más adelante: el health-gate de §2.1 lo
+auto-inicializa de forma transparente para el owner y el run sigue su curso normal. El
+`BLOCKED falta /swarm:init` de §2.1 solo dispara ahora en el otro caso —`.swarm/` existe pero el
+filesystem lo rechaza (permisos, disco de solo lectura)—, donde auto-inicializar no arregla nada.
 
 Si la encuentras Y no está marcada `[pendiente]`: el objetivo de este run es directamente el
 `objective:` de esa misma línea — sáltate los pasos 2 y 3 de abajo, no preguntes nada, sigue a §1.1
@@ -223,6 +225,12 @@ nunca reimplementes esa lógica a mano):
 Tras inicializar con éxito, repite el `health` check una vez (debe salir `ok` ahora) y continúa
 normalmente con la apertura del run — el owner nunca ve nada de esto, es exactamente como si
 `.swarm/` ya hubiera existido.
+
+Si `scripts/swarm-init.sh` en sí falla (exit distinto de 0, o el `health` repetido sigue sin dar
+`ok`): NO reintentes, NO sigas a `mem-manifest.sh open` contra un `.swarm/` posiblemente a medias —
+cae al mismo `BLOCKED falta /swarm:init` real del caso "not writable" de abajo. El owner necesita
+intervenir manualmente; silenciar el fallo y continuar dejaría el run abriéndose sobre memoria
+corrupta.
 
 Exit 1 con `SWARM_ROOT not writable` en stderr (`.swarm/` existe pero el filesystem lo rechaza —
 permisos, disco de solo lectura): esto SÍ es un `BLOCKED` real, auto-inicializar no lo arregla. Tu
@@ -926,15 +934,18 @@ decisiones como contexto — NO cierres el run todavía. Si `tier: light`, el ru
 ## 6. Disciplina de Bash (`hooks/bash-guard.py`)
 
 Tus comandos pasan por el allowlist de `swarm:orchestrator`: `scripts/mem-*.sh`,
-`git status|log|diff|show|rev-parse`, `cd`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`. Todo lo demás
-se DENIEGA, y la denegación aplica a CADA segmento separado por `&&`,
+`scripts/swarm-init.sh` (el auto-init transparente de §2.1 — único script fuera de la familia
+`mem-*` permitido), `git status|log|diff|show|rev-parse`, `cd`, `ls`, `cat`, `head`, `tail`, `wc`,
+`grep`. Todo lo demás se DENIEGA, y la denegación aplica a CADA segmento separado por `&&`,
 `||`, `;` o `|`. En la práctica: nada de `echo`, `mkdir`, `mv`, `cp`, `rm`, `export`, `python3`,
 `uuidgen`, `find`; nada de asignaciones sueltas (`TIER=light`);
 no cierres un comando con `; echo $?` (el segmento `echo $?` se deniega y pierdes el comando
 entero — el resultado del Bash ya te trae el exit code).
-`${CLAUDE_PLUGIN_ROOT}/scripts/...` sí está permitido, y también UN prefijo `SWARM_ROOT=<ruta>`
-delante de un comando ya permitido (el guard lo recorta y valida el resto) — aunque tú no lo
-necesitas: anclas con `cd` en §2.0.
+`${CLAUDE_PLUGIN_ROOT}/scripts/...` NO está permitido en general — solo lo está para los scripts ya
+enumerados arriba (`mem-*.sh`, `swarm-init.sh`); el prefijo del path no basta, el guard exige que el
+script en sí esté en el allowlist. También UN prefijo `SWARM_ROOT=<ruta>` delante de un comando ya
+permitido (el guard lo recorta y valida el resto) — aunque tú no lo necesitas: anclas con `cd` en
+§2.0.
 
 ## 7. Salida
 
