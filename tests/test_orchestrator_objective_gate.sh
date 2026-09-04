@@ -60,5 +60,16 @@ assert_eq "0" "$(has "$body" 'ya resuelto por')" "§5.1 clarifies the objective 
 stale="$(echo "$body" | grep -n 'argumento crudo de.*swarm:run.*objetivo\|objetivo.*siempre.*argumento crudo' || true)"
 assert_eq "0" "$([ -z "$stale" ] && echo 0 || echo 1)" "no stale claim anywhere states the objective always equals the raw /swarm:run argument (§1.0bis can now change it)"
 
+# --- bilingual docs mention the gate ---
+usage_en="$(cat "$PLUGIN_ROOT/docs/USAGE.md" 2>/dev/null)"
+usage_es="$(cat "$PLUGIN_ROOT/docs/USAGE.es.md" 2>/dev/null)"
+assert_eq "0" "$(has "$usage_en" 'objective interpretation')" "USAGE.md mentions the objective interpretation gate"
+assert_eq "0" "$(has "$usage_es" 'interpretación del objetivo')" "USAGE.es.md mentions the objective interpretation gate"
+
+readme_en="$(cat "$PLUGIN_ROOT/README.md" 2>/dev/null)"
+readme_es="$(cat "$PLUGIN_ROOT/README.es.md" 2>/dev/null)"
+assert_eq "0" "$(has "$readme_en" 'ambiguous')" "README.md's /swarm:run diagram/prose mentions the ambiguous-objective case"
+assert_eq "0" "$(has "$readme_es" 'ambig')" "README.es.md's /swarm:run diagram/prose mentions the ambiguous-objective case (ambiguo/ambigüedad)"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

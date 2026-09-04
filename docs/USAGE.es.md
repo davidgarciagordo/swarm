@@ -77,6 +77,15 @@ SIEMPRE invoca el subagente `swarm:orchestrator` con tu texto exacto de argument
 vacío — el propio orquestador decide si el objetivo es válido y devuelve su propio veredicto; la
 sesión exterior nunca responde en tu lugar ni pide aclaración antes de lanzarlo.
 
+Antes de clasificar tier corre un gate de interpretación del objetivo: la raíz juzga su propia
+confianza en el objetivo recibido. Un objetivo claro no ve ningún cambio — ni pregunta nueva ni línea
+de output nueva. Uno ambiguo o mal redactado dispara una única `AskUserQuestion` con la interpretación
+de la raíz (más hasta 2 alternativas, más una opción de reescritura libre) — la respuesta confirmada
+del owner pasa a ser el objetivo que usan la clasificación, discovery, y todo lo posterior. La
+detección de "esto ya se preguntó" entre runs sigue siendo exacta y determinista de todos modos:
+compara contra el argumento crudo sin tocar, guardado aparte, nunca contra una interpretación no
+determinista del LLM.
+
 **Tiers** (de `agents/orchestrator.md` §1.1 y el spec §9.1):
 
 - `direct` — un objetivo trivial, de un solo fichero, sin decisión arquitectónica. La raíz te

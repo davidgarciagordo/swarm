@@ -77,6 +77,14 @@ always invokes the `swarm:orchestrator` subagent with your exact argument text, 
 — the orchestrator itself decides whether the goal is valid and returns its own verdict; the
 outer session never answers on your behalf or asks you to clarify before spawning it.
 
+Before tier classification, an objective interpretation gate runs: the root judges its own
+confidence in the objective it was given. A clear objective sees zero change — no new question, no
+new output line. An ambiguous or vaguely worded one triggers a single `AskUserQuestion` offering the
+root's interpretation (plus up to 2 alternatives, plus a free-rewrite option) — the owner's confirmed
+answer becomes the objective used for classification, discovery, and everything downstream. Cross-run
+"already asked this" detection stays exact and deterministic regardless: it matches against the
+untouched raw argument, recorded separately, never against a non-deterministic LLM interpretation.
+
 **Tiers** (from `agents/orchestrator.md` §1.1 and the spec §9.1):
 
 - `direct` — a trivial, single-file, no-architectural-decision goal. The root answers you directly,

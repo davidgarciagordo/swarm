@@ -119,6 +119,11 @@ sequenceDiagram
     alt tier = direct
         O-->>User: OK (sin abrir run)
     else tier = light o full
+        alt objetivo ambiguo (juicio propio de la raíz)
+            O->>User: AskUserQuestion (UNA llamada: interpretación + alternativas + reescritura libre)
+            User-->>O: objetivo confirmado/alternativo/reescrito
+            Note over O: raw: + objective: se registran aparte<br/>(la idempotencia compara contra raw:, nunca contra la interpretación)
+        end
         O->>O: abre run (run-id, .swarm/run/<id>/)
         O->>MO: spawn (run-id, swarm-root, operation: build)
         MO->>MO: comprueba staleness (tree-hash)
