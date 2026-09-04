@@ -1,6 +1,6 @@
 {
   "os": [
-    { "tool": "php", "min": "8.2", "required": true, "install": { "brew": "php", "apt": "php-cli" } },
+    { "tool": "php", "min": "8.4", "required": true, "install": { "brew": "php", "apt": "php-cli" } },
     { "tool": "composer", "required": true, "install": { "brew": "composer", "apt": "composer" } },
     { "tool": "make", "required": false, "install": { "brew": "make", "apt": "make" } }
   ],
