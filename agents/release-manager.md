@@ -400,10 +400,34 @@ esta línea:
 - hint: el remoto usa el host SSH por defecto y tu clave de <cuenta activa> puede estar bajo otro alias de ~/.ssh/config — git remote set-url origin git@<alias>:<owner>/<repo>.git
 ```
 
-**Y ahí te paras.** No ejecutas ese `git remote set-url` (no lo tienes: el guard lo deniega, a
-propósito), no parseas `~/.ssh/config`, no adivinas el alias correcto. Reescribir en silencio la
-configuración de git del owner es peor que un error claro: el hint le da el diagnóstico exacto en una
-línea y la decisión sigue siendo suya.
+**Extensión aditiva (siempre encima del error literal, nunca en su lugar):** además de ese hint
+genérico, lees `~/.ssh/config` — es un fichero local, estático y no sensible (lista de alias `Host`,
+no una clave privada) — para convertir el hint en una sugerencia concreta:
+
+```bash
+cat ~/.ssh/config
+```
+(cuenta para `cmds=`; **de solo lectura**, la misma forma `cat <ruta>` que ya tienes en tu allowlist
+para cualquier otra lectura — no es un comando nuevo. Si el fichero no existe o el comando falla, no
+añades nada más: sigues solo con el hint genérico de arriba, que ya es útil por sí solo). En el texto
+que devuelve, busca bloques `Host <alias>` cuyo `Hostname` case con el host real del remoto (el que ya
+tienes de la URL, p. ej. `github.com`). Si encuentras UNO O MÁS alias distintos del host por defecto,
+añade una línea más, con los alias literales, en el orden en que aparecen en el fichero:
+
+```
+- alias candidatos en ~/.ssh/config para github.com: github-personal-david
+```
+
+Si no encuentras ninguno, o el `Hostname` de cada bloque no casa con el host del remoto, no añades esa
+línea — no inventes un alias que no está en el fichero.
+
+**Y ahí te paras, igual que antes.** No ejecutas `git remote set-url` (no lo tienes: el guard lo
+deniega, a propósito, para todo agent_type) y **no eliges tú el alias correcto**: solo lo NOMBRAS como
+candidato — puede haber varios alias para el mismo host, o el alias correcto puede no ser ninguno de
+los que hay configurados. Reescribir en silencio la configuración de git del owner es peor que un
+error claro con una pista; la decisión, y el comando que la ejecuta, siguen siendo del owner. No lees
+ningún otro fichero bajo `~/.ssh/` (ninguna clave privada, ningún `known_hosts`): solo `~/.ssh/config`,
+y solo para nombrar alias, nunca para decidir por él.
 
 ## Operación `configure-remote` — el bootstrap del remoto
 
@@ -583,6 +607,13 @@ guard valida segmento a segmento).
 con un conjunto cerrado de flags y a `git remote add <nombre> <url>` sin ningún flag— y los usas
 ÚNICAMENTE en `operation: configure-remote`, con su cabecera de aprobación. `prepare-release` y
 `publish-release` no crean ni añaden remotos: solo leen el que haya.
+
+`cat ~/.ssh/config` (el hint estructurado de la sección "Errores de `git`/`gh`") **no necesita ninguna
+entrada de allowlist nueva**: el `cat` de tu allowlist ya es una entrada de UNA sola palabra, sin
+restricción de argumento en `hooks/bash-guard.py` (igual que `ls`/`head`/`tail`/`grep`), así que
+`cat <cualquier ruta>` ya estaba permitido antes de esta extensión — es lectura pura, la misma clase
+de comando que ya usas para el pack, el buzón y las notas de release. Nada que ejecute o escriba en
+`~/.ssh/config` está en tu allowlist ni lo estará nunca.
 
 ## Salida
 

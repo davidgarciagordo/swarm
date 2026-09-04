@@ -41,6 +41,13 @@ assert_eq "0" "$(has "$body" 'BLOCKED sin remoto configurado')" "handles the no-
 assert_eq "0" "$(has "$body" '- remoto propuesto:')" "the no-remote BLOCKED carries the preview the root needs to ask the owner (ruling 3)"
 assert_eq "0" "$(has "$body" '- cuenta gh:')" "…and names the authenticated gh account, so an identity mismatch is visible before approving (ruling 14)"
 assert_eq "0" "$(has "$body" 'sin recortar')" "raw git/gh errors are surfaced verbatim, never trimmed or reworded (ruling 14)"
+
+# backlog fix: additive structured SSH-alias hint (ruling 14 stays honest-raw-stderr, extended not replaced)
+assert_eq "0" "$(has "$body" 'cat ~/.ssh/config')" "reads ~/.ssh/config to build the structured hint"
+assert_eq "0" "$(has "$body" 'alias candidatos en ~/.ssh/config')" "documents the candidate-alias suggestion line"
+assert_eq "0" "$(has "$body" 'Extensión aditiva')" "the SSH hint extension is explicitly additive to the raw-stderr surfacing, never a replacement"
+assert_eq "0" "$(has "$body" 'no eliges tú el alias correcto')" "release-manager only names candidates, it never picks or applies one itself"
+assert_eq "0" "$(has "$body" 'No ejecuta')" "the never-execute-set-url property still holds unchanged after the extension"
 assert_eq "0" "$(has "$body" 'BLOCKED árbol sucio')" "refuses to publish a dirty tree (ruling 6)"
 assert_eq "0" "$(has "$body" 'KO tests en rojo')" "a red suite blocks the preview (ruling 4)"
 assert_eq "0" "$(has "$body" 'verde NO verificado')" "an unknown suite is reported as unknown, never as green (ruling 4)"
