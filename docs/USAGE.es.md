@@ -30,7 +30,7 @@ agente se pueden invocar desde cualquier punto de la conversación. No hay nada 
 `npm install`: es un conjunto de ficheros markdown de agente/comando/skill más unos pocos scripts de
 shell, leídos directamente por Claude Code.
 
-No necesitas un paso de preparación: la primera vez que escribes `/swarm "<objetivo>"` en el repo
+No necesitas un paso de preparación: la primera vez que escribes `/swarm:run "<objetivo>"` en el repo
 target (el repo sobre el que realmente quieres trabajar — no tiene por qué ser este), crea el
 directorio `.swarm/` que usa este plugin como memoria por su cuenta, de forma transparente, y luego
 ejecuta tu objetivo — ver §3 más abajo. `/swarm:init` sigue existiendo como comando aparte si alguna
@@ -44,10 +44,10 @@ no existe, así que no sigas instrucciones que la den por hecha.
 ## 3. Empezar rápido — el único comando que necesitas
 
 ```
-/swarm "añade export CSV al listado de facturas"
+/swarm:run "añade export CSV al listado de facturas"
 ```
 
-Y ya está. Describe lo que quieres en lenguaje natural, entre comillas, después de `/swarm`. No hay
+Y ya está. Describe lo que quieres en lenguaje natural, entre comillas, después de `/swarm:run`. No hay
 ningún paso de preparación que recordar antes: si `.swarm/` no existe todavía en este repo, se crea
 por ti tras bambalinas, y tu objetivo se ejecuta justo después — nunca ves un paso de inicialización
 aparte ni necesitas saber que ocurrió. El agente raíz lee tu objetivo, te hace preguntas reales
@@ -63,7 +63,7 @@ empezar.
 Estos son los *únicos* cinco comandos de barra que define este plugin — ficheros reales bajo
 `commands/`: `commands/init.md`, `commands/run.md`, `commands/doctor.md`, `commands/status.md`,
 `commands/findings.md`. Nada más está implementado — no escribas otra cosa esperando que funcione.
-`/swarm "<objetivo>"` de arriba es `commands/run.md`, documentado como el punto de entrada único del
+`/swarm:run "<objetivo>"` de arriba es `commands/run.md`, documentado como el punto de entrada único del
 plugin; los otros cuatro son utilidades opcionales e independientes.
 
 ### `/swarm:init`
@@ -72,7 +72,7 @@ Crea `.swarm/` en el repo actual: el árbol de directorios, `memory.json` (decla
 `files` como requerido), `decisions.md` con su cabecera, y un bloque `# swarm` añadido a
 `.gitignore` para que el estado de trabajo del enjambre nunca se comitee. También ejecuta un
 health-gate sobre el backend antes de declarar éxito. No toma argumentos. No necesitas ejecutarlo tú
-mismo — `/swarm "<objetivo>"` lo hace por ti automáticamente la primera vez — está aquí para
+mismo — `/swarm:run "<objetivo>"` lo hace por ti automáticamente la primera vez — está aquí para
 usuarios avanzados y CI que quieran ejecutarlo explícitamente, o volver a comprobar el health-gate
 por su cuenta.
 
@@ -87,16 +87,16 @@ informa que `/swarm:init` abortó y muestra la línea de stderr que explica por 
 `.swarm/` creado, `memory.json` con el backend `files` requerido, `decisions.md` con su cabecera, el
 bloque `.gitignore` marcado `# swarm`, y el health-gate en verde).
 
-### `/swarm "<objetivo>"` (alias de `/swarm:run`)
+### `/swarm:run "<objetivo>"`
 
 El punto de entrada principal. Lanza el agente raíz `orchestrator` sobre un objetivo que describes
 en lenguaje natural.
 
 ```
-/swarm "<objetivo>"
+/swarm:run "<objetivo>"
 ```
 
-Por ejemplo: `/swarm "añadir export CSV del listado de facturas"`. El comando SIEMPRE invoca el
+Por ejemplo: `/swarm:run "añadir export CSV del listado de facturas"`. El comando SIEMPRE invoca el
 subagente `swarm:orchestrator` con tu texto exacto de argumento, incluso si está vacío — el propio
 orquestador decide si el objetivo es válido y devuelve su propio veredicto; la sesión exterior nunca
 responde en tu lugar ni pide aclaración antes de lanzarlo. Por debajo esto sigue clasificando un
@@ -156,7 +156,7 @@ y elige el/los dominio(s) que aplican:
 verificado en vivo):
 
 ```
-/swarm "audita memoria"
+/swarm:run "audita memoria"
 ```
 Resultado (tras un fix real de un bug a mitad de smoke): pack reconstruido de verdad
 (`context-pack.md` con una línea real `stack: php-ddd-symfony8`), `index.md` sellado, run cerrado
@@ -164,7 +164,7 @@ con `curate`. Un segundo run idéntico contra el mismo repo sin cambios NO recon
 chequeo de staleness lo evita (ítem 3).
 
 ```
-/swarm
+/swarm:run
 ```
 (sin ningún argumento) devuelve, sin abrir ningún run:
 ```
@@ -576,11 +576,11 @@ por primera vez.
 
 ### `--tier=` — forzar la clasificación
 
-`/swarm "<objetivo>"` ya clasifica cuánto trabajo necesita un objetivo por su cuenta, solo a partir
+`/swarm:run "<objetivo>"` ya clasifica cuánto trabajo necesita un objetivo por su cuenta, solo a partir
 del texto del objetivo. Puedes forzar eso con `--tier=`:
 
 ```
-/swarm "<objetivo>" --tier=direct|light|full
+/swarm:run "<objetivo>" --tier=direct|light|full
 ```
 
 - `direct` — un objetivo trivial, de un solo fichero, sin decisión arquitectónica. La raíz te
@@ -600,12 +600,12 @@ Ejemplos reales (`docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md`, 
 verificado en vivo):
 
 ```
-/swarm "audita memoria" --tier=light
+/swarm:run "audita memoria" --tier=light
 ```
 Fuerza `light` explícitamente en vez de dejar que la raíz lo infiera.
 
 ```
-/swarm "audita memoria" --tier=medium
+/swarm:run "audita memoria" --tier=medium
 ```
 (`medium` no es un tier válido) devuelve, sin abrir run:
 ```
