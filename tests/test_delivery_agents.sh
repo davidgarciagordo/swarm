@@ -37,17 +37,26 @@ assert_eq "1" "$(has "$body" 'candidato de v1.1 si alguna vez importa')" "the ol
 
 # C1 fix-of-a-fix (Opus review): url= must compare the PUSH url, never the fetch url — pushurl can
 # diverge from the fetch url and is what git push actually uses.
-assert_eq "0" "$(has "$body" 'git remote get-url --push origin')" "the re-verification command is explicitly --push, not bare get-url"
+assert_eq "0" "$(has "$body" 'git remote get-url --push --all origin')" "the re-verification command is explicitly --push --all, not bare get-url or --push alone"
 assert_eq "0" "$(has "$body" 'pushurl')" "documents WHY --push matters: remote.<name>.pushurl can diverge from the fetch url"
 assert_eq "0" "$(has "$body" 'evil.example.com')" "names the concrete pushurl-hijack scenario the reviewer verified empirically"
 assert_eq "0" "$(has "$body" 'nunca uses `git remote get-url <remote>` a secas')" "phase A explicitly forbids the bare (fetch) form when sourcing the url= value"
-occurrences_push_cmd="$(grep -cF 'git remote get-url --push origin' "$F")"
-assert_eq "2" "$occurrences_push_cmd" "the literal --push command appears at least once per phase (A source, B re-verification)"
+occurrences_push_all_cmd="$(grep -cF 'git remote get-url --push --all origin' "$F")"
+[ "$occurrences_push_all_cmd" -ge 2 ] && push_all_present=0 || push_all_present=1
+assert_eq "0" "$push_all_present" "the literal --push --all command appears at least twice (A source, B re-verification) — found $occurrences_push_all_cmd"
 # I1: the "tal cual / no reformatees" self-contradiction is gone — get-url --push returns a bare URL
 # string with nothing to strip, so there is no reformatting step left to describe.
 assert_eq "0" "$(has "$body" 'sin marcador `(push)`/`(fetch)`, sin')" "documents that get-url --push needs no (fetch)/(push) marker stripped (I1 fixed at the source, not by a stripping rule)"
 # item 3: the PR host-detection reuses the SAME push url, not an independent fetch-url read
 assert_eq "0" "$(has "$body" 'la de PUSH que ya obtuviste en la re-verificación con')" "gh pr create host-detection is explicitly sourced from the push url, consistent with the actual push destination"
+
+# C1' fix-of-a-fix-of-a-fix (2nd Opus review of e4616b8): pushurl/url are MULTI-VALUED in git — a bare
+# `--push` (without `--all`) only shows the FIRST destination, so a second pushurl added between phase
+# A and phase B was invisible to the previous round's comparison. `git push` pushes to ALL of them.
+assert_eq "0" "$(has "$body" 'MULTI-VALUADOS')" "documents that pushurl/url are multi-valued in git, not single-value fields"
+assert_eq "0" "$(has "$body" 'BLOCKED remoto con varios destinos de push')" "phase A refuses outright when the remote already has more than one push destination"
+assert_eq "0" "$(has "$body" 'real <n> destinos de push')" "phase B's discrepancy line names the destination COUNT rather than trying to encode multiple URLs into a single-value url= field"
+assert_eq "0" "$(has "$body" 'no lo intentas comparar línea a línea ni te quedas con la primera')" "explicitly rules out silently narrowing to the first line instead of refusing"
 
 # propiedades permanentes
 assert_eq "0" "$(has "$body" 'BLOCKED HEAD en rama protegida')" "never publishes from a protected branch"

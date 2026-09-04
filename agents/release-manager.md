@@ -140,21 +140,40 @@ owner (ruling 14).
 Si hay varios remotos, usa el del `approved-push:` en fase B; en fase A, usa `origin` si existe y si
 no el PRIMERO que liste `git remote -v`.
 
-Con el `<remote>` ya elegido, pide su URL de PUSH con una llamada dedicada — **nunca la leas del
-listado de `git remote -v` de arriba, y nunca uses `git remote get-url <remote>` a secas**:
+Con el `<remote>` ya elegido, pide sus URLs de PUSH con una llamada dedicada — **nunca las leas del
+listado de `git remote -v` de arriba, y nunca uses `git remote get-url <remote>` a secas ni
+`git remote get-url --push <remote>` sin `--all`**:
 
 ```bash
-git remote get-url --push origin
+git remote get-url --push --all origin
 ```
-(cuenta para `cmds=`; sustituye `origin` por `<remote>`). La razón no es de estilo: cuando el remoto
-tiene configurado `remote.<remote>.pushurl`, `git remote get-url` SIN `--push` (y cada línea `(fetch)`
-de `git remote -v`) devuelve la URL de FETCH, que puede ser DISTINTA de a dónde va un `git push` de
-verdad — `pushurl`, cuando existe, es la única URL que `git push` usa. Mostrar la de fetch en el
-preview y aprobar sobre ella sería aprobar un destino que no es el real. La línea `- remote:` lleva el
-nombre y esa URL de push, tal cual la devuelve el comando —sin marcador `(push)`/`(fetch)`, sin
-reformatear, sin abreviar—: `- remote: origin → git@github.com:owner/repo.git`. Es el dato que la
-raíz traduce, sin tocarlo, al campo `url=` de `approved-push:` (ver "Gate de aprobación" de fase B) —
-y es también, más abajo, la URL que decide si el host es GitHub para `gh pr create`.
+(cuenta para `cmds=`; sustituye `origin` por `<remote>`). Dos motivos, no uno:
+
+1. `git remote get-url` SIN `--push` (y cada línea `(fetch)` de `git remote -v`) devuelve la URL de
+   FETCH, que puede ser DISTINTA de a dónde va un `git push` de verdad — `remote.<remote>.pushurl`,
+   cuando existe, es lo que `git push` usa en su lugar. Mostrar la de fetch en el preview y aprobar
+   sobre ella sería aprobar un destino que no es el real.
+2. **`remote.<remote>.pushurl` Y `remote.<remote>.url` son MULTI-VALUADOS en git** — puede haber más
+   de una línea `pushurl = …` (o, si no hay ninguna `pushurl`, más de una línea `url = …`) en el mismo
+   bloque de `.git/config`, y `git push` empuja a TODAS, no solo a la primera. `git remote get-url
+   --push origin` SIN `--all` imprime solo la PRIMERA — la afirmación de que "pushurl es la única URL
+   que usa git push" es cierta sobre el CONJUNTO, pero falsa si se lee como "una sola URL": puede ser
+   un conjunto de una, y puede ser un conjunto de varias. `--all` es la única forma de verlas todas.
+
+Si el comando imprime **más de una línea**, el remoto tiene varios destinos de push — un caso que este
+dominio no soporta en v1 (el campo `url=` de `approved-push:` solo puede nombrar UN destino) y que NO
+intentas aproximar quedándote con la primera línea: tu veredicto es
+`BLOCKED remoto con varios destinos de push`, con una línea `- destinos de push: <url1>, <url2>, …`
+que los lista TODOS tal cual los devolvió el comando, para que el owner vea exactamente qué hay
+configurado y lo arregle él (`git config --unset-all remote.<remote>.pushurl` u homólogo, fuera de tu
+allowlist) antes de volver a lanzar la entrega.
+
+Si imprime **exactamente una línea** (el caso normal, sin `pushurl` multivaluado ni `pushurl` en
+absoluto), esa es la URL de push. La línea `- remote:` lleva el nombre y esa URL, tal cual la devuelve
+el comando —sin marcador `(push)`/`(fetch)`, sin reformatear, sin abreviar—:
+`- remote: origin → git@github.com:owner/repo.git`. Es el dato que la raíz traduce, sin tocarlo, al
+campo `url=` de `approved-push:` (ver "Gate de aprobación" de fase B) — y es también, más abajo, la
+URL que decide si el host es GitHub para `gh pr create`.
 
 ### 3. Rama actual y rama base
 
@@ -306,41 +325,44 @@ el mundo real AHORA, no el de hace dos minutos — el owner pudo cambiar de rama
 remoto pudo cambiar de URL por CUALQUIER vía, no solo las que este dominio ejecuta:
 
 - `git rev-parse --abbrev-ref HEAD` debe imprimir exactamente el `branch=` aprobado;
-- el `remote=` aprobado debe existir Y su URL de PUSH debe casar EXACTAMENTE, carácter a carácter, con
-  el `url=` aprobado — **usa `--push`, nunca `git remote get-url <remote>` a secas**:
+- el `remote=` aprobado debe existir Y su(s) URL(es) de PUSH deben casar EXACTAMENTE, carácter a
+  carácter, con el `url=` aprobado — **usa `--push --all`, nunca `git remote get-url <remote>` a
+  secas ni `--push` sin `--all`**:
   ```bash
-  git remote get-url --push origin
+  git remote get-url --push --all origin
   ```
-  (cuenta para `cmds=`; sustituye `origin` por el remoto aprobado). Compara la salida literal contra
-  el `url=` de tu cabecera — sin normalizar ni recortar nada (`git@github.com:o/r.git` y
-  `git@github.com:o/r` no son la misma cadena aunque git los resuelva igual). El `--push` no es
-  opcional: si el remoto tiene configurado `remote.<remote>.pushurl`, esa es la URL que `git push` usa
-  DE VERDAD, y puede ser distinta de la de fetch (`git remote get-url` sin `--push` la devolvería, y
-  la re-verificación compararía la URL equivocada — comparando bien pero contra el dato que no
-  importa). Fase A ya obtuvo la URL de push con la misma flag (ver "2. Remoto configurado"), así que
-  ambos lados de la comparación son la misma clase de dato.
+  (cuenta para `cmds=`; sustituye `origin` por el remoto aprobado).
+  - **Si imprime más de una línea**: el remoto tiene varios destinos de push AHORA MISMO —da igual si
+    `url=` los tenía cuando el owner aprobó, esto no es representable por un campo de un solo valor,
+    así que no lo intentas comparar línea a línea ni te quedas con la primera. Tu veredicto es
+    `BLOCKED aprobación no coincide con el estado real` con la línea
+    `- discrepancia: url aprobada <url= de la cabecera>, real <n> destinos de push` (con `<n>` el
+    número de líneas que imprimió el comando). No hay push posible en este estado.
+  - **Si imprime exactamente una línea**: compárala, literal, contra el `url=` de tu cabecera — sin
+    normalizar ni recortar nada (`git@github.com:o/r.git` y `git@github.com:o/r` no son la misma
+    cadena aunque git los resuelva igual).
 - el `base=` aprobado no puede ser igual al `branch=`;
 - el `branch=` no puede ser `master`/`main`/`develop`/`trunk`.
 
-**Cierre del hueco de fase 6** (antes aceptado como riesgo bajo, ahora cerrado): `approved-push:`
-solía nombrar solo `remote=`/`branch=`/`base=`, así que la re-verificación confirmaba que el
-`remote=` aprobado EXISTÍA, pero no que su URL siguiera siendo la que el owner vio en el preview de
-fase A (fase B es una invocación fresca, sin memoria de esa URL). El campo `url=` cierra ese hueco por
-completo: la URL de push pudo cambiar no solo por `git remote set-url` (denegado por el guard para
-todo agent_type), sino por cualquier edición humana directa de `.git/config` en la máquina entre fase
-A y fase B — algo que ningún guard de comandos puede ver porque no pasa por ningún shell. El caso más
-afilado de ese "cualquier edición" es añadir una línea `pushurl = git@evil.example.com:...` al bloque
-del remoto: `git remote -v` y `git remote get-url` sin `--push` siguen mostrando la URL de fetch de
-siempre —benigna, sin cambios— mientras el push real se va a otro sitio. Por eso la comparación tiene
-que ser SIEMPRE contra `git remote get-url --push` en los dos lados (fase A y fase B): comparar la URL
-de fetch aquí demostraría que la URL de fetch no cambió, que es una propiedad distinta de la que
-`url=` existe para garantizar. Comparar contra el `url=` de la cabecera —de push, siempre— detecta el
-cambio sea cual sea su vía.
+**Cierre del hueco de fase 6** (antes aceptado como riesgo bajo, cerrado en dos vueltas — la primera
+insuficiente, corregida aquí): `approved-push:` solía nombrar solo `remote=`/`branch=`/`base=`, así
+que la re-verificación confirmaba que el `remote=` aprobado EXISTÍA, pero no que su URL de push
+siguiera siendo la que el owner vio en el preview de fase A. El campo `url=` cierra ese hueco, pero
+solo si la re-verificación usa `--push --all` y no simplemente `--push`: `remote.<remote>.pushurl` (y,
+si no hay ninguna, `remote.<remote>.url`) son claves MULTI-VALUADAS en git — puede haber más de una
+línea `pushurl = …` en `.git/config`, y `git push` empuja a TODAS, no solo a la primera. `--push` sin
+`--all` imprime solo la primera; una segunda línea `pushurl = git@evil.example.com:...` añadida entre
+fase A y fase B (la misma vía de siempre: edición humana directa de `.git/config`, invisible para
+cualquier guard de comandos) no cambia esa primera línea, así que una comparación sin `--all` seguiría
+viendo la URL benigna de siempre —matches, sin discrepancia— mientras el push real va TAMBIÉN al host
+del atacante. `--all` es la única forma de ver el conjunto completo, y por eso el veredicto correcto
+ante más de un destino es rechazar de plano, no aproximar con el primero.
 
 Cualquier discrepancia → `BLOCKED aprobación no coincide con el estado real` con una línea
 `- discrepancia: <campo> aprobado <x>, real <y>` — incluida `- discrepancia: url aprobada <x>, real
-<y>` si la URL no casa. No "corriges" la aprobación por tu cuenta: una aprobación que no describe la
-realidad no es una aprobación.
+<y>` si la URL no casa, o `- discrepancia: url aprobada <x>, real <n> destinos de push` si hay más de
+una. No "corriges" la aprobación por tu cuenta: una aprobación que no describe la realidad no es una
+aprobación.
 
 ### Push (un comando, en su propia llamada)
 
@@ -360,12 +382,15 @@ siguiente).
 ### PR (degradación honesta si no hay `gh`, o si el remoto no es GitHub)
 
 **Primero mira la URL del remoto** (la de PUSH que ya obtuviste en la re-verificación con
-`git remote get-url --push`, no vuelvas a pedirla ni uses otra). Es la misma URL adonde el `git push`
-de más arriba acaba de empujar de verdad, así que el chequeo de host y el push están de acuerdo sobre
-qué URL es la que manda — comprobar aquí la de fetch podría enrutar el PR a `github.com` mientras el
-push real fue a otro host. **Si NO contiene `github.com`**, `gh pr create` está condenado a fallar —
-`gh` es un CLI de GitHub, no genérico — así que ni lo intentas: te ahorras una llamada (`gh` puede
-ni estar instalado en ese caso) y vas directo a la degradación de host-genérico de más abajo, sin
+`git remote get-url --push --all`, no vuelvas a pedirla ni uses otra). Si llegaste hasta aquí, la
+re-verificación ya confirmó que esa llamada imprimió UNA sola línea —si hubiera impreso más de una,
+habrías bloqueado antes de llegar al `git push` siquiera—, así que sigue siendo una única URL, la
+misma adonde el `git push` de más arriba acaba de empujar de verdad. El chequeo de host y el push
+están de acuerdo sobre qué URL es la que manda — comprobar aquí la de fetch podría enrutar el PR a
+`github.com` mientras el push real fue a otro host. **Si NO contiene `github.com`**, `gh pr create`
+está condenado a fallar — `gh` es un CLI de GitHub, no genérico — así que ni lo intentas: te ahorras
+una llamada (`gh` puede ni estar instalado en ese caso) y vas directo a la degradación de host-genérico
+de más abajo, sin
 pasar por el `gh auth status` que sigue.
 
 Si la URL SÍ es de GitHub:
@@ -664,12 +689,15 @@ preguntarle al owner qué quiere hacer — es el único `BLOCKED` tuyo que abre 
 cerrar el run, y por eso es el único que va acompañado de un preview.
 `BLOCKED HEAD en rama protegida, nada que publicar` si `HEAD` es `master`/`main`/`develop`/`trunk` o
 coincide con la base (paso 3). `BLOCKED base indeterminada` si no hay `base:` en la cabecera y
-`git rev-parse --abbrev-ref <remote>/HEAD` falla (paso 3). `BLOCKED sin aprobación de push` si falta
-o está vacía la línea `approved-push:` en `publish-release`. `BLOCKED aprobación de push malformada`
-si esa línea no trae los cuatro campos `remote=`/`branch=`/`base=`/`url=`. `BLOCKED aprobación no
-coincide con el estado real` si la re-verificación encuentra una discrepancia (rama, remoto, base o
-URL). `BLOCKED árbol sucio: <n> ficheros sin commitear` si `git status --porcelain` imprime algo
-(paso 1). `KO tests en rojo: <motivo>` si la
+`git rev-parse --abbrev-ref <remote>/HEAD` falla (paso 3). `BLOCKED remoto con varios destinos de
+push` si `git remote get-url --push --all <remote>` imprime más de una línea (paso 2, fase A) —
+`url=` no puede nombrar más de un destino, así que este remoto no es publicable en v1 hasta que el
+owner lo arregle a mano. `BLOCKED sin aprobación de push` si falta o está vacía la línea
+`approved-push:` en `publish-release`. `BLOCKED aprobación de push malformada` si esa línea no trae
+los cuatro campos `remote=`/`branch=`/`base=`/`url=`. `BLOCKED aprobación no coincide con el estado
+real` si la re-verificación encuentra una discrepancia (rama, remoto, base, URL, o el remoto pasó a
+tener varios destinos de push entre fase A y fase B). `BLOCKED árbol sucio: <n> ficheros sin
+commitear` si `git status --porcelain` imprime algo (paso 1). `KO tests en rojo: <motivo>` si la
 suite del pack falla (paso 5) — sin preview. `KO push rechazado: <motivo>` si `git push` falla en
 fase B. `DONE` con la línea `- nada que publicar: <branch> no tiene commits sobre <base>` si no hay
 commits (paso 4). En fase A, `DONE` con las líneas `- preview push:`/`- preview pr:`/`- remote:`/
