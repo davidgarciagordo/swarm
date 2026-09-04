@@ -92,8 +92,9 @@ cronológico, `scripts/mem-files.sh`). **Si el fichero no existe** —repo sin `
 trátalo exactamente igual que "no hay ninguna línea con ese `raw:`" y sigue al Paso 2. Ese caso
 ("`.swarm/` no existe todavía") ya no genera ningún mensaje más adelante: el health-gate de §2.1 lo
 auto-inicializa de forma transparente para el owner y el run sigue su curso normal. El
-`BLOCKED falta /swarm:init` de §2.1 solo dispara ahora en el otro caso —`.swarm/` existe pero el
-filesystem lo rechaza (permisos, disco de solo lectura)—, donde auto-inicializar no arregla nada.
+`BLOCKED falta /swarm:init` de §2.1 dispara ahora solo en dos casos, ninguno de los cuales
+auto-inicializar arregla: `.swarm/` existe pero el filesystem lo rechaza (permisos, disco de solo
+lectura), o `scripts/swarm-init.sh` en sí falla al intentar crearlo.
 
 Si la encuentras Y no está marcada `[pendiente]`: el objetivo de este run es directamente el
 `objective:` de esa misma línea — sáltate los pasos 2 y 3 de abajo, no preguntes nada, sigue a §1.1
