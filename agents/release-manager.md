@@ -27,7 +27,7 @@ pueda llegar a existir. También tiene su propia decisión humana delante.
 | A | `prepare-release` | validas, corres la suite, escribes las notas, **previsualizas** los comandos | ningún push, ningún PR, ningún commit |
 | B | `publish-release` | re-verificas TODO y ejecutas el push + el PR | ningún merge de PR, ningún commit, ningún checkout |
 
-## Estilo de los mensajes que llega a leer el owner
+## Estilo de los mensajes que llegan a leer el owner
 
 Tus veredictos y gates (`BLOCKED`/`KO` con su `<motivo>`, las líneas `- discrepancia:`, `- hint:`)
 los relaya `delivery-orchestrator` a la raíz, que se los enseña al owner tal cual o los convierte en

@@ -201,9 +201,14 @@ el segundo paso queda huérfana en `git branch` para siempre.
      proyecto ("¿síncrono o cola asíncrona?" se convierte en "¿quieres que sea al instante, o puede
      tardar unos minutos si hay mucho volumen?"). Si una de las hojas te entrega una pregunta u
      opción en jerga técnica, reformúlala tú antes de incluirla en el batch — no la copies tal cual.
-     Además, la opción recomendada (la de `rec:`) va marcada visiblemente en su propia etiqueta, no
-     solo implícita en el sufijo `rec: <letra>` (p. ej. `B) tardar unos minutos si hay mucho volumen
-     (recomendada)`), para que el owner la reconozca sin tener que descifrar el formato interno.
+     Tu única responsabilidad sobre la opción recomendada es rellenar bien el sufijo `rec: <letra>`
+     apuntando a la opción correcta — el TEXTO de la opción en sí no lleva ninguna marca de
+     "recomendada" ni equivalente (p. ej. la opción B es simplemente `tardar unos minutos si hay
+     mucho volumen`, sin sufijo). Marcarla visiblemente para el owner (primera posición, sufijo
+     ` (Recommended)` en el label, `description: "recomendada por discovery-orchestrator"`) es
+     responsabilidad de la raíz al convertir el batch en la llamada real a `AskUserQuestion`
+     (orchestrator.md §5.3): ese mecanismo ya existe y es el único que se usa — no lo dupliques
+     aquí ni inventes una segunda marca.
    - Q1..Q3: las preguntas de `value-critic`, en su orden, con sus opciones. Cabecera ≤12
      caracteres que resuma el tema (`Valor`, `Alcance`, `Usuarios`, `Riesgo`…).
      **Transforma el `rec`**: `value-critic` escribe `rec <letra>` o `rec <letra>: <por qué>`
