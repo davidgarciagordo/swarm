@@ -51,6 +51,11 @@ assert_eq "0" "$(has "$body" 'BLOCKED ya hay remoto configurado')" "never clobbe
 assert_eq "0" "$(has "$body" 'BLOCKED remoto creado pero push rechazado')" "distinguishes 'repo created, push failed' from 'nothing happened' (ruling 14)"
 assert_eq "0" "$(has "$body" 'approved-push:` NO vale como aprobación de remoto')" "one approval never stands in for the other (ruling 2e)"
 assert_eq "0" "$(has "$body" 'git remote set-url')" "names the command it must NOT run to 'fix' a URL (ruling 14)"
+
+# --- v1.1: mensaje degradado consciente del host, action=create explícitamente GitHub-only ---
+assert_eq "0" "$(has "$body" 'github.com')" "checks the remote URL for github.com before trying gh pr create"
+assert_eq "0" "$(has "$body" 'abre tu PR/MR a mano')" "documents a host-generic fallback line for non-GitHub remotes"
+assert_eq "0" "$(has "$body" 'solo crea en GitHub')" "documents that action=create is GitHub-only, explicitly"
 assert_eq "0" "$(has "$body" '- siguiente:')" "closes by telling the owner to re-invoke, never by chaining the push itself (ruling 3)"
 assert_eq "1" "$(has "$body" 'gh repo delete')" "never mentions any gh repo subcommand other than create"
 

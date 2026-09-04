@@ -325,7 +325,15 @@ comando y no relajes nada**: un push que el remoto rechaza es una decisión del 
 ≤60 caracteres que sí aplicas al resumen de una suite de tests **no aplica aquí** (ver la sección
 siguiente).
 
-### PR (degradación honesta si no hay `gh`)
+### PR (degradación honesta si no hay `gh`, o si el remoto no es GitHub)
+
+**Primero mira la URL del remoto** (la que ya obtuviste en la re-verificación, `git remote get-url`,
+no vuelvas a pedirla). **Si NO contiene `github.com`**, `gh pr create` está condenado a fallar —
+`gh` es un CLI de GitHub, no genérico — así que ni lo intentas: te ahorras una llamada (`gh` puede
+ni estar instalado en ese caso) y vas directo a la degradación de host-genérico de más abajo, sin
+pasar por el `gh auth status` que sigue.
+
+Si la URL SÍ es de GitHub:
 
 ```bash
 gh auth status
@@ -338,17 +346,26 @@ gh auth status
   ```
   (cuenta para `cmds=`; `--body-file` es la ruta RELATIVA a `<repo-root>` de las notas —ver la
   sección de arriba— nunca la forma absoluta `/abs/.swarm/run/<run-id>/…`, que el guard deniega). Su
-  salida es la URL del PR → línea `- pr: <url>`. Si `gh pr create` falla (el remoto no es GitHub, el
-  repo no existe allí, permisos), **no es un `KO`**: la rama YA está publicada, que es la parte
-  valiosa e irreversible. Degradas al caso siguiente y lo dices.
-- **Exit distinto de 0, o `gh` no instalado** → no falla nada: `gh` es opcional en
+  salida es la URL del PR → línea `- pr: <url>`. Si `gh pr create` falla (el repo no existe en
+  GitHub bajo esa cuenta, permisos), **no es un `KO`**: la rama YA está publicada, que es la parte
+  valiosa e irreversible. Degradas al caso siguiente (mismo remoto GitHub) y lo dices.
+- **Exit distinto de 0, o `gh` no instalado, CON remoto GitHub** → no falla nada: `gh` es opcional en
   `requirements.json` (`required: false`). Devuelves las dos líneas de degradación para que el owner
-  abra el PR él mismo, con el comando ya resuelto:
+  abra el PR él mismo, con el comando ya resuelto (sigue siendo GitHub, así que `gh pr create` sigue
+  siendo el comando correcto una vez el owner tenga `gh` disponible):
   ```
   - pr manual: origin git@github.com:owner/repo.git · feature/export-csv → master
   - pr comando: gh pr create --base master --head feature/export-csv --title "feature/export-csv" --body-file .swarm/run/<run-id>/release-notes.md
   ```
-  **No fabricas una URL de "compare"** a partir del remoto: las formas `ssh://`,
+- **Remoto que NO es GitHub** (comprobación de arriba, antes de `gh auth status`): degradación
+  DISTINTA — sugerir `gh pr create` aquí sería mal consejo, `gh` no funciona contra ese host por
+  diseño, y aunque estuviera instalado y autenticado fallaría igual. Una sola línea, genérica, sin
+  nombrar ninguna herramienta concreta:
+  ```
+  - pr manual: origin git@gitlab.com:owner/repo.git · feature/export-csv → master
+  - abre tu PR/MR a mano en el host de ese remoto — este dominio no sabe automatizarlo fuera de GitHub (v1.1: solo GitHub)
+  ```
+  En ambos casos, **no fabricas una URL de "compare"** a partir del remoto: las formas `ssh://`,
   `git@host:owner/repo`, `https://` y `file://` no se parsean igual y una URL inventada que lleva a
   ningún sitio es peor que un comando exacto que el owner puede pegar.
 
@@ -449,6 +466,12 @@ cualquier push. Lo que sí haces es decirlo: si `git status --porcelain` imprime
 `- warn: <n> ficheros sin commitear quedan fuera del push inicial`.
 
 ### `action=create`
+
+**`action=create` solo crea en GitHub** — usa `gh repo create`, y `gh` es un CLI de GitHub, no un
+cliente genérico de ningún host de git. Si el owner quiere un repositorio nuevo en GitLab/Bitbucket/
+Gitea/otro host, esta operación no lo cubre (v1.1: solo GitHub) — lo crea él fuera del enjambre, y
+la raíz lo ofrece como `action=use url=<la URL que ya existe>` (§12.2bis, opción C), que sí es
+agnóstica de host porque solo hace `git remote add`.
 
 Un comando, en su propia llamada, con el nombre y la visibilidad **literales de la cabecera** (no
 añades sufijos, no "mejoras" el nombre, no cambias la visibilidad):
