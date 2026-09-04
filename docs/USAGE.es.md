@@ -304,11 +304,12 @@ cola, registrado como una línea `SUPERSEDE`/`CONFLICTO RESUELTO`.
 ### Análisis
 
 **Qué hace por ti:** una auditoría read-only de tu código. `analysis-orchestrator` elige un
-subconjunto de hasta seis lentes — arquitectura (`architecture-auditor`), seguridad (`security-auditor`), escaneo de dependencias/
+subconjunto de hasta siete lentes — arquitectura (`architecture-auditor`), seguridad (`security-auditor`), escaneo de dependencias/
 secretos (`vulnerability-scanner`), rendimiento (`performance-analyst`), drift de esquema/modelo de
-datos (`data-model-auditor`), y deuda técnica/oportunidades ROI (`opportunity-analyst`) — elegidas
-por coincidencia de palabras clave con tu objetivo, corridas en paralelo, y reenviadas a ti como
-hallazgos.
+datos (`data-model-auditor`), deuda técnica/oportunidades ROI (`opportunity-analyst`), y violaciones
+de principios de diseño cross-language — SOLID, acoplamiento, cohesión, abstracciones con fugas
+(`solid-auditor`) — elegidas por coincidencia de palabras clave con tu objetivo, corridas en
+paralelo, y reenviadas a ti como hallazgos.
 
 **Qué lo dispara:** un objetivo explícitamente con forma de análisis ("audita X", "revisa la
 seguridad de Y", "busca problemas de rendimiento", "audita todo") en tier `light` o `full`. Nunca
