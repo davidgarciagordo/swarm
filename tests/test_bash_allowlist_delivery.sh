@@ -40,6 +40,17 @@ assert_eq "allow" "$(guard swarm:release-manager 'git remote add origin https://
 assert_eq "deny"  "$(guard swarm:release-manager 'gh repo delete owner/repo')" "…and nothing else under gh repo"
 assert_eq "deny"  "$(guard swarm:release-manager 'git remote set-url origin https://example.com/x.git')" "…and never rewrites an existing remote URL (ruling 14)"
 
+# --- backlog fix: SSH identity diagnosis reads ~/.ssh/config (read-only, additive to ruling 14) ---
+# `cat`/`grep` are bare, argument-unrestricted allowlist entries for release-manager already (same
+# as ls/head/tail) — reading ~/.ssh/config needs no new allowlist entry, it reuses these verbatim.
+assert_eq "allow" "$(guard swarm:release-manager 'cat ~/.ssh/config')" "release-manager can read ~/.ssh/config for the SSH-alias hint (reuses the existing bare cat entry)"
+assert_eq "allow" "$(guard swarm:release-manager 'grep Host ~/.ssh/config')" "…and can grep it too (reuses the existing bare grep entry)"
+# it stays READ-only: nothing writes to it, and command injection chained after it still denies via
+# the same segment-splitting machinery the guard already uses for every other command.
+assert_eq "deny"  "$(guard swarm:release-manager 'cat ~/.ssh/config; rm -rf /')" "chaining a destructive command after the ssh-config read is still denied (segment splitting)"
+assert_eq "deny"  "$(guard swarm:release-manager 'cat ~/.ssh/config && git push --force origin master')" "…and chaining a force-push after it is still denied (canonical gate, independent of the allowlist)"
+assert_eq "deny"  "$(guard swarm:release-manager 'echo evil > ~/.ssh/config')" "release-manager has no write/redirection tool that could touch ~/.ssh/config"
+
 # --- delivery-orchestrator: secuencia, no ejecuta trabajo de hoja (spec §3.2 regla 4) ---
 assert_eq "allow" "$(guard swarm:delivery-orchestrator 'git status --porcelain')" "delivery-orchestrator can read state"
 assert_eq "allow" "$(guard swarm:delivery-orchestrator 'git rev-parse --show-toplevel')" "delivery-orchestrator can anchor to the repo root"
