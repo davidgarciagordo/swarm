@@ -106,16 +106,26 @@ re-verificar) funcionó exactamente como debía cada vez.
 
 Esto es lo que esta sesión NO decide por su cuenta. Repaso completo de lo acumulado en las 6 fases:
 
-### Pedido explícito del owner, aún sin diseñar (2026-09-03, antes de cerrar por la noche)
+### Pedido del owner sobre remotos NO-GitHub — RESUELTO en su alcance mínimo (2026-09-04)
 
-**Soporte real de remotos NO-GitHub (GitLab, Bitbucket, Gitea…) vía git nativo.** Hoy
-`release-manager` asume GitHub: `configure-remote/action=create` está 100% atado a `gh repo create`,
-`publish-release` está 100% atado a `gh pr create` para abrir el PR (con degradación honesta si
-`gh` no está disponible, pero NO con un camino real para otra plataforma). El `git push` en sí ya es
-agnóstico de host — lo que falta generalizar es la creación de repo y la apertura de PR/MR. Palabras
-literales del owner: *"apuntate que sino va el gh usar git nativo que puede ser que sea gitlab o
-cualquier otro"*. Cambia el alcance de plataforma de todo el dominio delivery — necesita su propio
-brainstorming/spec antes de tocar código, no es un fix de una línea.
+David pidió (2026-09-03, antes de cerrar por la noche): *"apuntate que sino va el gh usar git
+nativo que puede ser que sea gitlab o cualquier otro"*. Investigado a la mañana siguiente: el
+`git push` en sí YA era agnóstico de host (nada que arreglar ahí), y `publish-release` YA degradaba
+sin fallar cuando `gh pr create` no funcionaba — el hueco real era más estrecho de lo que parecía:
+(1) el mensaje degradado siempre sugería literal `gh pr create ...` aunque el remoto fuera GitLab
+(consejo erróneo, `gh` no funciona ahí), y (2) `action=create` (bootstrap de repo nuevo) nunca decía
+explícitamente que solo crea en GitHub.
+
+Presentadas 3 opciones de alcance (fix mínimo / soporte real de GitLab vía `glab` / arquitectura de
+adaptador por host); **el owner eligió el fix mínimo** (commit `60eca27`, ya en master, review
+Sonnet limpia, 53/53): el mensaje degradado ahora detecta si el remoto es GitHub antes de intentar
+`gh pr create` — si no lo es, da un mensaje genérico sin nombrar `gh`; `action=create` ahora dice
+explícitamente "solo crea en GitHub (v1.1)" y apunta a `action=use` (agnóstico de host, ya
+funcionaba) para un repo que el owner cree él mismo en otra plataforma.
+
+**Diferido, no descartado**: soporte real de creación de repo/apertura de MR en GitLab (vía `glab`,
+mismo nivel de escrutinio de guard que `gh` se llevó en fase 6) sigue siendo backlog genuino si el
+owner lo quiere más adelante — es la opción 2 que no eligió, no algo que "haga falta" arreglar.
 
 ### Backlog de seguridad/robustez (bajo riesgo hoy, documentado explícitamente en cada fase)
 
