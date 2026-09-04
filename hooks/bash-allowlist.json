@@ -37,7 +37,7 @@
     ],
     "swarm:discovery-orchestrator": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
-      "git worktree",
+      "git worktree", "git branch",
       "ls", "cat", "head", "tail", "wc", "grep",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
@@ -154,7 +154,7 @@
     ],
     "swarm:implementation-orchestrator": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
-      "git merge", "git worktree",
+      "git merge", "git worktree", "git branch",
       "ls", "cat", "head", "tail", "wc", "grep",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],

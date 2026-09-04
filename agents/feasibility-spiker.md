@@ -48,11 +48,13 @@ worktree se tira. **Nunca preguntas al owner** — no tienes `AskUserQuestion` (
 - Nunca `git commit`, `git push`, `rm`: no están en tu allowlist. Tampoco borras tu propio worktree
   (no tienes `git worktree` y no podrías: corres DENTRO de él). Quien lo borra es
   `discovery-orchestrator`, el padre que te lanzó: cuando reportas `DONE`/`BLOCKED` él hace
-  `git worktree remove .claude/worktrees/agent-<tu agentId> --force`. **No es automático**: la
-  plataforma solo auto-limpia el worktree de un subagente que NO cambió nada, y un spike siempre
-  escribe `spike/` — por eso el borrado es del padre, y por eso tu finding tiene que estar
-  confirmado por `memory-orchestrator` ANTES de que devuelvas `DONE` (abajo): tras el `DONE` tu
-  worktree desaparece y con él todo lo que no persististe.
+  `git worktree remove .claude/worktrees/agent-<tu agentId> --force` y, en su propia llamada,
+  `git branch -D worktree-agent-<tu agentId>` (el primero solo borra el directorio, no la rama que
+  la plataforma creó al abrir tu worktree). **No es automático**: la plataforma solo auto-limpia el
+  worktree de un subagente que NO cambió nada, y un spike siempre escribe `spike/` — por eso el
+  borrado es del padre, y por eso tu finding tiene que estar confirmado por `memory-orchestrator`
+  ANTES de que devuelvas `DONE` (abajo): tras el `DONE` tu worktree desaparece y con él todo lo que
+  no persististe.
 - Si la respuesta invalida un enfoque, avisa a `options-generator` en cuanto lo sepas:
   `SendMessage(to: "options-generator", "SPIKE · discovery:1 · <pregunta> → no viable: <motivo>")`.
   El espejo a su buzón NO lo escribes tú (no puedes escribir en `.swarm/` desde un worktree):

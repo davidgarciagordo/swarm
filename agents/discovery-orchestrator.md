@@ -123,7 +123,10 @@ asíncrono trae una línea `agentId: <id>`. `feasibility-spiker` es el único co
 `isolation: worktree`, así que la plataforma le crea un worktree de git en
 `.claude/worktrees/agent-<ese agentId>` (observado en vivo: `.claude/worktrees/agent-ae25ffb99d186c453`).
 Guarda esa ruta: es tuya la limpieza (paso 1bis de la fusión) y sin el `agentId` no sabrás qué
-borrar. No la deduzcas de otro sitio ni la inventes — sale del resultado del spawn.
+borrar. No la deduzcas de otro sitio ni la inventes — sale del resultado del spawn. La limpieza
+tiene DOS partes, worktree y rama: la plataforma también crea la rama `worktree-agent-<ese
+agentId>` al abrir el worktree, y `git worktree remove` NUNCA la borra (solo el directorio) — sin
+el segundo paso queda huérfana en `git branch` para siempre.
 
 ## Espera y fusión
 
@@ -144,8 +147,13 @@ borrar. No la deduzcas de otro sitio ni la inventes — sale del resultado del s
    ```bash
    git worktree remove .claude/worktrees/agent-<agentId del spawn> --force
    ```
-   Si nunca te llegó su `agentId` (el lanzamiento falló), no hay ruta que borrar: sáltatelo sin warn,
-   igual que en 1bis.
+   y, en su PROPIA llamada, la rama que ese worktree deja huérfana (mismo fallo blando, línea
+   `- warn: rama del spiker no borrada: <motivo>`):
+   ```bash
+   git branch -D worktree-agent-<agentId del spawn>
+   ```
+   Si nunca te llegó su `agentId` (el lanzamiento falló), no hay ruta ni rama que borrar: sáltatelo
+   sin warn, igual que en 1bis.
 1bis. **Borra el worktree del spiker en cuanto reporte `DONE` o `BLOCKED`** (con cualquiera de los
    dos su trabajo ha terminado). Es TU responsabilidad, no la suya: él no tiene `git worktree` en su
    allowlist y no podría borrar el worktree en el que está corriendo. Tampoco se limpia solo: la
@@ -163,7 +171,15 @@ borrar. No la deduzcas de otro sitio ni la inventes — sale del resultado del s
    (`contains modified or untracked files`). **Fallo blando**: si el borrado falla por lo que sea
    (ya no existe, carrera, worktree bloqueado), NO reintentes, NO cambies tu veredicto y NO
    bloquees la fusión — anota una sola línea `- warn: worktree del spiker no borrado: <motivo en
-   ≤8 palabras>` en tu evidencia y sigue. Si no lanzaste al spiker (paso 4 del arranque) o nunca
+   ≤8 palabras>` en tu evidencia y sigue.
+
+   `git worktree remove` solo borra el directorio, no la rama `worktree-agent-<agentId>` que la
+   plataforma creó al abrir el worktree — bórrala también, en su PROPIA llamada, mismo fallo
+   blando (línea `- warn: rama del spiker no borrada: <motivo en ≤8 palabras>`):
+   ```bash
+   git branch -D worktree-agent-<agentId del spawn>
+   ```
+   Si no lanzaste al spiker (paso 4 del arranque) o nunca
    te llegó su `agentId`, no hay nada que borrar: sáltate el paso sin warn.
 2. Lee el detalle de cada hoja (es un `Bash`, cuenta para `cmds=`, no para `files=`):
    ```bash
@@ -208,11 +224,13 @@ borrar. No la deduzcas de otro sitio ni la inventes — sale del resultado del s
 
 Allowlist de `swarm:discovery-orchestrator`: `scripts/mem-*.sh`, `git status|log|diff|show|
 rev-parse`, **`git worktree`** (solo tú lo tienes, y solo para el `remove --force` del paso 1bis),
+**`git branch`** (solo tú lo tienes, y solo para el `-D worktree-agent-<agentId>` que acompaña a
+ese `remove` — el guard deniega cualquier otra forma: otra rama, otro flag, borrado masivo),
 `ls`, `cat`, `head`, `tail`, `wc`, `grep`. Nada de `python3`, `echo`, `mkdir`, `rm`,
 `export`; denegación por segmento (`&&`, `||`, `;`, `|`); no cierres con `; echo $?`. Casi no
-usas Bash: `register` ×4, `query` ×1, `worktree remove` ×1, `summary` ×N. Ojo: el borrado del
-worktree va en su PROPIA llamada, nunca encadenado con `&&` a otro comando — el guard evalúa
-segmento a segmento y un fallo blando no debe arrastrar a nadie.
+usas Bash: `register` ×4, `query` ×1, `worktree remove` ×1, `branch -D` ×1, `summary` ×N. Ojo: el
+borrado del worktree y el de la rama van cada uno en su PROPIA llamada, nunca encadenados con `&&`
+a otro comando — el guard evalúa segmento a segmento y un fallo blando no debe arrastrar a nadie.
 
 ## Salida
 
