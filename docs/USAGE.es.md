@@ -30,52 +30,78 @@ agente se pueden invocar desde cualquier punto de la conversación. No hay nada 
 `npm install`: es un conjunto de ficheros markdown de agente/comando/skill más unos pocos scripts de
 shell, leídos directamente por Claude Code.
 
-Una vez cargado, ejecuta `/swarm:init` una vez dentro del repo target (el repo sobre el que
-realmente quieres trabajar — no tiene por qué ser este) antes de hacer cualquier otra cosa. Eso crea
-el directorio `.swarm/` que usa este plugin como memoria. Ver §3 más abajo.
+No necesitas un paso de preparación: la primera vez que escribes `/swarm:run "<objetivo>"` en el repo
+target (el repo sobre el que realmente quieres trabajar — no tiene por qué ser este), crea el
+directorio `.swarm/` que usa este plugin como memoria por su cuenta, de forma transparente, y luego
+ejecuta tu objetivo — ver §3 más abajo. `/swarm:init` sigue existiendo como comando aparte si alguna
+vez quieres ejecutar ese paso a mano (usuarios avanzados, CI) — simplemente ya no es algo que
+necesites conocer ni ejecutar primero.
 
 Si algún día este plugin se publica en un marketplace, la instalación pasaría por el flujo normal de
 marketplace de plugins de Claude Code (`/plugin install swarm` o equivalente) — pero esa vía todavía
 no existe, así que no sigas instrucciones que la den por hecha.
 
-## 3. Los 5 comandos
+## 3. Empezar rápido — el único comando que necesitas
+
+```
+/swarm:run "añade export CSV al listado de facturas"
+```
+
+Y ya está. Describe lo que quieres en lenguaje natural, entre comillas, después de `/swarm:run`. No hay
+ningún paso de preparación que recordar antes: si `.swarm/` no existe todavía en este repo, se crea
+por ti tras bambalinas, y tu objetivo se ejecuta justo después — nunca ves un paso de inicialización
+aparte ni necesitas saber que ocurrió. El agente raíz lee tu objetivo, te hace preguntas reales
+cuando una decisión necesita a una persona (ver §5 más abajo), y te devuelve un veredicto corto en
+lenguaje llano cuando termina.
+
+Todo lo que viene después de este punto — los 5 comandos subyacentes, el flag `--tier=`, los
+dominios — es material de referencia para cuando quieras más control. No necesitas nada de eso para
+empezar.
+
+## 4. Los 5 comandos
 
 Estos son los *únicos* cinco comandos de barra que define este plugin — ficheros reales bajo
 `commands/`: `commands/init.md`, `commands/run.md`, `commands/doctor.md`, `commands/status.md`,
 `commands/findings.md`. Nada más está implementado — no escribas otra cosa esperando que funcione.
+`/swarm:run "<objetivo>"` de arriba es `commands/run.md`, documentado como el punto de entrada único del
+plugin; los otros cuatro son utilidades opcionales e independientes.
 
 ### `/swarm:init`
 
 Crea `.swarm/` en el repo actual: el árbol de directorios, `memory.json` (declarando el backend
 `files` como requerido), `decisions.md` con su cabecera, y un bloque `# swarm` añadido a
 `.gitignore` para que el estado de trabajo del enjambre nunca se comitee. También ejecuta un
-health-gate sobre el backend antes de declarar éxito. No toma argumentos.
+health-gate sobre el backend antes de declarar éxito. No toma argumentos. No necesitas ejecutarlo tú
+mismo — `/swarm:run "<objetivo>"` lo hace por ti automáticamente la primera vez — está aquí para
+usuarios avanzados y CI que quieran ejecutarlo explícitamente, o volver a comprobar el health-gate
+por su cuenta.
 
 ```
 /swarm:init
 ```
 
-Se ejecuta una vez por repo, antes de tu primer `/swarm:run`. Internamente solo lanza
-`${CLAUDE_PLUGIN_ROOT}/scripts/swarm-init.sh` y reporta el resumen en texto plano del propio script
-tal cual — si el script termina con código distinto de cero, el comando informa que `/swarm:init`
-abortó y muestra la línea de stderr que explica por qué (de
+Internamente solo lanza `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-init.sh` y reporta el resumen en texto
+plano del propio script tal cual — si el script termina con código distinto de cero, el comando
+informa que `/swarm:init` abortó y muestra la línea de stderr que explica por qué (de
 `docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md`, ítem 1: el resultado esperado es
 `.swarm/` creado, `memory.json` con el backend `files` requerido, `decisions.md` con su cabecera, el
 bloque `.gitignore` marcado `# swarm`, y el health-gate en verde).
 
-### `/swarm:run`
+### `/swarm:run "<objetivo>"`
 
 El punto de entrada principal. Lanza el agente raíz `orchestrator` sobre un objetivo que describes
-en lenguaje natural, con un flag de tier opcional.
+en lenguaje natural.
 
 ```
-/swarm:run <objetivo> [--tier=direct|light|full]
+/swarm:run "<objetivo>"
 ```
 
-Por ejemplo: `/swarm:run "añadir export CSV del listado de facturas" --tier=full`. El comando
-SIEMPRE invoca el subagente `swarm:orchestrator` con tu texto exacto de argumento, incluso si está
-vacío — el propio orquestador decide si el objetivo es válido y devuelve su propio veredicto; la
-sesión exterior nunca responde en tu lugar ni pide aclaración antes de lanzarlo.
+Por ejemplo: `/swarm:run "añadir export CSV del listado de facturas"`. El comando SIEMPRE invoca el
+subagente `swarm:orchestrator` con tu texto exacto de argumento, incluso si está vacío — el propio
+orquestador decide si el objetivo es válido y devuelve su propio veredicto; la sesión exterior nunca
+responde en tu lugar ni pide aclaración antes de lanzarlo. Por debajo esto sigue clasificando un
+`tier` y sigue aceptando el flag `--tier=` si quieres forzar uno — eso es un detalle de usuario
+avanzado/CI cubierto en la sección Avanzado más abajo, no algo que necesites para el uso normal.
 
 Antes de clasificar tier corre un gate de interpretación del objetivo: la raíz juzga su propia
 confianza en el objetivo recibido. Un objetivo claro no ve ningún cambio — ni pregunta nueva ni línea
@@ -93,20 +119,10 @@ contra una interpretación no determinista del LLM — y solo contra una línea 
 batch de discovery, así que el propio registro del gate nunca puede hacer que un run se salte su
 propio discovery.
 
-**Tiers** (de `agents/orchestrator.md` §1.1 y el spec §9.1):
-
-- `direct` — un objetivo trivial, de un solo fichero, sin decisión arquitectónica. La raíz te
-  responde directamente, sin abrir un run ni lanzar ningún dominio. No se escribe nada bajo
-  `.swarm/run/`.
-- `light` — un solo dominio. Las hojas de juicio (auditores, planner, pattern-advisor, etc.) corren
-  en `sonnet` en vez de `opus`, sin grill adversarial, y el pack de memoria solo se reconstruye si
-  está desactualizado.
-- `full` — trabajo multi-dominio o explícitamente crítico. Las hojas de juicio corren en `opus`, y
-  el diseño pasa por la revisión adversarial grill×3 antes de darse por terminado.
-
-Si no pasas `--tier`, el orquestador lo clasifica por ti según el alcance. Siempre puedes forzarlo
-explícitamente con el flag — un valor inválido (cualquier cosa que no sea exactamente `direct`,
-`light` o `full`, sensible a mayúsculas) se rechaza directamente en vez de adivinarse.
+La raíz clasifica cuánto trabajo necesita tu objetivo (un fix trivial de un solo fichero frente a un
+cambio multi-dominio completo) por su cuenta, solo a partir del texto del objetivo — no tienes que
+saber ni decir nada sobre esto; mira la sección Avanzado más abajo si alguna vez quieres ver o
+forzar esa clasificación directamente.
 
 **Enrutado — cómo tu objetivo elige un dominio.** La raíz nunca corre todo a la vez; lee tu objetivo
 y elige el/los dominio(s) que aplican:
@@ -140,7 +156,7 @@ y elige el/los dominio(s) que aplican:
 verificado en vivo):
 
 ```
-/swarm:run "audita memoria" --tier=light
+/swarm:run "audita memoria"
 ```
 Resultado (tras un fix real de un bug a mitad de smoke): pack reconstruido de verdad
 (`context-pack.md` con una línea real `stack: php-ddd-symfony8`), `index.md` sellado, run cerrado
@@ -155,13 +171,8 @@ chequeo de staleness lo evita (ítem 3).
 BLOCKED objetivo vacío — describe qué quieres que haga el enjambre
 ```
 
-```
-/swarm:run "audita memoria" --tier=medium
-```
-(`medium` no es un tier válido) devuelve, de nuevo sin abrir run:
-```
-BLOCKED --tier inválido: medium (usa direct, light o full)
-```
+Ver la sección Avanzado más abajo para ejemplos específicos de `--tier=` (forzar un tier, un valor
+inválido).
 
 ### `/swarm:doctor`
 
@@ -226,11 +237,11 @@ versión), empieza con `- warn: modo degradado — swarm-findings.sh falló (exi
 listado best-effort, sin reinterpretar, leído directamente de como mucho tres ficheros — nunca
 presentado en silencio como un resultado normal y completo.
 
-## 4. Los dominios
+## 5. Los dominios
 
 Cada dominio de abajo es una parte real, construida y funcionando hoy del enjambre — verificada en
 un smoke test en vivo, no solo diseñada sobre el papel. `/swarm:run` enruta a estos automáticamente
-según el §3 de arriba; nunca invocas un orquestador de dominio por su nombre de subagente tú mismo
+según el §4 de arriba; nunca invocas un orquestador de dominio por su nombre de subagente tú mismo
 en uso normal.
 
 ### Memoria
@@ -269,7 +280,7 @@ busca de CVEs, versiones desactualizadas y riesgo de licencia (`dependency-audit
 `audit-deps`); y, solo con tu aprobación explícita e itemizada, instala o actualiza exactamente los
 paquetes que aprobaste (`dependency-installer`, operación `install`).
 
-**Qué lo dispara:** `check` corre vía `/swarm:doctor` (ver §3) — un paso explícito aparte, no forma
+**Qué lo dispara:** `check` corre vía `/swarm:doctor` (ver §4) — un paso explícito aparte, no forma
 parte del pipeline de `/swarm:run`. `audit-deps` e `install` corren *dentro* de un `/swarm:run`
 (fase 5b) cuando tu objetivo tiene forma de dependencias: "audita las dependencias", "¿qué
 librerías están desactualizadas?", "instala phpstan", "sube doctrine a la 3" — ver
@@ -514,7 +525,7 @@ en su comportamiento genérico documentado (detecta el manifiesto que haya prese
 más reciente que ya exista en el repo, nunca inventa un comando que no haya visto documentado ahí).
 Un pack es puramente aditivo: lo que no cubre, una hoja lo resuelve con su criterio genérico.
 
-## 5. Cómo interpretar la salida
+## 6. Cómo interpretar la salida
 
 Todo agente de este enjambre —orquestador raíz, orquestadores de dominio y hojas por igual— reporta
 a través del mismo contrato de evidencia
@@ -557,7 +568,58 @@ comandos ejecutados, terminó en el turno 15 de un presupuesto de 30), el plan e
 línea exactas, y la revisión adversarial incorporó un fix de alta prioridad mientras marcaba dos
 riesgos de menor prioridad para más adelante.
 
-## 6. Preguntas frecuentes / limitaciones honestas
+## 7. Avanzado
+
+Esta sección es para usuarios avanzados y CI — nada aquí es necesario para el uso normal. El
+"empezar rápido" del §3 cubre todo lo que necesita un owner sin conocimientos técnicos que usa esto
+por primera vez.
+
+### `--tier=` — forzar la clasificación
+
+`/swarm:run "<objetivo>"` ya clasifica cuánto trabajo necesita un objetivo por su cuenta, solo a partir
+del texto del objetivo. Puedes forzar eso con `--tier=`:
+
+```
+/swarm:run "<objetivo>" --tier=direct|light|full
+```
+
+- `direct` — un objetivo trivial, de un solo fichero, sin decisión arquitectónica. La raíz te
+  responde directamente, sin abrir un run ni lanzar ningún dominio. No se escribe nada bajo
+  `.swarm/run/`.
+- `light` — un solo dominio. Las hojas de juicio (auditores, planner, pattern-advisor, etc.) corren
+  en `sonnet` en vez de `opus`, sin grill adversarial, y el pack de memoria solo se reconstruye si
+  está desactualizado.
+- `full` — trabajo multi-dominio o explícitamente crítico. Las hojas de juicio corren en `opus`, y
+  el diseño pasa por la revisión adversarial grill×3 antes de darse por terminado.
+
+Si no pasas `--tier`, el orquestador lo clasifica por ti según el alcance. Un valor inválido
+(cualquier cosa que no sea exactamente `direct`, `light` o `full`, sensible a mayúsculas) se rechaza
+directamente en vez de adivinarse.
+
+Ejemplos reales (`docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md`, ítems 6-7 —
+verificado en vivo):
+
+```
+/swarm:run "audita memoria" --tier=light
+```
+Fuerza `light` explícitamente en vez de dejar que la raíz lo infiera.
+
+```
+/swarm:run "audita memoria" --tier=medium
+```
+(`medium` no es un tier válido) devuelve, sin abrir run:
+```
+BLOCKED --tier inválido: medium (usa direct, light o full)
+```
+
+### `/swarm:init` y `/swarm:doctor` corren de forma independiente
+
+Ambos son comandos reales e independientes que puedes invocar directamente (`/swarm:init`,
+`/swarm:doctor` — ver §4 de arriba) — útiles para CI (precalentar `.swarm/` y comprobar el entorno
+antes de que corra cualquier objetivo) o para volver a comprobar cualquiera de los dos por su cuenta
+sin lanzar un run completo.
+
+## 8. Preguntas frecuentes / limitaciones honestas
 
 **¿El enjambre alguna vez hace push a git, o toca `master`/una rama remota por su cuenta?** No,
 nunca. `implementation-orchestrator` siempre fusiona localmente, a la propia rama del run — nunca a
@@ -583,7 +645,7 @@ describas qué quieres, un `--tier` inválido lista los tres valores válidos. S
 dominio devuelve `BLOCKED`/`KO` él mismo, la raíz propaga ese mensaje exacto en vez de
 parafrasearlo, así que lo que lees es literalmente lo que dijo el dominio que falló.
 
-**¿Vuelve a leer todo mi código cada vez?** No — para eso existe el dominio de memoria (§4).
+**¿Vuelve a leer todo mi código cada vez?** No — para eso existe el dominio de memoria (§5).
 `.swarm/context-pack.md` se construye una vez y se reutiliza entre runs; solo se reconstruye cuando
 el hash del estado del árbol del repo muestra que realmente está desactualizado. Los hallazgos
 también se deduplican por `agente+tag+fichero:línea` entre runs, así que repetir la misma auditoría
