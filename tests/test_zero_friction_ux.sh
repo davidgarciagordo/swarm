@@ -19,7 +19,7 @@ guard() { # guard <agent_type> <command> -> "allow" | "deny"
 # §2.1 (below) tells the orchestrator to run this exact command when `.swarm/` is missing — the
 # guard must not deny its own documented auto-init path (was denied before this fix: only
 # scripts/mem-*.sh and scripts/mem-lock.sh were allowlisted for swarm:orchestrator).
-assert_eq "allow" "$(guard swarm:orchestrator '"${CLAUDE_PLUGIN_ROOT}/scripts/swarm-init.sh"')" "swarm:orchestrator can run the real auto-init command from §2.1"
+assert_eq "allow" "$(guard swarm:orchestrator '\"${CLAUDE_PLUGIN_ROOT}/scripts/swarm-init.sh\"')" "swarm:orchestrator can run the real auto-init command from §2.1"
 
 # ===== Task 1: agents/orchestrator.md =====
 F="$PLUGIN_ROOT/agents/orchestrator.md"
@@ -41,7 +41,7 @@ invoke_pos="$(echo "$section_21" | grep -nF '"${CLAUDE_PLUGIN_ROOT}/scripts/swar
 assert_eq "0" "$([ -n "$not_found_pos" ] && [ -n "$invoke_pos" ] && [ "$invoke_pos" -gt "$not_found_pos" ] && echo 0 || echo 1)" "§2.1's not-found branch invokes the real init script literally (scripts/swarm-init.sh), in the right place, not a reimplementation or stray mention"
 
 # --- auto-init failure falls back to a real BLOCKED instead of proceeding on half-made .swarm/ ---
-assert_eq "0" "$(has "$section_21" 'BLOCKED falta /swarm:init')" "§2.1 falls back to BLOCKED if swarm-init.sh itself fails, instead of silently proceeding"
+assert_eq "0" "$(has "$section_21" 'posiblemente a medias')" "§2.1 falls back to BLOCKED if swarm-init.sh itself fails, instead of silently proceeding to open a run against a half-made .swarm/"
 
 # --- vocabulary substitution table exists, anchored to OUR exact new text (§4.0bis), not to the
 # pre-existing verdict words DONE/BLOCKED/KO/OK which already appear dozens of times in this file
