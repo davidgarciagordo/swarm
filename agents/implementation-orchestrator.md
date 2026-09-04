@@ -260,13 +260,28 @@ Fallo blando: si falla, NUNCA cambia tu veredicto — añade `- warn: worktree d
 borrado: <motivo en ≤8 palabras>` a tu salida (mismo prefijo exento `- warn:` que usa
 `discovery-orchestrator`, ver `hooks/validate-output.py`).
 
+`git worktree remove` solo borra el directorio, no la rama `worktree-agent-<agentId>` que la
+plataforma creó al abrir el worktree (`isolation: worktree`) — sin este paso queda huérfana en
+`git branch` para siempre, por cada fase completada. Bórrala también, en su PROPIA llamada, con el
+`agentId` REAL del paso 2 sustituido en el nombre de la rama (`hooks/bash-guard.py` exige la forma
+EXACTA `git branch -D worktree-agent-<agentId>` — cualquier otra rama, el flag `-d` en minúscula, o
+más de una rama se deniegan; ejemplo con un `agentId` real):
+```bash
+git branch -D worktree-agent-abc123
+```
+Mismo fallo blando: si falla, NUNCA cambia tu veredicto — añade `- warn: rama worktree-agent-
+<agentId> no borrada: <motivo en ≤8 palabras>` a tu salida.
+
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
 Allowlist de `swarm:implementation-orchestrator`: `scripts/mem-*.sh`, `git status|log|diff|show|
-rev-parse`, **`git merge`**, **`git worktree`** (los dos únicos aquí, para fusionar y limpiar),
-`ls|cat|head|tail|wc|grep`. Nada de `git push`, `python3`, `echo`, `mkdir`, `rm`; denegación por
-segmento. El `git merge`/`git worktree remove` van en su PROPIA llamada, nunca encadenados con
-`&&` a otro comando.
+rev-parse`, **`git merge`**, **`git worktree`**, **`git branch`** (los tres aquí, para fusionar y
+limpiar), `ls|cat|head|tail|wc|grep`. `git branch` solo admite la forma exacta `git branch -D
+worktree-agent-<agentId>` — el guard (`hooks/bash-guard.py`) deniega cualquier otra rama, cualquier
+otro flag (`-d` sin mayúscula incluido) y cualquier cosa que no sea EXACTAMENTE una rama borrada:
+nunca `master`/`main`, nunca borrado masivo. Nada de `git push`, `python3`, `echo`, `mkdir`, `rm`;
+denegación por segmento. El `git merge`/`git worktree remove`/`git branch -D` van cada uno en su
+PROPIA llamada, nunca encadenados con `&&` a otro comando.
 
 ## Salida
 
