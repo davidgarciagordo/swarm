@@ -114,43 +114,48 @@ sequenceDiagram
     participant DO as discovery-orchestrator
 
     User->>O: /swarm:run "<goal>" [--tier]
-    O->>O: classify tier (direct / light / full)
-    alt tier = direct
+    alt --tier=direct (explicit flag)
+        O->>O: classify tier (direct)
         O-->>User: OK (no run opened)
-    else tier = light or full
+    else --tier unset, light, or full
         alt objective ambiguous (root's own judgment)
             O->>User: AskUserQuestion (ONE call: interpretation + alternatives + free rewrite)
             User-->>O: confirmed/alternative/rewritten objective
             Note over O: raw: + objective: recorded separately<br/>(idempotency matches raw:, never the interpretation)
         end
-        O->>O: open run (run-id, .swarm/run/<id>/)
-        O->>MO: spawn (run-id, swarm-root, operation: build)
-        MO->>MO: check staleness (tree-hash)
-        alt pack stale or missing
-            MO->>MB: build/refresh context-pack.md + index.md
-            MB-->>MO: DONE
-        else pack fresh
-            MO-->>MO: OK (skip build)
-        end
-        MO-->>O: OK / DONE
-        alt product goal, not already closed in decisions.md
-            O->>DO: spawn (run-id, swarm-root, operation: discover, tier, objective)
-            DO->>DO: 4 leaves in ONE batch (value, research, options, feasibility)
-            DO-->>O: DONE + up to 4 "- Q" lines (one batch)
-            O->>O: pre-flight each "- Q" (2-4 options, header <= 12 chars)
-            O->>User: AskUserQuestion (ONE call, all questions)
-            alt owner answers
-                User-->>O: chosen options / free text
-                O->>MO: write decision (ONE call: objective + all answers)
-            else owner cancels the dialog
-                O->>MO: write decision (objective + [pendiente] batch unanswered)
+        O->>O: classify tier (direct / light / full)
+        alt tier = direct
+            O-->>User: OK (no run opened)
+        else tier = light or full
+            O->>O: open run (run-id, .swarm/run/<id>/)
+            O->>MO: spawn (run-id, swarm-root, operation: build)
+            MO->>MO: check staleness (tree-hash)
+            alt pack stale or missing
+                MO->>MB: build/refresh context-pack.md + index.md
+                MB-->>MO: DONE
+            else pack fresh
+                MO-->>MO: OK (skip build)
             end
-        else bugfix / docs / tests / infra, refactor/migration objective, or already closed
-            O->>O: skip discovery (reported as "- discovery omitido: ...")
-            Note over O: a refactor/migration objective still chains straight<br/>into design afterward in tier full (not shown here)
+            MO-->>O: OK / DONE
+            alt product goal, not already closed in decisions.md
+                O->>DO: spawn (run-id, swarm-root, operation: discover, tier, objective)
+                DO->>DO: 4 leaves in ONE batch (value, research, options, feasibility)
+                DO-->>O: DONE + up to 4 "- Q" lines (one batch)
+                O->>O: pre-flight each "- Q" (2-4 options, header <= 12 chars)
+                O->>User: AskUserQuestion (ONE call, all questions)
+                alt owner answers
+                    User-->>O: chosen options / free text
+                    O->>MO: write decision (ONE call: objective + all answers)
+                else owner cancels the dialog
+                    O->>MO: write decision (objective + [pendiente] batch unanswered)
+                end
+            else bugfix / docs / tests / infra, refactor/migration objective, or already closed
+                O->>O: skip discovery (reported as "- discovery omitido: ...")
+                Note over O: a refactor/migration objective still chains straight<br/>into design afterward in tier full (not shown here)
+            end
+            O->>MO: curate (close the run)
+            O-->>User: DONE\nevidence: files=N cmds=M turns=k/max
         end
-        O->>MO: curate (close the run)
-        O-->>User: DONE\nevidence: files=N cmds=M turns=k/max
     end
 ```
 

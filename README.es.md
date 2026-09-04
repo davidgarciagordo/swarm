@@ -115,43 +115,48 @@ sequenceDiagram
     participant DO as discovery-orchestrator
 
     User->>O: /swarm:run "<objetivo>" [--tier]
-    O->>O: clasifica tier (direct / light / full)
-    alt tier = direct
+    alt --tier=direct (flag explícito)
+        O->>O: clasifica tier (direct)
         O-->>User: OK (sin abrir run)
-    else tier = light o full
+    else --tier sin especificar, light, o full
         alt objetivo ambiguo (juicio propio de la raíz)
             O->>User: AskUserQuestion (UNA llamada: interpretación + alternativas + reescritura libre)
             User-->>O: objetivo confirmado/alternativo/reescrito
             Note over O: raw: + objective: se registran aparte<br/>(la idempotencia compara contra raw:, nunca contra la interpretación)
         end
-        O->>O: abre run (run-id, .swarm/run/<id>/)
-        O->>MO: spawn (run-id, swarm-root, operation: build)
-        MO->>MO: comprueba staleness (tree-hash)
-        alt pack stale o ausente
-            MO->>MB: construye/refresca context-pack.md + index.md
-            MB-->>MO: DONE
-        else pack fresco
-            MO-->>MO: OK (salta build)
-        end
-        MO-->>O: OK / DONE
-        alt objetivo de producto, no cerrado ya en decisions.md
-            O->>DO: spawn (run-id, swarm-root, operation: discover, tier, objective)
-            DO->>DO: 4 hojas en UNA tanda (valor, research, opciones, viabilidad)
-            DO-->>O: DONE + hasta 4 líneas "- Q" (un solo batch)
-            O->>O: pre-flight de cada "- Q" (2-4 opciones, cabecera <= 12 chars)
-            O->>User: AskUserQuestion (UNA llamada, todas las preguntas)
-            alt el owner responde
-                User-->>O: opciones elegidas / texto libre
-                O->>MO: write decision (UNA llamada: objective + todas las respuestas)
-            else el owner cancela el diálogo
-                O->>MO: write decision (objective + [pendiente] batch sin responder)
+        O->>O: clasifica tier (direct / light / full)
+        alt tier = direct
+            O-->>User: OK (sin abrir run)
+        else tier = light o full
+            O->>O: abre run (run-id, .swarm/run/<id>/)
+            O->>MO: spawn (run-id, swarm-root, operation: build)
+            MO->>MO: comprueba staleness (tree-hash)
+            alt pack stale o ausente
+                MO->>MB: construye/refresca context-pack.md + index.md
+                MB-->>MO: DONE
+            else pack fresco
+                MO-->>MO: OK (salta build)
             end
-        else bugfix / docs / tests / infra, objetivo de refactor/migración, u objetivo ya cerrado
-            O->>O: salta discovery (se reporta como "- discovery omitido: ...")
-            Note over O: un objetivo de refactor/migración encadena igualmente<br/>a design en tier full (no se muestra aquí)
+            MO-->>O: OK / DONE
+            alt objetivo de producto, no cerrado ya en decisions.md
+                O->>DO: spawn (run-id, swarm-root, operation: discover, tier, objective)
+                DO->>DO: 4 hojas en UNA tanda (valor, research, opciones, viabilidad)
+                DO-->>O: DONE + hasta 4 líneas "- Q" (un solo batch)
+                O->>O: pre-flight de cada "- Q" (2-4 opciones, cabecera <= 12 chars)
+                O->>User: AskUserQuestion (UNA llamada, todas las preguntas)
+                alt el owner responde
+                    User-->>O: opciones elegidas / texto libre
+                    O->>MO: write decision (UNA llamada: objective + todas las respuestas)
+                else el owner cancela el diálogo
+                    O->>MO: write decision (objective + [pendiente] batch sin responder)
+                end
+            else bugfix / docs / tests / infra, objetivo de refactor/migración, u objetivo ya cerrado
+                O->>O: salta discovery (se reporta como "- discovery omitido: ...")
+                Note over O: un objetivo de refactor/migración encadena igualmente<br/>a design en tier full (no se muestra aquí)
+            end
+            O->>MO: curate (cierre del run)
+            O-->>User: DONE\nevidence: files=N cmds=M turns=k/max
         end
-        O->>MO: curate (cierre del run)
-        O-->>User: DONE\nevidence: files=N cmds=M turns=k/max
     end
 ```
 
