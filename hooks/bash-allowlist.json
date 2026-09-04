@@ -23,7 +23,7 @@
     "swarm:orchestrator": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "cd", "ls", "cat", "head", "tail", "wc", "grep",
-      "scripts/mem-", "scripts/mem-lock.sh"
+      "scripts/mem-", "scripts/mem-lock.sh", "scripts/swarm-init.sh"
     ],
     "swarm:requirements-orchestrator": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
