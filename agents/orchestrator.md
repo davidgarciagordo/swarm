@@ -75,6 +75,51 @@ mismo tipo de juicio que ya aplicas en las tablas de keywords "ilustrativas, no 
   respecto a antes de este gate. Este es el caso feliz y debe seguir siendo la mayoría de los runs.
 - **Si tu confianza es baja o el objetivo es ambiguo:** sigue al Paso 3 (§1.0bis continúa abajo).
 
+**Paso 3 — pregunta, UNA sola tanda (mismo patrón que discovery, §5.3).** Construye una
+`AskUserQuestion` con:
+
+- tu interpretación optimizada del objetivo, como la opción recomendada
+- hasta 2 alternativas si genuinamente las hay (nunca inventes alternativas artificiales solo para
+  rellenar — si solo ves una lectura razonable, una sola opción más el rewrite libre basta)
+- la opción "Other" de `AskUserQuestion` sirve como "quiero re-escribirlo yo" — texto libre del
+  owner, sin ninguna sugerencia tuya de por medio
+
+```
+AskUserQuestion(questions: [{
+  question: "Tu objetivo: '<argumento crudo del owner>'. Lo interpreto como: '<tu interpretación>'. ¿Confirmas o prefieres otra?",
+  header: "Objetivo",
+  multiSelect: false,
+  options: [
+    { label: "<tu interpretación> (recomendada)", description: "<en qué te basas>" },
+    { label: "<alternativa 1, si la hay>", description: "<en qué te basas>" }
+  ]
+}])
+```
+
+**Resuelve el resultado:**
+
+- El owner confirma tu interpretación, o elige una alternativa, o escribe la suya en "Other":
+  ESE texto final es el `objective:` que usa el resto de este run — clasificación de tier (§1.1),
+  discovery, analysis, design, y lo que se persiste en `.swarm/decisions.md` de aquí en adelante.
+  Antes de seguir a §1.1, persiste la resolución (pasa AMBOS textos por el saneado de §5.0 antes de
+  interpolarlos):
+  ```
+  SendMessage(memory-orchestrator, "write decision --text \"raw: <argumento crudo saneado> · objective: <texto final saneado> · interpretación resuelta\"")
+  ```
+  Espera su `OK`/`written` antes de continuar a §1.1.
+
+- El owner cancela el diálogo (lo cierra sin elegir — mismo comportamiento normal que discovery
+  §5.3, no un error): registra la interpretación como PENDIENTE (una sola escritura, mismo saneado
+  de §5.0):
+  ```
+  SendMessage(memory-orchestrator, "write decision --text \"raw: <argumento crudo saneado> · objective: <tu interpretación saneada> [pendiente] interpretación sin confirmar\"")
+  ```
+  Espera su `OK`/`written`, cierra el run igual que cualquier otro camino terminal (§4: `summary`
+  con esta línea, `SendMessage(memory-orchestrator, "curate")`, espera su `DONE`) y tu veredicto es:
+  ```
+  BLOCKED interpretación de objetivo sin confirmar
+  ```
+
 ### 1.1 Tiers
 
 - `direct`: objetivo trivial, un fichero, sin decisión arquitectónica → respondes tú misma, SIN
@@ -341,6 +386,8 @@ verdict: <su veredicto literal completo>")
 Línea por camino terminal (una sola llamada, la que corresponda):
 
 - cierre normal (§5.4): `- run cerrado: DONE · discovery respondido, <n> decisiones guardadas`
+- interpretación de objetivo cancelada (§1.0bis Paso 3):
+  `- run cerrado: BLOCKED interpretación de objetivo sin confirmar`
 - batch malformado (§5.3): `- run cerrado: BLOCKED batch malformado de discovery-orchestrator`
 - `BLOCKED`/`KO` propagado (§5.3): `- run cerrado: <veredicto literal de discovery-orchestrator>`
 - batch vacío (§5.3): `- run cerrado: BLOCKED batch vacío de discovery-orchestrator`

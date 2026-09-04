@@ -37,5 +37,21 @@ assert_eq "0" "$(has "$bis_section" '\[pendiente\]')" "§1.0bis's own raw-match 
 assert_eq "0" "$(has "$body" 'confianza alta')" "§1.0bis documents the high-confidence pass-through path"
 assert_eq "0" "$(has "$body" 'sin línea de output nueva')" "§1.0bis explicitly states the high-confidence path emits no new output line (happy path stays free)"
 
+# --- low-confidence branch: ONE AskUserQuestion, same one-batch pattern as discovery ---
+assert_eq "0" "$(has "$body" 'AskUserQuestion')" "§1.0bis low-confidence path uses a real AskUserQuestion"
+assert_eq "0" "$(has "$front" 'AskUserQuestion')" "root's own tools: frontmatter already includes AskUserQuestion (pre-existing, verify not accidentally removed)"
+assert_eq "0" "$(has "$body" 'hasta 2 alternativas')" "the question offers up to 2 alternatives, matching the spec"
+assert_eq "0" "$(has "$body" 'quiero re-escribirlo yo')" "the question offers a free-rewrite option via Other"
+
+# --- outcomes: confirm / alternative / rewrite all become objective: ---
+assert_eq "0" "$(has "$body" 'ESE texto final es el')" "whichever outcome the owner picks becomes the objective: used from here on"
+
+# --- decision line written BEFORE tier classification, with raw: + objective: fields ---
+assert_eq "0" "$(has "$body" 'write decision --text')" "§1.0bis writes a decision line via the same write decision --text mechanism as discovery"
+assert_eq "0" "$(has "$body" '\\\"raw: ')" "the write decision call's --text starts with raw: (mirrors discovery's objective:-first convention, adapted for this gate)"
+
+# --- owner cancels: BLOCKED, [pendiente], mirrors discovery §5.3's cancel handling exactly ---
+assert_eq "0" "$(has "$body" 'BLOCKED interpretación de objetivo sin confirmar')" "cancelling the gate's question produces this exact BLOCKED verdict"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0
