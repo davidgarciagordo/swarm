@@ -20,10 +20,16 @@ for f in "$PLUGIN_ROOT"/agents/*.md; do
   assert_eq "0" "$(echo "$frontmatter" | grep -q '^memory:' && echo 0 || echo 1)" "$name has memory"
   assert_eq "0" "$(echo "$frontmatter" | grep -q '^skills:' && echo 0 || echo 1)" "$name has skills"
 
-  # verifier is read-only and never invokes SendMessage (it's never called by a domain, only by root)
-  if [ "$name" != "verifier.md" ]; then
-    assert_eq "0" "$(echo "$frontmatter" | grep -q 'SendMessage' && echo 0 || echo 1)" "$name tools include SendMessage"
-  fi
+  # verifier is read-only and never invokes SendMessage (it's never called by a domain, only by root).
+  # grill-architect/operator/engineer are the same shape: read-only judges that receive their
+  # target's path directly in the launch prompt, never talk to memory-orchestrator or a sibling —
+  # same contract as working-methods' external grill-* lenses, which also have no SendMessage.
+  case "$name" in
+    verifier.md|grill-architect.md|grill-operator.md|grill-engineer.md) ;;
+    *)
+      assert_eq "0" "$(echo "$frontmatter" | grep -q 'SendMessage' && echo 0 || echo 1)" "$name tools include SendMessage"
+      ;;
+  esac
 
   assert_eq "1" "$(echo "$frontmatter" | grep -q '^hooks:' && echo 0 || echo 1)" "$name frontmatter has no hooks:"
   assert_eq "1" "$(echo "$frontmatter" | grep -q '^mcpServers:' && echo 0 || echo 1)" "$name frontmatter has no mcpServers:"
