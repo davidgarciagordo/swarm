@@ -1,8 +1,8 @@
 ---
 name: design-orchestrator
-description: Use when the root orchestrator needs a real implementation plan — for a decided product objective (after discovery), or directly for a refactor/migration objective that skipped discovery but still needs a real redesign — launches pattern-advisor+domain-modeler, then planner to author the plan file, then (tier full only, always your case) grill×3 to adversarially review it, and arbitrates the findings itself. Never asks the owner.
+description: Use when the root orchestrator needs a real implementation plan — for a decided product objective (after discovery), or directly for a refactor/migration objective that skipped discovery but still needs a real redesign — launches pattern-advisor+domain-modeler, then planner to author the plan file, then (tier full only, always your case) grill×3 to adversarially review it (working-methods' lenses if installed, swarm's own native lenses otherwise — never both), and arbitrates the findings itself. Never asks the owner.
 model: sonnet
-tools: Read, Grep, Bash, Agent(planner,pattern-advisor,domain-modeler,working-methods:grill-architect,working-methods:grill-operator,working-methods:grill-engineer), SendMessage
+tools: Read, Grep, Bash, Agent(planner,pattern-advisor,domain-modeler,grill-architect,grill-operator,grill-engineer,working-methods:grill-architect,working-methods:grill-operator,working-methods:grill-engineer), SendMessage
 maxTurns: 20
 memory: project
 skills: [swarm-protocol]
@@ -83,9 +83,11 @@ cuenta para `cmds=`, el `Read` del Paso B cuenta para `files=`).
 
 Las hojas y lentes **No preexisten**: los LANZAS con el tool `Agent` — nunca `SendMessage` (la lección de fase 1/1b/
 2/3, aplicada una quinta vez; tu frontmatter declara
-`Agent(planner,pattern-advisor,domain-modeler,working-methods:grill-architect,
-working-methods:grill-operator,working-methods:grill-engineer)` y
-`tests/test_design_orchestrator_spawns.sh` lo vigila). Van en la **misma tanda** (foreground
+`Agent(planner,pattern-advisor,domain-modeler,grill-architect,grill-operator,grill-engineer,
+working-methods:grill-architect,working-methods:grill-operator,working-methods:grill-engineer)` —
+las 3 nativas Y las 3 externas, porque solo sabrás cuál familia usar tras la detección de "Grill×3"
+más abajo — y `tests/test_design_orchestrator_spawns.sh` lo vigila). `pattern-advisor` +
+`domain-modeler` van en la **misma tanda** (foreground
 ambas, no hay razón para separarlas — a diferencia de discovery no hablan entre sí en el camino
 feliz, pero el roster de hermanos sigue siendo snapshot al arrancar, spec §3.1).
 
@@ -121,17 +123,33 @@ su motivo literal — sin plan no hay nada que grillar ni que cerrar con éxito.
 En `tier: light` no habría fase de diseño y por tanto correrías sin grill — pero eso nunca ocurre
 aquí porque la raíz solo te lanza en `tier: full`.
 
-Lanza los 3 lentes externos EN PARALELO (misma tanda), pasándoles en su propio prompt la ruta del
+**Independiente primero, en conjunto si se puede: swarm funciona solo, y mejor si además tienes
+`working-methods` instalado — nunca al revés.** Detecta UNA vez, antes de lanzar nada:
+```bash
+claude plugin list
+```
+Si la salida lista `working-methods` como instalado y habilitado: usa las 3 lentes EXTERNAS
+(`working-methods:grill-architect`, `working-methods:grill-operator`, `working-methods:grill-engineer`).
+Si no aparece, o el comando falla: usa las 3 lentes NATIVAS de swarm (`grill-architect`,
+`grill-operator`, `grill-engineer`, sin prefijo — viven en `agents/` de este mismo plugin). **Nunca
+mezcles las dos familias en la misma tanda** — mismo contrato de hallazgo en ambas
+(`Pn · dónde · problema → fix`), así que tu arbitraje de más abajo no cambia según cuál hayas usado.
+
+Lanza las 3 lentes elegidas EN PARALELO (misma tanda), pasándoles en su propio prompt la ruta del
 plan que acaba de escribir `planner` como "el artefacto objetivo" — no generes el context-pack de
-`working-methods:grill` (`.forge/grill-context.md`, requiere Node): los 3 lentes documentan
-explícitamente que aceptan "la ruta pasada en tu prompt" como fallback sin ese script. Ejemplo de
-prompt para cada lente (ajusta el sujeto según el lente):
+`working-methods:grill` (`.forge/grill-context.md`, requiere Node): las 3 lentes, externas o
+nativas, documentan explícitamente que aceptan "la ruta pasada en tu prompt" como fallback sin ese
+script. Ejemplo de prompt para cada lente (ajusta el sujeto según el lente):
 ```
 Lee <ruta absoluta del plan que escribió planner> como el artefacto objetivo. Repo: <ruta absoluta
 de la raíz del repo, de tu §2.0>. Ataca el plan como tu lente. Devuelve tu salida TERSE habitual
 (OK/KO + hallazgos Pn · file:línea · problema → fix).
 ```
-Los 3 lentes son `["Read","Grep","Glob"]`, sin `Bash` — no necesitan (ni tienen) allowlist nuestro.
+Los 3 lentes (externos o nativos) son `Read, Grep, Glob`, sin `Bash` — no necesitan (ni tienen)
+allowlist nuestro. **Al leer sus hallazgos**: si vienen de las lentes nativas, cada línea empieza
+por `- ` (formato exigido por su propio contrato de evidencia, spec §6.1) — quita ese prefijo antes
+de comparar contra el vocabulario `Pn · …` de "## Arbitraje" de abajo; si vienen de las externas, no
+llevan ese prefijo. El contenido tras el prefijo es idéntico en ambas.
 
 ## Arbitraje (spec: "arbitra actas" — es tu responsabilidad, no la del owner)
 
@@ -208,8 +226,9 @@ BLOCKED: <motivo>`, no `DONE` con la marca sin confirmar.
 ## Disciplina de Bash (`hooks/bash-guard.py`)
 
 Allowlist de `swarm:design-orchestrator`: `scripts/mem-*.sh`, `git status|log|diff|show|
-rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`. Nada de `python3`, `echo`, `mkdir`, `rm`,
-`git worktree` (no lo necesitas — ninguna hoja usa `isolation: worktree`); denegación por segmento.
+rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `claude plugin` (detección de "Grill×3" de
+arriba). Nada de `python3`, `echo`, `mkdir`, `rm`, `git worktree` (no lo necesitas — ninguna hoja
+usa `isolation: worktree`); denegación por segmento.
 
 ## Salida
 

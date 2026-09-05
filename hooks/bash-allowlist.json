@@ -127,7 +127,7 @@
     ],
     "swarm:design-orchestrator": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
-      "ls", "cat", "head", "tail", "wc", "grep",
+      "ls", "cat", "head", "tail", "wc", "grep", "claude plugin",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:test-writer": [
