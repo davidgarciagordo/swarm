@@ -1,11 +1,11 @@
-# swarm
+# 🐝 swarm
 
 Claude Code plugin. Single-responsibility agent swarm for the software development lifecycle — analysis, design, implementation, delivery — optimized for quality per token. Full design in `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Built so far: phases 1, 1b, 2, 3, 4, 5a, 5b and 6** — memory subsystem, root orchestrator, requirements domain (environment check + dependency audit + owner-approved dependency install), discovery domain (questions batch presented to the owner via `AskUserQuestion`), analysis domain (read-only codebase audit across 7 lenses), design domain (writes a real implementation plan, adversarially reviewed by grill×3, arbitrated by `design-orchestrator` itself), implementation domain (RED→GREEN TDD per phase in an isolated worktree, with conditional schema-migration and documentation steps, gated by `reviewer` BEFORE a local merge — only by explicit owner invocation, never auto-chained), delivery domain (publishes an already-merged branch — push + PR + handoff — only by explicit, separate owner invocation, gated by an owner-approved `AskUserQuestion` that names remote/branch/base, never merges the PR itself), and the first stack pack (`php-ddd-symfony8`, auto-detected from `composer.json`).
 
 For a full usage guide (installation, the 5 commands, every domain, worked examples, how to read
 the output) see `docs/USAGE.md`. To add a stack pack of your own, see `docs/EXTENDING-PACKS.md`.
 
-## Install
+## 📦 Install
 
 No marketplace listing yet — local dev only:
 
@@ -13,7 +13,7 @@ No marketplace listing yet — local dev only:
 claude --plugin-dir /path/to/multiagents
 ```
 
-## Quickstart
+## 🚀 Quickstart
 
 ```
 /swarm:run "add CSV export to the invoices list"
@@ -22,7 +22,7 @@ claude --plugin-dir /path/to/multiagents
 One command, plain language. `.swarm/` initializes itself transparently the first time — no
 separate setup step to run or know about. See `docs/USAGE.md` for the full guide.
 
-## Commands
+## 🕹️ Commands
 
 - `/swarm:run "<goal>"` — the single entry point; launches the root orchestrator. `--tier=direct|light|full` is available for power users/CI — see `docs/USAGE.md`'s Advanced section.
 - `/swarm:init` — creates `.swarm/` in the target repo, health-gated on the `files` backend. No longer a required step — `/swarm:run "<goal>"` runs it for you automatically.
@@ -30,7 +30,7 @@ separate setup step to run or know about. See `docs/USAGE.md` for the full guide
 - `/swarm:status` — deterministic, no-model-turn summary of the current run, tier, agents, and open findings.
 - `/swarm:findings [agent|TAG] [--all]` — deterministic, no-model-turn filtered read of the swarm's findings.
 
-## How it works
+## ⚙️ How it works
 
 ### Architecture
 
@@ -206,7 +206,7 @@ No agent scans the repo or `.swarm/` twice, and no agent writes `.swarm/` direct
 
 **See it applied → [examples/](examples/README.md)**: 5 copy-paste prompts — a full tier:full feature, a refactor that skips discovery, an ambiguous objective the interpretation gate asks about, the same objective run again (no repeat question), and a narrow tier:light lookup.
 
-## Current status — what's built
+## 📍 Current status — what's built
 
 Phases from spec §15:
 
@@ -220,16 +220,16 @@ Phases from spec §15:
 6. **Delivery (built).** `delivery-orchestrator` (sequences `release-manager` + `handoff-writer`), `release-manager` (two-phase push/PR gate — `prepare-release` preview, `publish-release` only with an itemised `approved-push:` header, `configure-remote` bootstraps a missing remote under a separate `approved-remote:` gate), `handoff-writer` (session-handoff on every terminal path); root gate in `agents/orchestrator.md` §12 — only by explicit, separate owner invocation, never auto-chained, never merges the PR itself. Plus `/swarm:status` and `/swarm:findings` — deterministic, no-model-turn commands over `.swarm/` state.
 14bis. **Independent verify gate (built).** `verifier` (opus, read-only, generic — no domain-specific knowledge); the root launches it before every green close of any domain (spec §14bis) to check the closing verdict's claims trace to real persisted findings and its own contract's required lines are present; two-strike: a `KO` sends the domain back to correct once, a second `KO` closes the run `BLOCKED` instead of a false green.
 
-## Naming convention
+## 🏷️ Naming convention
 
 Every spawned agent is launched **named after its role** — the basename of its type, no suffixes or variants (`memory-orchestrator`, `analysis-orchestrator`, `pattern-advisor`, `dependency-installer`, and in the future `release-manager`…). This is what lets peer agents `SendMessage` each other by name without discovering it first, and lets the owner address a specific agent directly — "tell `memory-builder` when it's done" — without the caller having to look up who that is. `memory-orchestrator` is the one case that's mandatory today: a single named instance per run (spec §4.5).
 
-## Tests
+## ✅ Tests
 
 ```bash
 bash tests/run.sh
 ```
 
-## License
+## ⚖️ License
 
 MIT © David García Gordo

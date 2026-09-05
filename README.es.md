@@ -1,4 +1,4 @@
-# swarm
+# 🐝 swarm
 
 Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Construido hasta ahora: fases 1, 1b, 2, 3, 4, 5a, 5b y 6** — subsistema de memoria, orquestador raíz, dominio de requisitos (chequeo de entorno + auditoría de dependencias + instalación aprobada por el owner), dominio discovery (batch de preguntas presentado al owner con `AskUserQuestion`), dominio de análisis (auditoría read-only del código en 7 lentes), dominio de diseño (escribe un plan de implementación real, revisado adversarialmente por grill×3, arbitrado por el propio `design-orchestrator`), dominio de implementación (TDD RED→GREEN por fase en un worktree aislado, con pasos condicionales de migración de esquema y documentación, `reviewer` como gate ANTES del merge local — solo por invocación explícita del owner, nunca encadenado), dominio de entrega (publica una rama ya fusionada — push + PR + handoff — solo por invocación explícita y separada del owner, con gate de `AskUserQuestion` aprobado por el owner que nombra remoto/rama/base, nunca mergea el PR él mismo), y el primer stack pack (`php-ddd-symfony8`, detectado automáticamente desde `composer.json`).
 
@@ -6,7 +6,7 @@ Para una guía de uso completa (instalación, los 5 comandos, cada dominio, ejem
 interpretar la salida) ver `docs/USAGE.es.md`. Para añadir tu propio stack pack, ver
 `docs/EXTENDING-PACKS.es.md`.
 
-## Instalación
+## 📦 Instalación
 
 Todavía no hay listing en el marketplace — solo desarrollo local:
 
@@ -14,7 +14,7 @@ Todavía no hay listing en el marketplace — solo desarrollo local:
 claude --plugin-dir /ruta/a/multiagents
 ```
 
-## Empezar rápido
+## 🚀 Empezar rápido
 
 ```
 /swarm:run "añade export CSV al listado de facturas"
@@ -24,7 +24,7 @@ Un comando, en lenguaje natural. `.swarm/` se inicializa solo, de forma transpar
 vez — sin ningún paso de preparación aparte que ejecutar o conocer. Ver `docs/USAGE.es.md` para la
 guía completa.
 
-## Comandos
+## 🕹️ Comandos
 
 - `/swarm:run "<objetivo>"` — el punto de entrada único; lanza el orquestador raíz. `--tier=direct|light|full` está disponible para usuarios avanzados/CI — ver la sección Avanzado de `docs/USAGE.es.md`.
 - `/swarm:init` — crea `.swarm/` en el repo target, health-gated sobre el backend `files`. Ya no es un paso obligatorio — `/swarm:run "<objetivo>"` lo ejecuta por ti automáticamente.
@@ -32,7 +32,7 @@ guía completa.
 - `/swarm:status` — resumen determinista, sin turno de modelo, del run actual, tier, agentes y hallazgos abiertos.
 - `/swarm:findings [agente|TAG] [--all]` — consulta filtrada determinista, sin turno de modelo, de los hallazgos del enjambre.
 
-## Cómo funciona
+## ⚙️ Cómo funciona
 
 ### Arquitectura
 
@@ -208,7 +208,7 @@ Ningún agente escanea el repo o `.swarm/` dos veces, y ningún agente escribe `
 
 **Verlo aplicado → [examples/](examples/README.es.md)**: 5 prompts copy-paste — una funcionalidad completa tier:full, un refactor que se salta discovery, un objetivo ambiguo que el gate de interpretación pregunta, el mismo objetivo relanzado (sin repetir la pregunta), y una consulta acotada tier:light.
 
-## Estado actual — qué está construido
+## 📍 Estado actual — qué está construido
 
 Fases según spec §15:
 
@@ -222,16 +222,16 @@ Fases según spec §15:
 6. **Entrega (construido).** `delivery-orchestrator` (secuencia `release-manager` + `handoff-writer`), `release-manager` (gate de push/PR en dos fases — preview de `prepare-release`, `publish-release` solo con una cabecera `approved-push:` itemizada, `configure-remote` arranca un remoto ausente bajo un gate `approved-remote:` separado), `handoff-writer` (handoff de sesión en cualquier camino terminal); gate en la raíz, `agents/orchestrator.md` §12 — solo por invocación explícita y separada del owner, nunca encadenado, nunca mergea el PR él mismo. Más `/swarm:status` y `/swarm:findings` — comandos deterministas, sin turno de modelo, sobre el estado de `.swarm/`.
 14bis. **Gate de verificación independiente (construido).** `verifier` (opus, read-only, genérico — sin conocimiento de ningún dominio concreto); la raíz lo lanza antes de todo cierre en verde de cualquier dominio (spec §14bis) para comprobar que las afirmaciones del veredicto que cierra trazan a hallazgos realmente persistidos y que las líneas obligatorias de su propio contrato están presentes; two-strike: un `KO` devuelve el dominio a corregir una vez, un segundo `KO` cierra el run `BLOCKED` en vez de en falso verde.
 
-## Convención de nombres
+## 🏷️ Convención de nombres
 
 Todo agente lanzado va **nombrado con su rol** — el basename de su tipo, sin sufijos ni variantes (`memory-orchestrator`, `analysis-orchestrator`, `pattern-advisor`, `dependency-installer`, y en el futuro `release-manager`…). Esto es lo que permite que agentes pares se manden `SendMessage` entre sí por nombre sin tener que descubrirlo antes, y que el owner se dirija a un agente concreto directamente — "avisa a `memory-builder` cuando termine" — sin que quien lo pide tenga que averiguar quién es. `memory-orchestrator` es el único caso obligatorio hoy: una única instancia nombrada por run (spec §4.5).
 
-## Tests
+## ✅ Tests
 
 ```bash
 bash tests/run.sh
 ```
 
-## Licencia
+## ⚖️ Licencia
 
 MIT © David García Gordo
