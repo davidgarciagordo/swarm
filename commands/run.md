@@ -1,16 +1,16 @@
 ---
-description: "/swarm:run — punto de entrada único del enjambre: describe lo que quieres en lenguaje natural, sin pasos previos."
-argument-hint: "<objetivo>"
+description: "/swarm:run — the swarm's single entry point: describe what you want in natural language, no prior steps needed."
+argument-hint: "<goal>"
 allowed-tools: Agent, Read, Bash, SendMessage, AskUserQuestion
 ---
 
-SIEMPRE invoca el tool `Agent` con `subagent_type: swarm:orchestrator` y `prompt` igual a lo que
-escribió el usuario, EXACTAMENTE así, sin excepción — incluso si `$ARGUMENTS` está vacío o es solo
-espacios. Nunca respondas tú mismo, nunca pidas aclaración antes de invocar: el propio
-`orchestrator` decide si el objetivo es válido (incluida la guarda de objetivo vacío) y devuelve su
-propio veredicto. Pásale el argumento completo sin reinterpretarlo — el propio `orchestrator`
-extrae el flag `--tier=` si está presente y clasifica el resto como el objetivo.
+ALWAYS invoke the `Agent` tool with `subagent_type: swarm:orchestrator` and `prompt` equal to
+exactly what the user wrote, EXACTLY as written, no exceptions — even if `$ARGUMENTS` is empty or
+just whitespace. Never answer yourself, never ask for clarification before invoking: the
+`orchestrator` itself decides whether the goal is valid (including the empty-goal guard) and
+returns its own verdict. Pass it the full argument without reinterpreting it — the `orchestrator`
+itself extracts the `--tier=` flag if present and classifies the rest as the goal.
 
-Argumento del usuario:
+User argument:
 
 $ARGUMENTS

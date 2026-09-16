@@ -1,43 +1,43 @@
 # conventions — php-ddd-symfony8
 
-Convenciones de un repo PHP con DDD táctico sobre Symfony 8. Los ejemplos usan nombres ficticios
-(`Billing`, `Invoice`, `Order`) — sustitúyelos por los del repo real, que ya están en
+Conventions for a PHP repo with tactical DDD on Symfony 8. Examples use fictional names
+(`Billing`, `Invoice`, `Order`) — replace them with the real repo's, already available in
 `.swarm/context-pack.md`.
 
-## Layout: contexto → agregado → capa
+## Layout: context → aggregate → layer
 
 ```
 src/<BoundedContext>/<Aggregate>/<Layer>
 ```
 
-Los bounded contexts son los directorios de primer nivel bajo `src/`; dentro de cada uno, un
-directorio por agregado; dentro de cada agregado, las tres capas. Ejemplo:
+Bounded contexts are the top-level directories under `src/`; inside each one, a
+directory per aggregate; inside each aggregate, the three layers. Example:
 
 ```
 src/Billing/Invoice/Domain
 src/Billing/Invoice/Application
 src/Billing/Invoice/Infrastructure
-src/Shared/Core/Domain          ← kernel compartido (identidad, eventos, criteria, excepciones base)
+src/Shared/Core/Domain          ← shared kernel (identity, events, criteria, base exceptions)
 ```
 
-No es `src/<Capa>/<Contexto>` ni `src/Domain/<Contexto>`: la unidad de cohesión es el agregado, y
-las tres capas viven juntas porque cambian juntas.
+It is not `src/<Layer>/<Context>` nor `src/Domain/<Context>`: the unit of cohesion is the
+aggregate, and the three layers live together because they change together.
 
 ### `Domain/`
 
 ```
-Domain/Model/<Aggregate>.php                 raíz del agregado (+ <Aggregate>Collection.php)
-Domain/ValueObject/<Vo>.php                  un fichero por value object
-Domain/Event/<Aggregate><PastParticiple>.php eventos de dominio
-Domain/Service/<Algo>.php                    servicios de dominio sin estado
+Domain/Model/<Aggregate>.php                 aggregate root (+ <Aggregate>Collection.php)
+Domain/ValueObject/<Vo>.php                  one file per value object
+Domain/Event/<Aggregate><PastParticiple>.php domain events
+Domain/Service/<Something>.php               stateless domain services
 Domain/Exception/<Aggregate>NotFoundException.php
-Domain/<Aggregate>Repository.php             INTERFAZ del repositorio, en la raíz de Domain/
+Domain/<Aggregate>Repository.php             repository INTERFACE, at the Domain/ root
 ```
 
-Regla dura: `Domain/` no importa NADA de Symfony, Doctrine ni de `Infrastructure/`. Si necesitas un
-tipo de framework en el dominio, el diseño está mal, no la regla.
+Hard rule: `Domain/` imports NOTHING from Symfony, Doctrine or `Infrastructure/`. If you need a
+framework type in the domain, the design is wrong, not the rule.
 
-### `Application/` — una carpeta por caso de uso
+### `Application/` — one folder per use case
 
 ```
 Application/Create/CreateInvoiceCommand.php
@@ -46,9 +46,9 @@ Application/Find/FindById/FindInvoiceByIdQuery.php
 Application/Search/ByCriteria/SearchInvoicesByCriteriaQuery.php
 ```
 
-Verbos del conjunto cerrado `Create | Update | Patch | Delete | Find | Search`. Cada caso de uso es
-un par comando/consulta + su handler; el handler orquesta, no contiene reglas de negocio (esas viven
-en el agregado).
+Verbs from the closed set `Create | Update | Patch | Delete | Find | Search`. Each use case is
+a command/query pair + its handler; the handler orchestrates, it doesn't hold business rules
+(those live in the aggregate).
 
 ### `Infrastructure/`
 
@@ -60,54 +60,54 @@ Infrastructure/Persistence/Doctrine/Fixture/<Aggregate>Fixture.php
 Infrastructure/Symfony/Controller/<Verb><Aggregate>Controller.php
 ```
 
-El mapping XML (no atributos) mantiene el dominio libre de anotaciones de framework. Cada value
-object persistido tiene su tipo DBAL propio (`<Vo>Type`), registrado en la configuración de Doctrine.
+XML mapping (not attributes) keeps the domain free of framework annotations. Every persisted
+value object has its own DBAL type (`<Vo>Type`), registered in Doctrine's configuration.
 
 ## Naming
 
-| elemento | patrón | ejemplo |
+| element | pattern | example |
 |---|---|---|
-| agregado | sustantivo desnudo, igual que su carpeta | `Invoice` |
-| colección | `<Aggregate>Collection` | `InvoiceCollection` |
-| value object | sustantivo desnudo, SIN sufijo `VO`/`ValueObject` | `Id`, `Amount`, `Title` |
-| evento de dominio | `<Aggregate><ParticipioPasado>`, sin sufijo `Event`, con `EVENT_NAME` en snake punteado | `InvoiceCreated` → `public const string EVENT_NAME = 'invoice.created';` |
-| interfaz de repositorio | `<Aggregate>Repository` (en `Domain/`) | `InvoiceRepository` |
-| implementación | `Doctrine<Aggregate>Repository` (en `Infrastructure/`) | `DoctrineInvoiceRepository` |
-| comando / handler | `<Verb><Aggregate>Command` + `…CommandHandler` | `CreateInvoiceCommand` |
-| controlador | `<Verb><Aggregate>Controller` (plural en búsquedas) | `SearchInvoicesController` |
-| excepción | `<Aggregate>NotFoundException`, extiende la base compartida | `InvoiceNotFoundException` |
-| tipo DBAL | `<Vo>Type` | `AmountType` |
-| migración | `Version<YYYYMMDDHHMMSS>.php` | `Version20260903120000.php` |
+| aggregate | bare noun, same as its folder | `Invoice` |
+| collection | `<Aggregate>Collection` | `InvoiceCollection` |
+| value object | bare noun, WITHOUT a `VO`/`ValueObject` suffix | `Id`, `Amount`, `Title` |
+| domain event | `<Aggregate><PastParticiple>`, no `Event` suffix, with a dotted-snake `EVENT_NAME` | `InvoiceCreated` → `public const string EVENT_NAME = 'invoice.created';` |
+| repository interface | `<Aggregate>Repository` (in `Domain/`) | `InvoiceRepository` |
+| implementation | `Doctrine<Aggregate>Repository` (in `Infrastructure/`) | `DoctrineInvoiceRepository` |
+| command / handler | `<Verb><Aggregate>Command` + `…CommandHandler` | `CreateInvoiceCommand` |
+| controller | `<Verb><Aggregate>Controller` (plural for searches) | `SearchInvoicesController` |
+| exception | `<Aggregate>NotFoundException`, extends the shared base | `InvoiceNotFoundException` |
+| DBAL type | `<Vo>Type` | `AmountType` |
+| migration | `Version<YYYYMMDDHHMMSS>.php` | `Version20260903120000.php` |
 
 ## Tests
 
 ```
-tests/Unit/<Context>/<Aggregate>/Application/<UseCase>/<Handler>Test.php   unitario, repos mockeados
+tests/Unit/<Context>/<Aggregate>/Application/<UseCase>/<Handler>Test.php   unit, repos mocked
 tests/Unit/<Context>/<Aggregate>/Infrastructure/Persistence/…Test.php
-tests/Application/<Context>/<Aggregate>/Controller/<Verb><Aggregate>ControllerTest.php  funcional
+tests/Application/<Context>/<Aggregate>/Controller/<Verb><Aggregate>ControllerTest.php  functional
 ```
 
-- Sufijo `*Test.php` siempre. El árbol de `tests/` se parte primero por TIPO de test (`Unit/`,
-  `Application/`) y solo después replica contexto/agregado.
-- **Object Mother** (`<Aggregate>Mother`, `<Command>Mother`) para construir datos de prueba — nunca
-  constructores desnudos repetidos en cada test.
-- Los tests unitarios no tocan base de datos; los de `Application/` levantan el kernel real y se
-  aíslan por transacción.
+- Always the `*Test.php` suffix. The `tests/` tree is split first by test TYPE (`Unit/`,
+  `Application/`) and only then replicates context/aggregate.
+- **Object Mother** (`<Aggregate>Mother`, `<Command>Mother`) to build test data — never
+  bare constructors repeated in every test.
+- Unit tests don't touch the database; `Application/` tests boot the real kernel and are
+  isolated per transaction.
 
-## Estilo
+## Style
 
-- `declare(strict_types=1);` en todo fichero PHP nuevo, sin excepción.
-- PSR-4 para autoload, PSR-12 como base de formato (lo impone la herramienta `fix` de
-  `commands.md`, no tú a mano).
-- Tipos explícitos en todas las firmas, incluido el retorno; `readonly` en value objects.
-- Constructores privados + named constructors (`::create()`, `::fromPrimitives()`) en agregados y
-  VOs cuando el repo ya lo haga así (ver `precedents.md`).
-- Inyección por constructor; nada de service locators ni de `static` con estado.
+- `declare(strict_types=1);` in every new PHP file, no exceptions.
+- PSR-4 for autoloading, PSR-12 as the formatting baseline (enforced by the `fix` tool from
+  `commands.md`, not by hand).
+- Explicit types in every signature, including the return type; `readonly` on value objects.
+- Private constructors + named constructors (`::create()`, `::fromPrimitives()`) on aggregates and
+  VOs when the repo already does it that way (see `precedents.md`).
+- Constructor injection; no service locators, no `static` with state.
 
-## Extensiones de PHP que este stack asume
+## PHP extensions this stack assumes
 
-`ext-json`, `ext-pdo` (+ el driver de la base: `ext-pdo_mysql`/`ext-pdo_pgsql`), `ext-mbstring`,
-`ext-intl` si hay formateo/localización, `ext-openssl` si hay JWT. **No se declaran en
-`requirements.json`**: su esquema (`os` = binarios, `libs` = paquetes de un gestor) no las modela, y
-`composer` ya las exige por su cuenta. Se listan aquí para que quien diagnostique un fallo de
-entorno sepa dónde mirar.
+`ext-json`, `ext-pdo` (+ the database driver: `ext-pdo_mysql`/`ext-pdo_pgsql`), `ext-mbstring`,
+`ext-intl` if there's formatting/localization, `ext-openssl` if there's JWT. **Not declared in
+`requirements.json`**: its schema (`os` = binaries, `libs` = packages of a manager) doesn't model
+them, and `composer` already requires them on its own. They're listed here so whoever diagnoses an
+environment failure knows where to look.

@@ -1,38 +1,38 @@
 ---
-description: Consulta filtrada de los hallazgos del enjambre — por agente o por tag, solo abiertos por defecto.
-argument-hint: [agente|TAG] [--all]
+description: Filtered query of the swarm's findings — by agent or by tag, open-only by default.
+argument-hint: [agent|TAG] [--all]
 allowed-tools: Bash, Read
 ---
 
-Ejecuta `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-findings.sh` pasándole el argumento del usuario, y
-reporta su salida tal cual — no reformatees ni resumas.
+Run `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-findings.sh` passing it the user's argument, and
+report its output as-is — don't reformat or summarize it.
 
-El argumento es como mucho **un** filtro (nombre de agente o TAG) más el flag opcional `--all`. El
-propio script rechaza cualquier filtro que no case con `[A-Za-z0-9_-]+` y termina con `exit 64` sin
-tocar nada: no intentes "arreglar" un filtro raro ni construir una variante del comando — pásalo
-entrecomillado y deja que el script decida.
+The argument is at most **one** filter (agent name or TAG) plus the optional `--all` flag. The
+script itself rejects any filter that doesn't match `[A-Za-z0-9_-]+` and exits with `exit 64`
+without touching anything: don't try to "fix" a weird filter or build a variant of the command —
+pass it quoted and let the script decide.
 
-En el camino normal no lanza ningún subagente y no consume ningún turno de modelo (spec §11 y
-principio 4). Según el código de salida:
+On the normal path it launches no subagent and consumes no model turn (spec §11 and
+principle 4). Based on the exit code:
 
-- **0** — su salida es el resultado; repórtala tal cual y termina.
-- **1** (no hay `.swarm/`) y **64** (filtro inválido) — muestra su línea de stderr tal cual y
-  termina. Los dos son respuestas correctas del script a una situación que él mismo resuelve; **no
-  son el disparador del fallback** y no justifican ni una lectura extra.
-- **cualquier otro código (2, 127, un traceback…)** — y SOLO entonces, camino degradado: hay
-  entradas que el script no puede clasificar (líneas `- [` sin la cabecera `[key:agente|TAG|…]`,
-  típicamente un `findings/*.md` editado a mano o escrito por una versión distinta) o el script no ha
-  podido ni arrancar. Haz esto, y nada más:
-  1. Muestra primero la línea literal
-     `- warn: modo degradado — swarm-findings.sh falló (exit <código>)`, seguida de lo que el script
-     sí llegó a imprimir.
-  2. Lee con `Read` **como mucho tres** ficheros de `.swarm/findings/` — si el usuario pasó un
-     filtro, el que lleve su nombre primero.
-  3. Lista las entradas **literalmente, sin reinterpretarlas** (≤8 líneas), y di cuáles no traen
-     metadatos y por eso no se pueden filtrar por agente ni por tag.
-  4. **No edites ningún fichero de hallazgos, no "normalices" ninguna entrada, no vuelvas a ejecutar
-     el script y no lances ningún subagente.**
+- **0** — its output is the result; report it as-is and stop.
+- **1** (no `.swarm/`) and **64** (invalid filter) — show its stderr line as-is and
+  stop. Both are correct responses from the script to a situation it resolves itself; **they are
+  not the fallback trigger** and don't justify even one extra read.
+- **any other code (2, 127, a traceback…)** — and ONLY then, degraded path: there are
+  entries the script can't classify (`- [` lines missing the `[key:agent|TAG|…]` header,
+  typically a hand-edited `findings/*.md` or one written by a different version) or the script
+  couldn't even start. Do this, and nothing more:
+  1. Show first the literal line
+     `- warn: degraded mode — swarm-findings.sh failed (exit <code>)`, followed by whatever the
+     script did manage to print.
+  2. Read with `Read` **at most three** files from `.swarm/findings/` — if the user passed a
+     filter, the one matching its name first.
+  3. List the entries **literally, without reinterpreting them** (≤8 lines), and say which ones
+     lack metadata and therefore can't be filtered by agent or tag.
+  4. **Don't edit any findings file, don't "normalize" any entry, don't rerun the script, and
+     don't launch any subagent.**
 
-Argumento del usuario:
+User argument:
 
 $ARGUMENTS

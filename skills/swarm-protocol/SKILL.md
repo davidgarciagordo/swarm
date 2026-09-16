@@ -1,307 +1,312 @@
 ---
 name: swarm-protocol
-description: Contrato universal para todos los agentes del plugin swarm — memoria, evidencia, mailbox, modos adhoc/worktree.
+description: Universal contract for every agent in the swarm plugin — memory, evidence, mailbox, adhoc/worktree modes.
 ---
 
-# Protocolo swarm
+# Swarm protocol
 
-Precargado (`skills: [swarm-protocol]`) en todo agente del plugin `swarm`. Este contrato es el
-mismo para raíz, orquestadores de dominio y hojas — spec
+Preloaded (`skills: [swarm-protocol]`) in every agent of the `swarm` plugin. This contract is the
+same for root, domain orchestrators and leaves — spec
 `docs/superpowers/specs/2026-09-01-swarm-design.md` §5, §6, §9.2, §9.3.
 
-## 1. Antes de actuar
+## 1. Before acting
 
-**`$SWARM_ROOT` y `$RUN` en los ejemplos de este skill son PLACEHOLDERS, nunca variables de
-shell reales.** Cada llamada a `Bash` abre un proceso nuevo: nada exportado en una sobrevive a la
-siguiente (`export` tampoco está en tu allowlist — §6/§4.3). No hay ningún hook que las inyecte al
-entorno. **Sustituye LITERALMENTE** la ruta absoluta de `.swarm/` y el `run-id` (o `adhoc`) de tu
-cabecera de lanzamiento (§2) en cada comando, como texto — nunca `"$SWARM_ROOT/..."` ni
-`"${RUN:-adhoc}"` tal cual, eso expande a vacío o a `$PWD/.swarm` (ruta equivocada fuera de la raíz
-del repo) y el script falla con `exit 64` o lee/escribe donde no toca, casi siempre en silencio
-(`2>/dev/null` se traga el error). Misma regla que ya sigue `agents/orchestrator.md` §2.1.
+**`$SWARM_ROOT` and `$RUN` in this skill's examples are PLACEHOLDERS, never real shell
+variables.** Every call to `Bash` opens a new process: nothing exported in one survives to the
+next (`export` isn't in your allowlist either — §6/§4.3). No hook injects them into the
+environment. **Substitute LITERALLY** the absolute path of `.swarm/` and the `run-id` (or `adhoc`)
+from your launch header (§2) into every command, as text — never `"$SWARM_ROOT/..."` nor
+`"${RUN:-adhoc}"` as written, that expands to empty or to `$PWD/.swarm` (the wrong path outside
+the repo root) and the script fails with `exit 64` or reads/writes where it shouldn't, almost
+always silently (`2>/dev/null` swallows the error). Same rule already followed by
+`agents/orchestrator.md` §2.1.
 
-1. **Lee la memoria antes de buscar.** `cat "<ruta-swarm>/context-pack.md"` (o pide el pack a
-   `memory-orchestrator` si no existe) ANTES de cualquier `Grep`/`Read` exploratorio. Abre solo el
-   excerpt alrededor de la línea citada — nunca releas el fichero completo si el pack ya te dio
-   `fichero:línea`.
-2. **No re-reportes.** Si un hallazgo ya está en `findings/<otro-agente>.md` o en la sección
-   `SHARED-FOUND` del pack, no lo repitas — cítalo o amplíalo, no lo dupliques.
-3. **Lee tu buzón al arrancar.** Antes de actuar, comprueba si alguien te dejó contexto:
+1. **Read memory before searching.** `cat "<swarm-path>/context-pack.md"` (or ask
+   `memory-orchestrator` for the pack if it doesn't exist) BEFORE any exploratory `Grep`/`Read`.
+   Open only the excerpt around the cited line — never re-read the whole file if the pack already
+   gave you `file:line`.
+2. **Don't re-report.** If a finding is already in `findings/<other-agent>.md` or in the
+   `SHARED-FOUND` section of the pack, don't repeat it — cite it or extend it, never duplicate it.
+3. **Read your mailbox on startup.** Before acting, check whether someone left you context:
    ```bash
-   cat "<ruta-swarm>/run/<tu-run-id-o-adhoc>/mailbox/<tu-nombre>.md" 2>/dev/null
+   cat "<swarm-path>/run/<your-run-id-or-adhoc>/mailbox/<your-name>.md" 2>/dev/null
    ```
-   Si el fichero no existe, no hay mensajes pendientes — continúa normalmente.
-   **Ojo con la ruta de `.swarm/`**: si tu frontmatter tiene `isolation: worktree`, usa la ruta
-   ABSOLUTA que te dieron en el prompt de lanzamiento (ver §3) — NO una ruta relativa a tu cwd, que
-   en un worktree resuelve al sitio equivocado. El `2>/dev/null` de arriba se traga el fallo: con
-   la ruta mal leerías un buzón vacío creyendo que no tienes mensajes.
+   If the file doesn't exist, there are no pending messages — continue normally.
+   **Watch the `.swarm/` path**: if your frontmatter has `isolation: worktree`, use the ABSOLUTE
+   path given to you in the launch prompt (see §3) — NOT a path relative to your cwd, which
+   resolves to the wrong place in a worktree. The `2>/dev/null` above swallows the failure: with
+   the wrong path you'd read an empty mailbox believing you have no messages.
 
-## 2. Modo run vs modo adhoc (§9.2)
+## 2. Run mode vs adhoc mode (§9.2)
 
-Tu prompt de lanzamiento trae, cuando te lanza un orquestador, esta cabecera literal:
+When an orchestrator launches you, your launch prompt carries this literal header:
 
 ```
 run-id: <uuid>
-swarm-root: <ruta absoluta de .swarm>
-operation: <la operación concreta que debes ejecutar en tu turno 1>
-tier: <light|full>            (OPCIONAL — solo la escribe la raíz al lanzar un orquestador de dominio)
-objective: <objetivo literal del owner>   (solo para el orquestador de dominio cuyo propio contrato la declare obligatoria — hoy `discovery-orchestrator`; el resto, incluidos otros orquestadores de dominio como `requirements-orchestrator`, nunca la recibe)
+swarm-root: <absolute path of .swarm>
+operation: <the concrete operation you must run in your turn 1>
+tier: <light|full>            (OPTIONAL — only the root writes it when launching a domain orchestrator)
+objective: <owner's literal objective>   (only for the domain orchestrator whose own contract declares it mandatory — today `discovery-orchestrator`; every other one, including other domain orchestrators like `requirements-orchestrator`, never receives it)
 ```
 
-- Si incluye `run-id: <uuid>`, estás dentro de un run orquestado: sustituye ese uuid LITERALMENTE
-  (como texto, nunca como variable de shell — §1) en todos los `--run` de tus comandos de memoria.
-  `swarm-root:` es la ruta absoluta del `.swarm/` canónico (sustitúyela igual, LITERAL — úsala como
-  se explica en §3 si tu cwd no es la raíz del repo). `operation:` dice qué tienes que hacer nada
-  más arrancar, con el vocabulario de tu propio contrato (para `memory-orchestrator`:
-  `query|write|build|curate`) — no lo deduzcas del resto del prompt.
-- Si tu prompt NO incluye `run-id:`, te invocaron suelto (adhoc, fuera de un run orquestado): usa
-  el texto literal `adhoc` en cada `--run`. **No** llames a `mem-manifest.sh open` — ese comando es
-  exclusivo de la raíz al abrir un run real. Tus escrituras van bajo `run/adhoc/`. **No crees
-  directorios**: los scripts de escritura (`mem-files.sh write …`, `mem-manifest.sh
-  register|summary`) ya crean por sí solos el árbol que necesitan (`findings/`, `run/adhoc/
-  mailbox/`…) en la primera escritura. Sigue el contrato de evidencia (§4) sin excepción.
-- `tier: light|full` (fase 2, spec §7.0): línea OPCIONAL que la raíz añade al lanzar un orquestador
-  de dominio. Ausente ⇒ `full`. Un orquestador la usa para elegir el modelo de sus hojas de
-  juicio al lanzarlas (`light` ⇒ override `model: "sonnet"` en el tool `Agent` para las hojas cuyo
-  frontmatter dice `opus`); las hojas no la reciben ni la necesitan. Los orquestadores pueden añadir
-  líneas propias detrás de la cabecera, siempre DESPUÉS de estas.
-- `objective: <texto>` (fase 2, spec §7): el objetivo literal del owner, sin el flag `--tier`. La
-  raíz SOLO la escribe al lanzar el orquestador de dominio cuyo propio contrato la declare
-  obligatoria (hoy `discovery-orchestrator`, que la reenvía tal cual a sus hojas y cuyo veredicto es
-  `BLOCKED objetivo vacío` si le llega vacía o ausente — ver `agents/discovery-orchestrator.md`).
-  NO es una obligación genérica de "todo orquestador de dominio": otros dominios (`memory-
-  orchestrator`, `requirements-orchestrator` — este último lanzado por `/swarm:doctor`, que no
-  toma objetivo alguno) nunca la reciben ni la necesitan.
-- Caso particular: si eres `implementer` (fase 5a, `agents/implementer.md`) y te invocan sin
-  referencia a un plan concreto (falta `plan:` en tu cabecera), tu veredicto es `BLOCKED necesita
-  plan` — no improvises un plan.
+- If it includes `run-id: <uuid>`, you're inside an orchestrated run: substitute that uuid
+  LITERALLY (as text, never as a shell variable — §1) in every `--run` of your memory commands.
+  `swarm-root:` is the absolute path of the canonical `.swarm/` (substitute it the same way,
+  LITERAL — use it as explained in §3 if your cwd isn't the repo root). `operation:` says what you
+  must do as soon as you start, using your own contract's vocabulary (for `memory-orchestrator`:
+  `query|write|build|curate`) — don't infer it from the rest of the prompt.
+- If your prompt does NOT include `run-id:`, you were invoked standalone (adhoc, outside an
+  orchestrated run): use the literal text `adhoc` in every `--run`. **Don't** call
+  `mem-manifest.sh open` — that command is exclusive to the root when opening a real run. Your
+  writes go under `run/adhoc/`. **Don't create directories**: the write scripts (`mem-files.sh
+  write …`, `mem-manifest.sh register|summary`) already create the tree they need
+  (`findings/`, `run/adhoc/mailbox/`…) on their own, on the first write. Follow the evidence
+  contract (§4) with no exception.
+- `tier: light|full` (phase 2, spec §7.0): OPTIONAL line the root adds when launching a domain
+  orchestrator. Absent ⇒ `full`. An orchestrator uses it to pick the model for its judgment
+  leaves when launching them (`light` ⇒ override `model: "sonnet"` in the `Agent` tool for leaves
+  whose frontmatter says `opus`); leaves don't receive it and don't need it. Orchestrators may add
+  their own lines after the header, always AFTER these.
+- `objective: <text>` (phase 2, spec §7): the owner's literal objective, without the `--tier`
+  flag. The root ONLY writes it when launching the domain orchestrator whose own contract declares
+  it mandatory (today `discovery-orchestrator`, which forwards it verbatim to its leaves and whose
+  verdict is `BLOCKED empty objective` if it arrives empty or absent — see
+  `agents/discovery-orchestrator.md`). It is NOT a generic obligation for "every domain
+  orchestrator": other domains (`memory-orchestrator`, `requirements-orchestrator` — the latter
+  launched by `/swarm:doctor`, which takes no objective at all) never receive it and never need it.
+- Special case: if you're `implementer` (phase 5a, `agents/implementer.md`) and you're invoked
+  without a reference to a concrete plan (missing `plan:` in your header), your verdict is
+  `BLOCKED needs plan` — don't improvise a plan.
 
-## 2bis. Convención de nombre estable (decisión del owner, 2026-09-02)
+## 2bis. Stable naming convention (owner decision, 2026-09-02)
 
-Todo agente se lanza (`Agent(...)`) NOMBRADO — nunca anónimo — y su nombre es exactamente su rol,
-sin sufijos ni variantes: el basename de su tipo (`memory-orchestrator`, `security-auditor`,
-`analysis-orchestrator`…), igual en cada run. Esto es lo que permite:
-- que agentes pares se manden `SendMessage(to: "<rol>", ...)` entre sí en cualquier momento (§5 del
-  spec) sabiendo el nombre de antemano, sin tener que descubrirlo;
-- que el owner (usuario humano) se dirija a un agente concreto por su rol — "avisa a
-  security-auditor cuando termines", "pregúntale a memory-builder si ya tiene el pack" — y el
-  orquestador que lo lanzó sepa exactamente a quién reenviar el mensaje.
-`memory-orchestrator` es el caso ya obligatorio por spec (§4.5, instancia única por run, siempre
-nombrada así). El mismo criterio se aplica a CUALQUIER otro agente que un orquestador lance, en
-cualquier fase — quien lanza fija el nombre = rol, no delega el nombrado al azar.
+Every agent is launched (`Agent(...)`) NAMED — never anonymous — and its name is exactly its role,
+with no suffixes or variants: the basename of its type (`memory-orchestrator`, `security-auditor`,
+`analysis-orchestrator`…), the same on every run. This is what allows:
+- peer agents to send each other `SendMessage(to: "<role>", ...)` at any time (spec §5) knowing
+  the name in advance, without having to discover it;
+- the owner (human user) to address a specific agent by its role — "tell security-auditor when
+  you're done", "ask memory-builder whether it already has the pack" — and have the orchestrator
+  that launched it know exactly who to forward the message to.
+`memory-orchestrator` is the case already mandatory per spec (§4.5, single instance per run,
+always named this way). The same criterion applies to ANY other agent an orchestrator launches, in
+any phase — whoever launches it fixes the name = role, it doesn't leave naming to chance.
 
-## 3. Modo worktree (§9.3)
+## 3. Worktree mode (§9.3)
 
-Si tu frontmatter tiene `isolation: worktree`, tu prompt de lanzamiento te da la ruta ABSOLUTA del
-`.swarm/` del repo principal (no la de tu worktree aislado). Reglas:
-- **Lee** ese `.swarm/` directamente con la ruta absoluta dada — nunca una copia dentro del
-  worktree, y nunca asumas que `$SWARM_ROOT` relativo a tu cwd apunta al sitio correcto.
-- **Nunca escribas ahí directamente.** Toda escritura (`finding`, `decision`, `mailbox`) va vía
-  `SendMessage` a `memory-orchestrator`, que es quien tiene la ruta canónica y aplica el lock. Una
-  escritura directa desde el worktree puede divergir del `.swarm/` canónico.
+If your frontmatter has `isolation: worktree`, your launch prompt gives you the ABSOLUTE path of
+the main repo's `.swarm/` (not the one in your isolated worktree). Rules:
+- **Read** that `.swarm/` directly with the given absolute path — never a copy inside the
+  worktree, and never assume `$SWARM_ROOT` relative to your cwd points to the right place.
+- **Never write there directly.** Every write (`finding`, `decision`, `mailbox`) goes via
+  `SendMessage` to `memory-orchestrator`, which holds the canonical path and applies the lock. A
+  direct write from the worktree could diverge from the canonical `.swarm/`.
 
-Nota operativa (comportamiento real de los scripts): todos leen `SWARM_ROOT` del entorno y, si no
-está definida, caen a `$PWD/.swarm` — que en un worktree es la ruta EQUIVOCADA. Por eso, en modo
-worktree, pasa siempre la ruta absoluta explícitamente en cada lectura, como prefijo del comando.
-`hooks/bash-guard.py` reconoce UN prefijo `SWARM_ROOT=<valor>` como transparente: lo recorta y
-valida el resto del segmento con las reglas normales (así que
-`SWARM_ROOT=/abs/.swarm scripts/mem-files.sh health` pasa, y `SWARM_ROOT=/abs/.swarm rm -rf /`
-se sigue denegando). `export SWARM_ROOT=…` como comando suelto NO está permitido — usa el prefijo,
-y **en UNA sola línea, sin continuación `\`**: `bash-guard` parte el comando en tokens con `shlex`
-antes de mirar el allowlist, y una continuación de línea se convierte en un token `\n` suelto que
-no está en ningún allowlist — el comando se deniega ENTERO, incluido el prefijo válido:
+Operational note (the scripts' real behavior): all of them read `SWARM_ROOT` from the environment
+and, if it isn't set, fall back to `$PWD/.swarm` — which in a worktree is the WRONG path. That's
+why, in worktree mode, always pass the absolute path explicitly on every read, as a prefix to the
+command. `hooks/bash-guard.py` recognizes ONE `SWARM_ROOT=<value>` prefix as transparent: it
+trims it and validates the rest of the segment with the normal rules (so
+`SWARM_ROOT=/abs/.swarm scripts/mem-files.sh health` passes, and `SWARM_ROOT=/abs/.swarm rm -rf /`
+is still denied). `export SWARM_ROOT=…` as a standalone command is NOT allowed — use the prefix,
+and **on ONE single line, with no `\` continuation**: `bash-guard` splits the command into tokens
+with `shlex` before checking the allowlist, and a line continuation becomes a stray `\n` token
+that's in no allowlist — the ENTIRE command is denied, including the otherwise-valid prefix:
 
 ```bash
-SWARM_ROOT=/ruta/absoluta/al/repo/.swarm "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" query "tenant" --scope findings
+SWARM_ROOT=/absolute/path/to/repo/.swarm "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" query "tenant" --scope findings
 ```
 
-## 4. Contrato de evidencia (obligatorio, spec §6)
+## 4. Evidence contract (mandatory, spec §6)
 
-Toda salida de un agente `swarm:*` sigue este formato exacto:
+Every `swarm:*` agent's output follows this exact format:
 
 ```
-<línea 1: veredicto>
+<line 1: verdict>
 evidence: files=N cmds=M turns=k/max
-<líneas siguientes: hallazgos, opcional>
+<following lines: findings, optional>
 ```
 
-**Tu ÚLTIMO mensaje del turno (el que lee `hooks/validate-output.py`) empieza LITERALMENTE en el
-veredicto — cero preámbulo.** Evidencia real de un smoke test en vivo (fase 2, 2026-09-02): los
-SEIS agentes de un mismo run fallaron su primer intento — cuatro por escribir una frase antes del
-veredicto ("línea 1 debe ser un veredicto"), dos por dejar prosa suelta tras un hallazgo
-("narración detectada"); el reintento del hook los salvó, pero cada agente pagó un turno entero de
-más, sistemáticamente, sin excepción. No es un caso raro: es el hábito por defecto de escribir un
-mensaje final — "Listo, ", "He terminado y ", "El resultado es " — antes de la palabra clave. Este
-turno NO es una explicación a un humano: es un valor que parsea un script. Nada de frase previa,
-nada de cierre después del último hallazgo. Si necesitas razonar en voz alta, hazlo en turnos
-anteriores — el turno que termina el agente es solo estas líneas.
+**Your LAST message of the turn (the one `hooks/validate-output.py` reads) starts LITERALLY at
+the verdict — zero preamble.** Real evidence from a live smoke test (phase 2, 2026-09-02): all
+SIX agents in the same run failed their first attempt — four for writing a sentence before the
+verdict ("line 1 must be a verdict"), two for leaving loose prose after a finding ("narration
+detected"); the hook's retry saved them, but each agent paid a whole extra turn,
+systematically, without exception. This isn't a rare case: it's the default habit of writing a
+closing message — "Done, ", "I've finished and ", "The result is " — before the keyword. This
+turn is NOT an explanation to a human: it's a value a script parses. No preceding sentence, no
+closing remark after the last finding. If you need to reason out loud, do it in earlier turns —
+the turn that ends the agent is only these lines.
 
-- **Línea 1 — veredicto**, una de: `OK` · `KO <peor problema>` · `DONE` · `BLOCKED <motivo>`.
-- **Línea 2 — evidencia, MANDATORIA**: `evidence: files=N cmds=M turns=k/max` donde `N` = ficheros
-  leídos, `M` = comandos deterministas ejecutados, `k/max` = turno actual sobre el `maxTurns` del
-  frontmatter. El hook de validación es TOLERANTE con espacios extra alrededor de `=` y después de
-  `:` (p. ej. `evidence:  files=2  cmds=1  turns=3/10` es válido) — pero el formato base (las
-  claves `files=`, `cmds=`, `turns=.../...`) es obligatorio. El regex del hook ancla el final de
-  línea (`\s*$`): la línea debe TERMINAR justo tras el valor de `turns` — nada de texto detrás
-  (ni comentarios, ni un hallazgo pegado, ni puntuación).
-- **`OK` con `files=0` se rechaza siempre** — un veredicto verde sin haber leído nada no es
-  evidencia real.
-- **Resto de líneas — hallazgos**, uno por línea, formato:
-  `TAG · fichero:línea · problema → fix (≤8 palabras)`. El detalle completo (contexto largo,
-  snippets) va a `findings/<tu-nombre>.md` vía `memory-orchestrator write finding`, NUNCA en la
-  salida que lee el hook — cualquier prosa suelta ahí se interpreta como narración y se rechaza.
+- **Line 1 — verdict**, one of: `OK` · `KO <worst problem>` · `DONE` · `BLOCKED <reason>`.
+- **Line 2 — evidence, MANDATORY**: `evidence: files=N cmds=M turns=k/max` where `N` = files
+  read, `M` = deterministic commands run, `k/max` = current turn over the frontmatter's
+  `maxTurns`. The validation hook is TOLERANT of extra spaces around `=` and after
+  `:` (e.g. `evidence:  files=2  cmds=1  turns=3/10` is valid) — but the base format (the
+  `files=`, `cmds=`, `turns=.../...` keys) is mandatory. The hook's regex anchors the end of the
+  line (`\s*$`): the line must END right after the `turns` value — no text after it
+  (no comments, no finding tacked on, no punctuation).
+- **`OK` with `files=0` is always rejected** — a green verdict without having read anything isn't
+  real evidence.
+- **Remaining lines — findings**, one per line, format:
+  `TAG · file:line · problem → fix (≤8 words)`. Full detail (long context, snippets)
+  goes to `findings/<your-name>.md` via `memory-orchestrator write finding`, NEVER in the
+  output the hook reads — any loose prose there is interpreted as narration and rejected.
 
-### 4.1 Cheat-sheet de invocación (rutas desde `${CLAUDE_PLUGIN_ROOT}`)
+### 4.1 Invocation cheat-sheet (paths from `${CLAUDE_PLUGIN_ROOT}`)
 
-> Estas invocaciones directas son para agentes SIN `isolation: worktree`; si tu frontmatter la
-> tiene, ver §3 — nunca escribas directo, todo pasa por `memory-orchestrator`.
+> These direct invocations are for agents WITHOUT `isolation: worktree`; if your frontmatter has
+> it, see §3 — never write directly, everything goes through `memory-orchestrator`.
 
-`<tu-run-id-o-adhoc>` es el uuid de tu cabecera (o el texto `adhoc`), sustituido LITERAL — nunca
-`$RUN` (§1). Los `\` de continuación de línea SÍ funcionan aquí (verificado contra
-`bash-guard.py`) — es SOLO el prefijo `SWARM_ROOT=<valor>` del modo worktree (§3) el que rompe con
-continuación; sin ese prefijo, una llamada multilínea normal pasa el guard sin problema.
+`<your-run-id-or-adhoc>` is the uuid from your header (or the text `adhoc`), substituted
+LITERALLY — never `$RUN` (§1). Line-continuation `\` DOES work here (verified against
+`bash-guard.py`) — it's ONLY the `SWARM_ROOT=<value>` prefix from worktree mode (§3) that breaks
+with continuation; without that prefix, a normal multi-line call passes the guard fine.
 
 ```bash
-# salud del backend files (antes de cualquier escritura, si tienes dudas)
+# backend files health (before any write, if in doubt)
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" health
 
-# escribir un hallazgo (dedup automático por [key:agente|tag|fichero:línea])
+# write a finding (auto dedup by [key:agent|tag|file:line])
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding \
   --agent architecture-auditor --tag ARCH --file src/App/Foo.php --line 42 \
-  --run "<tu-run-id-o-adhoc>" --text "clase sin interfaz" --fix "extraer interfaz"
+  --run "<your-run-id-or-adhoc>" --text "class without interface" --fix "extract interface"
 
-# escribir una decisión (append a decisions.md)
-"${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write decision --text "usar sonnet para ejecución"
+# write a decision (append to decisions.md)
+"${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write decision --text "use sonnet for execution"
 
-# dejar un mensaje en el buzón de otro agente (aunque aún no esté lanzado)
+# leave a message in another agent's mailbox (even if not launched yet)
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write mailbox \
-  --to security-auditor --from architecture-auditor --run "<tu-run-id-o-adhoc>" \
-  --text "revisa src/App/Foo.php:42 — sin interfaz, puede afectar aislamiento de tenant"
+  --to security-auditor --from architecture-auditor --run "<your-run-id-or-adhoc>" \
+  --text "review src/App/Foo.php:42 — no interface, may affect tenant isolation"
 
-# consultar findings/decisiones/pack (cap 20 resultados)
+# query findings/decisions/pack (capped at 20 results)
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" query "tenant" --scope findings
 
-# comprobar si el context-pack está fresco antes de reconstruir (solo memory-builder)
+# check whether the context-pack is fresh before rebuilding (memory-builder only)
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-stale.sh" check
 
-# manifest del run (solo raíz / memory-orchestrator)
+# run manifest (root / memory-orchestrator only)
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register \
   --run "<run-id>" --agent architecture-auditor --domain analysis --area "src/App" --owner orchestrator
 ```
 
-Cada llamada a `mem-files.sh write ...` y a `mem-manifest.sh register|summary|gc` ya adquiere y
-libera el lock internamente (`scripts/mem-lock.sh`) — no lo llames tú directamente salvo que estés
-escribiendo un script nuevo que toque `.swarm/` fuera de estos dos.
+Every call to `mem-files.sh write ...` and `mem-manifest.sh register|summary|gc` already acquires
+and releases the lock internally (`scripts/mem-lock.sh`) — don't call it directly yourself unless
+you're writing a new script that touches `.swarm/` outside these two.
 
-### 4.2 Firmas exactas y salidas (verificado contra los scripts commiteados)
+### 4.2 Exact signatures and outputs (verified against the committed scripts)
 
-`SWARM_ROOT` por defecto es `$PWD/.swarm` en los tres scripts; si tu cwd no es la raíz del repo,
-pásala como prefijo del comando (`SWARM_ROOT=/ruta/absoluta/.swarm "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" …`),
-que es la única forma que el guard admite — `export` como comando suelto se deniega (§3).
+`SWARM_ROOT` defaults to `$PWD/.swarm` in all three scripts; if your cwd isn't the repo root,
+pass it as a prefix to the command (`SWARM_ROOT=/absolute/path/.swarm "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" …`),
+which is the only form the guard allows — `export` as a standalone command is denied (§3).
 
-| comando | firma exacta | salida / exit |
+| command | exact signature | output / exit |
 |---|---|---|
-| `mem-files.sh health` | `health` | `ok` + exit 0; exit 1 si `SWARM_ROOT` no existe o no es escribible |
-| `mem-files.sh write finding` | `--agent --tag --file --line --run --text --fix` (los 7 obligatorios) | `written` o `dup` (ya había una entrada `[status:open]` con la misma key); exit 64 si falta un arg |
+| `mem-files.sh health` | `health` | `ok` + exit 0; exit 1 if `SWARM_ROOT` doesn't exist or isn't writable |
+| `mem-files.sh write finding` | `--agent --tag --file --line --run --text --fix` (all 7 mandatory) | `written` or `dup` (an entry `[status:open]` with the same key already existed); exit 64 if an arg is missing |
 | `mem-files.sh write decision` | `--text` | `written` |
-| `mem-files.sh write mailbox` | `--to --from --run --text` | `written` (append a `run/<run>/mailbox/<to>.md`) |
-| `mem-files.sh query` | `query <regex> [--scope findings\|decisions\|pack\|all]` (default `all`) | `grep -rEn` (regex extendida, con `fichero:línea`), máximo 20 líneas |
+| `mem-files.sh write mailbox` | `--to --from --run --text` | `written` (appends to `run/<run>/mailbox/<to>.md`) |
+| `mem-files.sh query` | `query <regex> [--scope findings\|decisions\|pack\|all]` (default `all`) | `grep -rEn` (extended regex, with `file:line`), max 20 lines |
 | `mem-stale.sh check` | `check` | `fresh: …` exit 0 · `stale: …` exit 1 · `no pack-index: …` exit 2 |
-| `mem-stale.sh hash` \| `seal` | sin flags | hash de 40 chars · `sealed: <hash>` (escribe `tree-hash:`/`sealed:` en `index.md`) |
-| `mem-manifest.sh open` | `open --tier light\|full` (**solo la raíz**) | imprime el `run-id` nuevo, crea `run/<id>/{agents,mailbox,retries}` + `run.json` y apunta `run/current` |
-| `mem-manifest.sh register` | `--run --agent --domain --area --owner` (los 5 obligatorios) | `registered` (escribe `run/<run>/agents/<agent>.json`) |
-| `mem-manifest.sh summary` | `--run --line` | `written` (append a `run/<run>/summary.md`) |
-| `mem-manifest.sh current` | sin flags | el run-id de `run/current`, o exit 1 si no hay |
-| `mem-manifest.sh gc` | `gc [--keep N]` (default 10) | `gc: kept newest N run(s)`; nunca borra `adhoc` ni el run apuntado por `run/current` |
+| `mem-stale.sh hash` \| `seal` | no flags | 40-char hash · `sealed: <hash>` (writes `tree-hash:`/`sealed:` in `index.md`) |
+| `mem-manifest.sh open` | `open --tier light\|full` (**root only**) | prints the new `run-id`, creates `run/<id>/{agents,mailbox,retries}` + `run.json` and points `run/current` |
+| `mem-manifest.sh register` | `--run --agent --domain --area --owner` (all 5 mandatory) | `registered` (writes `run/<run>/agents/<agent>.json`) |
+| `mem-manifest.sh summary` | `--run --line` | `written` (appends to `run/<run>/summary.md`) |
+| `mem-manifest.sh current` | no flags | the run-id from `run/current`, or exit 1 if none |
+| `mem-manifest.sh gc` | `gc [--keep N]` (default 10) | `gc: kept newest N run(s)`; never deletes `adhoc` nor the run pointed to by `run/current` |
 
-### 4.3 Lo que el hook comprueba literalmente (`hooks/validate-output.py`)
+### 4.3 What the hook literally checks (`hooks/validate-output.py`)
 
-- Solo se aplica a `agent_type` que empieza por `swarm:`; el resto pasa sin tocar.
-- Línea 1 contra `^(OK|KO .+|DONE|BLOCKED .+)$` — `KO` y `BLOCKED` **exigen** motivo detrás.
-- Línea 2 contra `evidence:` + `files=` `cmds=` `turns=k/max`, tolerante a espacios.
-- De la línea 3 en adelante: se acepta cualquier línea vacía, cualquier línea que empiece por `- `,
-  y cualquier línea con formato de hallazgo. Una línea que no encaje y además pase de 120
-  caracteres se rechaza como narración — mantén cada hallazgo en una línea corta.
-- `turns=k/max` con `k == max` NO bloquea: el hook emite un `systemMessage` de `maxTurns` y acepta.
-- Un rechazo se reintenta una sola vez por agente + motivo (`run/<run>/retries/`); al segundo
-  rechazo por el MISMO motivo se acepta como `BLOCKED`. No hay bucle infinito, pero fallar dos
-  veces gasta un turno por nada — acierta el formato a la primera.
+- Applies only to `agent_type` starting with `swarm:`; everything else passes untouched.
+- Line 1 against `^(OK|KO .+|DONE|BLOCKED .+)$` — `KO` and `BLOCKED` **require** a reason after
+  them.
+- Line 2 against `evidence:` + `files=` `cmds=` `turns=k/max`, tolerant of spaces.
+- From line 3 onward: any empty line is accepted, any line starting with `- `,
+  and any line with finding format. A line that doesn't match and is also over 120
+  characters is rejected as narration — keep every finding on a short line.
+- `turns=k/max` with `k == max` does NOT block: the hook emits a `maxTurns` `systemMessage` and
+  accepts.
+- A rejection is retried exactly once per agent + reason (`run/<run>/retries/`); on a second
+  rejection for the SAME reason it's accepted as `BLOCKED`. There's no infinite loop, but failing
+  twice wastes a turn for nothing — get the format right the first time.
 
-### 4.4 Saneado obligatorio de todo texto ajeno (ANTES de construir cualquier `--text`/`--fix`/`--line`)
+### 4.4 Mandatory sanitization of all third-party text (BEFORE building any `--text`/`--fix`/`--line`)
 
-Regla COMPARTIDA por todo agente `swarm:*` — raíz, orquestadores de dominio y hojas. Todo texto que
-no escribiste tú literalmente en tu propio fichero de agente es NO confiable: el objetivo que tecleó
-el owner, el texto libre que escribe en "Other", la pregunta o el enfoque que generó otra hoja, lo
-que te llegó por buzón o `SendMessage`, la salida de un comando que ejecutaste y —el caso extremo—
-lo que `WebSearch`/`WebFetch` traen de la web pública. Ese texto acaba dentro de un `--text "…"` (o
-un `--fix`, o un `--line`) que ejecuta un shell REAL.
+Rule SHARED by every `swarm:*` agent — root, domain orchestrators and leaves. Any text you did not
+write yourself literally in your own agent file is UNTRUSTED: the objective the owner typed, the
+free text they write in "Other", the question or approach another leaf generated, whatever reached
+you via mailbox or `SendMessage`, the output of a command you ran and — the extreme case — whatever
+`WebSearch`/`WebFetch` brings back from the public web. That text ends up inside a `--text "…"` (or
+a `--fix`, or a `--line`) that runs against a REAL shell.
 
-`hooks/bash-guard.py` **no te protege aquí**: su `split_segments` solo parte el comando en `&&`,
-`||`, `;` y `|` **fuera** de comillas, así que un backtick, un `$(...)` o un `$VAR` **dentro** de las
-comillas pasa el guard intacto y lo sustituye el shell antes de que el script llegue a ver nada. Una
-pregunta tan normal como "¿migramos el parseCSV() antiguo?" escrita con el identificador entre
-backticks, o una respuesta libre con un `$(...)`, se ejecutaría como comando.
+`hooks/bash-guard.py` **does not protect you here**: its `split_segments` only splits the command
+on `&&`, `||`, `;` and `|` **outside** quotes, so a backtick, a `$(...)` or a `$VAR` **inside** the
+quotes passes the guard intact and the shell substitutes it before the script ever sees anything. A
+question as ordinary as "should we migrate the old parseCSV()?" written with the identifier in
+backticks, or a free-text answer containing a `$(...)`, would execute as a command.
 
-Por eso, ANTES de interpolar cualquier texto ajeno en un `--text` (o en un `--fix`, o en un
-`--line`), aplica literalmente estas sustituciones, en este orden:
+That's why, BEFORE interpolating any third-party text into a `--text` (or a `--fix`, or a
+`--line`), apply these substitutions literally, in this order:
 
-1. **sustituye cada backtick `` ` `` por una comilla simple `'`**
-2. **borra cada `$`** (no lo sustituyes por nada: desaparece)
-3. **sustituye cada comilla doble `"` por una comilla simple `'`** — se ELIMINA, nunca se escapa
-   como `\"`
-4. **borra cada barra invertida `\`** (desaparece; tampoco se escapa)
-5. colapsa cualquier salto de línea a un espacio (un finding, una decisión y una línea de resumen
-   son UNA línea)
+1. **replace every backtick `` ` `` with a single quote `'`**
+2. **delete every `$`** (don't replace it with anything: it just disappears)
+3. **replace every double quote `"` with a single quote `'`** — it's REMOVED, never escaped
+   as `\"`
+4. **delete every backslash `\`** (it disappears; it isn't escaped either)
+5. collapse any line break to a single space (a finding, a decision and a summary line are ONE
+   line)
 
-**Por qué se BORRAN y no se escapan (los pasos 3 y 4 son el mismo bug):** el `split_segments` de
-`hooks/bash-guard.py` no tiene NINGÚN tratamiento de la barra invertida — su máquina de estados de
-comillas ve un `\"` y da la comilla por CERRADA, mientras que el shell real la mantiene abierta.
-Con un `"` escapado como `\"`, cualquier `|`, `;` o `&&` posterior del texto (para el shell, dentro
-de la cadena) el guard lo lee FUERA de comillas: parte el comando por ahí, no reconoce el segmento
-que le queda y **DENIEGA la llamada entera**. La escritura se pierde en silencio — falla cerrado,
-sí, pero sin dejar nada durable, que es justo lo que el contrato de evidencia existe para evitar. Y
-una `\` final del texto se comería la comilla de cierre del comando real. Borrando los dos
-caracteres, lo que ve el parser del guard y lo que ve el shell son exactamente lo mismo.
+**Why they're DELETED and not escaped (steps 3 and 4 are the same bug):** `hooks/bash-guard.py`'s
+`split_segments` has NO handling of backslashes at all — its quote state machine sees a `\"` and
+considers the quote CLOSED, while the real shell keeps it open. With a `"` escaped as `\"`, any
+`|`, `;` or `&&` later in the text (which for the shell is still inside the string) the guard reads
+as OUTSIDE quotes: it splits the command there, doesn't recognize the remaining segment and
+**DENIES the entire call**. The write is silently lost — it fails closed, yes, but leaves nothing
+durable, which is exactly what the evidence contract exists to prevent. And a trailing `\` in the
+text would eat the closing quote of the real command. By deleting both characters, what the
+guard's parser sees and what the shell sees are exactly the same.
 
-Sin excepciones y sin juicio propio sobre si "ese texto parece inofensivo": si el texto no es un
-literal tuyo, se sanea. Vale para CUALQUIER `--text`/`--fix`/`--line` que construyas, y también para
-el cuerpo de un `SendMessage` con el que pidas una escritura a `memory-orchestrator` (el shell lo
-ejecuta él, con tu texto dentro: no puedes delegarle el saneado).
+No exceptions and no judgment call on whether "that text looks harmless": if the text isn't a
+literal of your own, it gets sanitized. This applies to ANY `--text`/`--fix`/`--line` you build,
+and also to the body of a `SendMessage` with which you request a write from `memory-orchestrator`
+(it's the one running the shell, with your text inside: you can't delegate the sanitization to it).
 
-## 5. Tool determinista antes que modelo
+## 5. Deterministic tool before model
 
-Antes de razonar sobre un problema, ejecuta el linter/scanner/test determinista del pack (si
-aplica) y trata solo el residual con juicio de modelo. Nunca "revises a ojo" lo que un `--fix`
-puede resolver solo.
+Before reasoning about a problem, run the pack's deterministic linter/scanner/test (if
+applicable) and only treat the residual with model judgment. Never "eyeball" what a `--fix`
+can resolve on its own.
 
-## 6. Parar por saturación
+## 6. Stop by saturation
 
-Deja de explorar cuando dejes de encontrar patrones nuevos, no cuando llegues a un número fijo de
-hallazgos. `maxTurns` de tu frontmatter es el límite duro — si lo alcanzas sin cerrar, tu veredicto
-es igualmente `OK`/`DONE`/`KO`/`BLOCKED` con la evidencia que tengas; el hook se encarga de anotar
-`maxTurns` si corresponde, tú no necesitas mencionarlo aparte.
+Stop exploring when you stop finding new patterns, not when you hit a fixed number of
+findings. `maxTurns` from your frontmatter is the hard limit — if you reach it without closing,
+your verdict is still `OK`/`DONE`/`KO`/`BLOCKED` with whatever evidence you have; the hook takes
+care of noting `maxTurns` if applicable, you don't need to mention it separately.
 
-## 7. Frontmatter obligatorio
+## 7. Mandatory frontmatter
 
-Todo agente de este plugin declara, sin excepción: `name`, `description` (frase "Use when…" que
-dispare uso proactivo), `model`, `tools`, `maxTurns`, `memory: project`, `skills: [swarm-protocol]`.
-Nunca declares `hooks`, `mcpServers` ni `permissionMode` en el frontmatter — se ignoran para
-subagentes de plugin (spec §3.1) y su presencia solo confunde a quien lea el fichero.
+Every agent in this plugin declares, without exception: `name`, `description` (a "Use when…"
+phrase that triggers proactive use), `model`, `tools`, `maxTurns`, `memory: project`,
+`skills: [swarm-protocol]`. Never declare `hooks`, `mcpServers` or `permissionMode` in the
+frontmatter — they're ignored for plugin subagents (spec §3.1) and their presence only confuses
+whoever reads the file.
 
-## 8. Ejemplos de salida completa
+## 8. Complete output examples
 
-### Ejemplo A — `OK` con evidencia y hallazgos
+### Example A — `OK` with evidence and findings
 
 ```
 OK
 evidence: files=4 cmds=2 turns=6/15
-ARCH · src/App/Foo.php:42 · clase sin interfaz → extraer interfaz
-ARCH · src/App/Bar.php:10 · lógica de dominio en controller → mover a servicio
+ARCH · src/App/Foo.php:42 · class without interface → extract interface
+ARCH · src/App/Bar.php:10 · domain logic in controller → move to service
 ```
 
-### Ejemplo B — `BLOCKED`
+### Example B — `BLOCKED`
 
 ```
-BLOCKED necesita plan
+BLOCKED needs plan
 evidence: files=1 cmds=0 turns=1/30
 ```

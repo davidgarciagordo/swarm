@@ -1,35 +1,36 @@
 ---
-description: Muestra el estado del enjambre en este repo — run actual, tier, agentes registrados, summary y hallazgos abiertos.
+description: Shows the swarm's status in this repo — current run, tier, registered agents, summary and open findings.
 allowed-tools: Bash, Read
 ---
 
-Ejecuta `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-status.sh` y reporta su salida al usuario tal cual — no
-reformatees, no resumas y no añadas interpretación: ya es un resumen en texto plano, y cualquier
-reescritura le quita al usuario los valores exactos (run-id, tier, conteos) que ha pedido ver.
+Run `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-status.sh` and report its output to the user as-is — don't
+reformat it, don't summarize it, and don't add interpretation: it's already a plain-text summary,
+and any rewriting strips the user of the exact values (run-id, tier, counts) they asked to see.
 
-`/swarm:status` no toma argumentos: cualquier texto que el usuario añada tras el comando se ignora.
-En el camino normal **no lanza ningún subagente y no consume ningún turno de modelo** — leer `.swarm/`
-y formatear no necesita juicio (spec §11 y principio 4: tool determinista antes que modelo).
+`/swarm:status` takes no arguments: any text the user adds after the command is ignored. On the
+normal path it **launches no subagent and consumes no model turn** — reading `.swarm/`
+and formatting doesn't need judgment (spec §11 and principle 4: deterministic tool before model).
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/swarm-status.sh"
 ```
 
-Según el código de salida del script:
+Based on the script's exit code:
 
-- **0** — su salida es el resultado. Repórtala tal cual y **termina ahí**: ninguna tool más.
-- **1** — no hay `.swarm/`. Muestra su línea de stderr tal cual (dice que se arregla con
-  `/swarm:init`) y termina. **No es un fallo del script**: es la respuesta correcta.
-- **cualquier otro código (2, 127, un traceback…)** — y SOLO entonces, camino degradado: el script no
-  ha podido interpretar los datos (un `run.json` truncado por un run interrumpido o escrito por otra
-  versión del plugin; entradas de `findings/*.md` sin la cabecera `[key:…]` esperada) o no ha podido
-  ni arrancar. Haz esto, y nada más:
-  1. Muestra primero la línea literal
-     `- warn: modo degradado — swarm-status.sh falló (exit <código>)`, seguida de la salida que el
-     script sí llegó a producir.
-  2. Lee **como mucho tres** ficheros, con `Read`, y solo estos: `.swarm/run/current`,
-     `.swarm/run/<ese id>/run.json` y `.swarm/run/<ese id>/summary.md`.
-  3. Resume en **≤8 líneas**: qué run parece el actual, qué se puede leer de él y qué no.
-  4. **No vuelvas a ejecutar el script, no lo "arregles", no toques ningún fichero de `.swarm/` y no
-     lances ningún subagente.** Un resultado degradado se presenta SIEMPRE como degradado; nunca
-     rellenes con suposiciones el hueco que el script no pudo leer.
+- **0** — its output is the result. Report it as-is and **stop there**: no further tool calls.
+- **1** — no `.swarm/` exists. Show its stderr line as-is (it says this is fixed with
+  `/swarm:init`) and stop. **This is not a script failure**: it's the correct response.
+- **any other code (2, 127, a traceback…)** — and ONLY then, degraded path: the script couldn't
+  parse the data (a `run.json` truncated by an interrupted run, or written by another plugin
+  version; `findings/*.md` entries missing the expected `[key:…]` header) or it couldn't even
+  start. Do this, and nothing more:
+  1. Show first the literal line
+     `- warn: degraded mode — swarm-status.sh failed (exit <code>)`, followed by whatever output
+     the script did manage to produce.
+  2. Read **at most three** files, with `Read`, and only these: `.swarm/run/current`,
+     `.swarm/run/<that id>/run.json` and `.swarm/run/<that id>/summary.md`.
+  3. Summarize in **≤8 lines**: which run looks current, what can be read from it, and what
+     cannot.
+  4. **Don't rerun the script, don't "fix" it, don't touch any file under `.swarm/`, and don't
+     launch any subagent.** A degraded result is ALWAYS presented as degraded; never fill in with
+     assumptions the gap the script couldn't read.

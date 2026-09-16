@@ -5,43 +5,43 @@ description: Stack pack for PHP + DDD + Symfony 8 repositories — detection mar
 
 # pack-php-ddd-symfony8
 
-Primer stack pack del plugin `swarm` (spec §8, §8.1 fila 1). **No se invoca: se LEE.** El
-orquestador de dominio resuelve la ruta absoluta de este directorio y la pasa como línea de
-cabecera `pack: <ruta>` en el prompt de la hoja; la hoja hace `Read` de los ficheros que necesita
-(spec §3.1 — nunca se muta frontmatter en runtime, nunca se precarga como skill).
+First stack pack of the `swarm` plugin (spec §8, §8.1 row 1). **It's not invoked: it's READ.** The
+domain orchestrator resolves this directory's absolute path and passes it as a header line
+`pack: <path>` in the leaf's prompt; the leaf does a `Read` of the files it needs
+(spec §3.1 — frontmatter is never mutated at runtime, it's never preloaded as a skill).
 
-## Detección
+## Detection
 
-| marcador | condición exacta | resultado |
+| marker | exact condition | result |
 |---|---|---|
-| `composer.json` | existe en la raíz del repo **y** contiene una referencia a `symfony/` en CUALQUIER parte del fichero (no solo dentro de `require`) | `stack: php-ddd-symfony8` |
+| `composer.json` | exists at the repo root **and** contains a reference to `symfony/` ANYWHERE in the file (not only inside `require`) | `stack: php-ddd-symfony8` |
 
-Es exactamente lo que ya implementa `scripts/mem-scan.sh` (un `grep -q "symfony/"` sobre el
-fichero entero, sin acotarlo a ninguna sección) y lo que `memory-builder` escribe como línea
-`stack:` en `.swarm/context-pack.md`. Sin ese marcador, el stack es `generic` y ninguna hoja
-recibe la línea `pack:` — cada una cae en su modo genérico documentado.
+This is exactly what `scripts/mem-scan.sh` already implements (a `grep -q "symfony/"` over the
+whole file, not scoped to any section) and what `memory-builder` writes as the `stack:` line in
+`.swarm/context-pack.md`. Without that marker, the stack is `generic` and no leaf
+receives the `pack:` line — each falls back to its documented generic mode.
 
-## Qué contiene
+## What it contains
 
-| fichero | para quién | contenido |
+| file | for whom | content |
 |---|---|---|
-| `commands.md` | `quality-fixer`, `test-writer`, `implementer`, `migration-engineer`, `vulnerability-scanner`, `dependency-auditor` | forma canónica de cada comando determinista, con su condición de detección y su ejecutor |
-| `conventions.md` | `implementer`, `test-writer`, `quality-fixer`, `data-model-auditor`, `doc-writer`, `vulnerability-scanner` | capas, layout de directorios, naming, estilo, extensiones de PHP esperadas |
-| `boundaries.md` | `implementer`, `test-writer`, `quality-fixer`, `migration-engineer` (escriben), `data-model-auditor`, `vulnerability-scanner` (read-only) | qué NO se toca nunca |
-| `precedents.md` | `doc-writer` | patrones ya en uso que se reutilizan antes de introducir uno nuevo |
-| `requirements.json` | `requirements-orchestrator` → `env-checker` | requisitos de OS/proyecto/librerías que este stack añade a los del plugin |
+| `commands.md` | `quality-fixer`, `test-writer`, `implementer`, `migration-engineer`, `vulnerability-scanner`, `dependency-auditor` | canonical form of each deterministic command, with its detection condition and its executor |
+| `conventions.md` | `implementer`, `test-writer`, `quality-fixer`, `data-model-auditor`, `doc-writer`, `vulnerability-scanner` | layers, directory layout, naming, style, expected PHP extensions |
+| `boundaries.md` | `implementer`, `test-writer`, `quality-fixer`, `migration-engineer` (write), `data-model-auditor`, `vulnerability-scanner` (read-only) | what is NEVER touched |
+| `precedents.md` | `doc-writer` | patterns already in use, reused before introducing a new one |
+| `requirements.json` | `requirements-orchestrator` → `env-checker` | OS/project/library requirements this stack adds to the plugin's own |
 
-**Dos patrones de consumo distintos** (no confundirlos): `data-model-auditor`,
+**Two distinct consumption patterns** (don't confuse them): `data-model-auditor`,
 `vulnerability-scanner`, `dependency-auditor`, `quality-fixer`, `test-writer`, `implementer`,
-`migration-engineer`, `doc-writer` reciben la ruta ya resuelta del pack como línea `pack:` de su
-propia cabecera de lanzamiento (el orquestador de dominio la inyecta) y hacen `Read` directo de
-los ficheros que necesitan. `pattern-advisor`/`domain-modeler` NO reciben ninguna línea `pack:` —
-solo honran el `stack:` que ya viene declarado en `.swarm/context-pack.md` (spec §8), sin resolver
-ni leer ningún fichero del pack directamente.
+`migration-engineer`, `doc-writer` receive the pack's already-resolved path as the `pack:` line of
+their own launch header (the domain orchestrator injects it) and do a direct `Read` of
+the files they need. `pattern-advisor`/`domain-modeler` receive NO `pack:` line at all —
+they only honor the `stack:` already declared in `.swarm/context-pack.md` (spec §8), without
+resolving or reading any pack file directly.
 
-## Regla de precedencia
+## Precedence rule
 
-Lo que diga este pack GANA sobre el conocimiento genérico de la hoja, y las entradas de su
-`requirements.json` ganan sobre las homónimas del `requirements.json` del plugin (spec §7:
-misma clave de identidad → gana el pack). Lo que el pack NO cubre, la hoja lo resuelve con su
-criterio genérico — un pack incompleto nunca bloquea, solo deja de aportar.
+What this pack says WINS over the leaf's generic knowledge, and its `requirements.json`
+entries win over the equivalent ones in the plugin's `requirements.json` (spec §7:
+same identity key → the pack wins). Whatever the pack does NOT cover, the leaf resolves with its
+own generic judgment — an incomplete pack never blocks, it just stops contributing.

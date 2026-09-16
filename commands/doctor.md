@@ -1,27 +1,26 @@
 ---
-description: Verifica los requisitos de entorno del repo (OS/proyecto) contra requirements.json — health-gate de dependencias del enjambre.
+description: Verifies the repo's environment requirements (OS/project) against requirements.json — health-gate for swarm dependencies.
 allowed-tools: Agent, Read, Bash, SendMessage
 ---
 
-SIEMPRE invoca el tool `Agent` con `subagent_type: swarm:requirements-orchestrator`, `name:
-"requirements-orchestrator"` y el siguiente `prompt`, EXACTAMENTE así, sin excepción — nunca
-respondas tú mismo, nunca pidas aclaración antes de invocar: el propio
-`requirements-orchestrator` decide si los requisitos están satisfechos y devuelve su propio
-veredicto.
+ALWAYS invoke the `Agent` tool with `subagent_type: swarm:requirements-orchestrator`, `name:
+"requirements-orchestrator"` and the following `prompt`, EXACTLY as written, no exceptions — never
+answer yourself, never ask for clarification before invoking: `requirements-orchestrator` itself
+decides whether the requirements are satisfied and returns its own verdict.
 
 ```
 operation: check
 ```
 
-`/swarm:doctor` no toma argumentos: cualquier texto que el usuario añada tras el comando se
-ignora (el chequeo de requisitos no tiene parámetros). Como no viene de un run abierto por la
-raíz, `requirements-orchestrator` se lanza sin `run-id:` en la cabecera — él mismo lo detecta y
-opera en modo adhoc (protocolo §2), igual que cualquier hoja invocada suelta.
+`/swarm:doctor` takes no arguments: any text the user adds after the command is ignored (the
+requirements check has no parameters). Since it doesn't come from a run opened by the root,
+`requirements-orchestrator` is launched without `run-id:` in the header — it detects this itself
+and operates in adhoc mode (protocol §2), just like any leaf invoked standalone.
 
-El chequeo que dispara `/swarm:doctor` incluye ahora, además del `requirements.json` del propio
-plugin, el del stack pack activo si `.swarm/context-pack.md` declara uno — la fusión la hace
-`scripts/req-check.sh --pack` y la decide `requirements-orchestrator` (agents/
-requirements-orchestrator.md, "Fusión de `requirements.json`"), no este comando. `/swarm:doctor`
-**nunca instala nada**: no tiene `AskUserQuestion` en sus `allowed-tools`, así que no puede
-obtener la aprobación que `dependency-installer` exige; una instalación se pide siempre por
-`/swarm:run` (raíz, `agents/orchestrator.md` §11).
+The check that `/swarm:doctor` triggers now includes, in addition to the plugin's own
+`requirements.json`, that of the active stack pack if `.swarm/context-pack.md` declares one — the
+merge is done by `scripts/req-check.sh --pack` and decided by `requirements-orchestrator` (agents/
+requirements-orchestrator.md, "requirements.json Merge"), not by this command. `/swarm:doctor`
+**never installs anything**: it has no `AskUserQuestion` in its `allowed-tools`, so it cannot
+obtain the approval that `dependency-installer` requires; an installation is always requested via
+`/swarm:run` (root, `agents/orchestrator.md` §11).

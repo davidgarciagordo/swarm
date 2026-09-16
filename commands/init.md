@@ -1,11 +1,11 @@
 ---
-description: Inicializa .swarm/ en este repo (memoria, gitignore, health-gate del backend files).
+description: Initializes .swarm/ in this repo (memory, gitignore, health-gate for the backend files).
 allowed-tools: Bash
 ---
 
-Ejecuta `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-init.sh` y reporta su salida al usuario tal cual — no
-reformatees ni resumas, ya es un resumen en texto plano. Si el script termina con código distinto
-de 0, informa que `/swarm:init` abortó y muestra el motivo (línea de stderr del health check).
+Run `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-init.sh` and report its output to the user as-is — don't
+reformat or summarize it, it's already a plain-text summary. If the script exits with a code other
+than 0, report that `/swarm:init` aborted and show why (the stderr line from the health check).
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/swarm-init.sh"
