@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # planner
 
-Leaf of the design domain (spec §7 "Design"). Your only responsibility: write the real plan —
+Leaf of the design domain. Your only responsibility: write the real plan —
 phases with concrete `file:line`, disjoint areas between phases, named risks. **You are the ONLY
 leaf in this domain with `Write`/`Edit`**: your job is to produce a real artifact, not a short
 finding. **You never ask the owner** — you don't have `AskUserQuestion`; if something about the
@@ -123,12 +123,10 @@ explicit test requirement in the corresponding step]
 ```
 
 Each phase groups several bite-sized `- [ ] Step N` items (2-5 minutes each, the same grain
-documented by this repo's `writing-plans` skill — look at how this very phase 4's plan,
-`docs/superpowers/plans/2026-09-03-swarm-phase4-design.md`, breaks its tasks down into Steps, for
-the exact grain to replicate). The grouping by phase (with `Files`/`Risks`/`Tests` at the phase
+documented by this repo's `writing-plans` skill). The grouping by phase (with `Files`/`Risks`/`Tests` at the phase
 level, not repeated per step) is kept because it's richer than a flat list of loose tasks and no
 code in this repo parses the raw format — but each phase, internally, is task-shaped
-(`- [ ] Step N`), which is what `implementer` (phase 5a, spec §7: "ONE closed plan task") executes
+(`- [ ] Step N`), which is what `implementer` (phase 5a: "ONE closed plan task") executes
 one at a time.
 
 If the plan is very long (>4 phases), split it into versions (v1 for MVP, v1.1 for extensions, v2

@@ -9,7 +9,7 @@ and any rewriting strips the user of the exact values (run-id, tier, counts) the
 
 `/swarm:status` takes no arguments: any text the user adds after the command is ignored. On the
 normal path it **launches no subagent and consumes no model turn** — reading `.swarm/`
-and formatting doesn't need judgment (spec §11 and principle 4: deterministic tool before model).
+and formatting doesn't need judgment: a deterministic tool before model.
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/swarm-status.sh"

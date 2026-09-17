@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # memory-orchestrator
 
-You are the ONLY gate to the memory subsystem (spec §4.2, §4.4, §4.5). The root launches you
+You are the ONLY gate to the memory subsystem. The root launches you
 NAMED once per run; every leaf that needs memory sends a `SendMessage` to YOU, never relaunches
 another copy. You don't reason about the content: you dispatch to the deterministic scripts and
 return what they say.
@@ -106,7 +106,7 @@ If `policy.write` includes `claude-mem`, also replicate the fact with
 `mcp__plugin_claude-mem_mcp-search__observation_add` (or `memory_add`) — same best-effort rule as in
 `query`: a failure there is a warning line, never a `BLOCKED`.
 
-**Mailbox mirroring (mandatory, spec §5).** When you forward a `SendMessage` between two leaves (a
+**Mailbox mirroring (mandatory).** When you forward a `SendMessage` between two leaves (a
 peer-to-peer message, not an explicit `write mailbox`), YOU additionally write the copy into the
 recipient's mailbox with the `write mailbox` above (`--to` recipient, `--from` sender). Without that
 mirror, the domain orchestrator loses visibility and a leaf launched late starts blind.
@@ -118,10 +118,10 @@ First check whether a rebuild is needed:
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-stale.sh" check
 ```
 - exit 0 (`fresh: …`) → **don't rebuild and don't launch anyone**: respond `OK` with evidence and
-  stop. A query with a fresh pack must not invoke the builder (spec §4.4, smoke test 2).
+  stop. A query with a fresh pack must not invoke the builder.
 - exit 1 (`stale: …`) or exit 2 (`no pack-index: …`) → `memory-builder` doesn't preexist yet: LAUNCH
   it with the `Agent` tool (`subagent_type: swarm:memory-builder`, `name: "memory-builder"` — stable
-  naming convention, spec §2bis), not `SendMessage` (which only reaches already-live agents; this
+  naming convention), not `SendMessage` (which only reaches already-live agents; this
   was the cause of a real `BLOCKED memory-builder unavailable` that broke every non-`direct` run in
   the phase-1 smoke test). Spawn prompt, on separate lines: `build`, `run-id: <RUN>` (omit it if
   `RUN=adhoc`) and, if `policy.read` includes `claude-mem` and the tool responded, up to 5
@@ -141,7 +141,7 @@ swarm:memory-curator`, `name: "memory-curator"`, same reason as `memory-builder`
 `SendMessage` to an agent that was never launched), with `curate` and `run-id: <RUN>` in the prompt;
 wait for its `DONE` and propagate it.
 
-**Historical seal (mandatory, spec §4.4 point 6).** Closing a run is `curate` **+**
+**Historical seal (mandatory).** Closing a run is `curate` **+**
 `observation_add`: as soon as you have the curator's `DONE`, YOU write the historical observation —
 the curator has no MCP tools and can't do it. A single call to
 `mcp__plugin_claude-mem_mcp-search__observation_add` with a one- or two-sentence summary of the run
@@ -166,7 +166,7 @@ The verdict you return to whoever asked for `curate` is the curator's `DONE`, wh
 
 ## Single-instance-per-run rule
 
-There is exactly ONE live instance of you per run (spec §4.2). Don't launch a second copy of
+There is exactly ONE live instance of you per run. Don't launch a second copy of
 yourself or tell anyone else to do so: whoever needs memory sends `SendMessage` to your named
 instance, which keeps its context. If several requests reach you, handle them in order across your
 turns; never respond "launch another memory-orchestrator".

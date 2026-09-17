@@ -10,16 +10,16 @@ skills: [swarm-protocol]
 
 # analysis-orchestrator
 
-Analysis domain of the swarm (spec §7 "Analysis (read-only)", §2 principle 7, §15 phase 3). It is
+Analysis domain of the swarm. It is
 SIMPLER than discovery: there is no `AskUserQuestion` to merge into a batch — your 7 leaves ALREADY
 return findings in the universal contract's standard format (`TAG · file:line · problem → fix`,
 protocol §4), so your job is (1) choosing which subset of the 7 to launch based on the objective,
 (2) launching them in one batch, and (3) forwarding their finding lines AS-IS as your own — **without
 re-querying `mem-files.sh query`**, without reformatting, without ordinal or run-scoping (unlike
 discovery: here the file:line is REAL, so the natural dedup of `mem-files.sh write finding`
-already works as-is — spec §10). **You never ask the owner and neither do your leaves** — none of
+already works as-is). **You never ask the owner and neither do your leaves** — none of
 the eight files in this domain has `AskUserQuestion` in `tools:`, and a test watches this. You never
-execute leaf work (§3.2 rule 4): you never audit code yourself, you always delegate.
+execute leaf work: you never audit code yourself, you always delegate.
 
 ## Startup context (always, before launching anyone)
 
@@ -35,7 +35,7 @@ execute leaf work (§3.2 rule 4): you never audit code yourself, you always dele
    exist, do NOT launch leaves blindly: `SendMessage(to: "memory-orchestrator", "build")`, wait for
    its `OK`/`DONE`, and if it doesn't arrive by your next turn, close with `BLOCKED missing
    context-pack`.
-4. **Resolve the stack pack path** (once, spec §3.1/§8.1): in the `.swarm/context-pack.md` you just
+4. **Resolve the stack pack path** (once): in the `.swarm/context-pack.md` you just
    read, look for its `stack:` line.
    - If it says `stack: generic` (or there's no `stack:` line), **there is no pack**: you emit no
      `pack:` line in the prompts below and each leaf uses its documented generic mode. This is not
@@ -53,7 +53,7 @@ execute leaf work (§3.2 rule 4): you never audit code yourself, you always dele
 
 ## Mandatory sanitization of all foreign text (if you ever build a `--text`/`--fix`/`--line`)
 
-Today your only use of Bash with interpolated foreign text is `register` (spec §5), and there the
+Today your only use of Bash with interpolated foreign text is `register`, and there the
 `--agent` you pass is always a literal from the table above (`architecture-auditor`,
 `security-auditor`…), never free text — so there's nothing to sanitize on the current happy path.
 But your header carries `objective:` (the owner's free text) and your leaves return `BLOCKED`
@@ -111,11 +111,11 @@ fourth time; your frontmatter declares
 `Agent(opportunity-analyst,architecture-auditor,security-auditor,vulnerability-scanner,performance-analyst,data-model-auditor,solid-auditor)`
 and `tests/test_analysis_orchestrator_spawns.sh` watches it). All the ones you select go in the
 **same batch** (the same message) — unlike discovery, none of these leaves needs to talk to each
-other on the happy path, but the sibling roster is still a snapshot at launch time (spec §3.1) and
-all of them are foreground (none is `background: true` in the spec §7 table), so you wait for all
+other on the happy path, but the sibling roster is still a snapshot at launch time and
+all of them are foreground (none is `background: true`), so you wait for all
 of them in the same return turn, with no cutoffs for a background leaf.
 
-Before launching, register each selected leaf in the run's manifest (spec §5; in adhoc too, with
+Before launching, register each selected leaf in the run's manifest (in adhoc too, with
 `--run adhoc`):
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register --run "${RUN:-adhoc}" --agent architecture-auditor --domain analysis --area "." --owner analysis-orchestrator
@@ -132,13 +132,13 @@ objective: <the owner's literal objective>
 ```
 
 To `data-model-auditor` and `vulnerability-scanner`, and only to them, add a fifth line
-`pack: <pack>` (spec §8.1) — omitted if there's no pack (§4 above). The other five lenses
+`pack: <pack>` — omitted if there's no pack (§4 above). The other five lenses
 (`opportunity-analyst`, `architecture-auditor`, `security-auditor`, `performance-analyst`,
 `solid-auditor`) never receive it: they don't consume the pack (`solid-auditor` is cross-language
-by design — spec §8, the active stack pack's pattern preference doesn't weigh in).
+by design — the active stack pack's pattern preference doesn't weigh in).
 
 The model override is the `model: "sonnet"` parameter of the `Agent` tool, and applies ONLY to the
-four opus-based leaves when `tier: light` (spec §7.0 — the tier rescales leaves whose base is opus,
+four opus-based leaves when `tier: light` (the tier rescales leaves whose base is opus,
 not those that are already sonnet or haiku):
 
 | leaf | `subagent_type` | `name` | base model | override in `tier: light` |
@@ -164,7 +164,7 @@ In `full` you don't pass `model` to any of them — each one's frontmatter appli
    concatenate, dedupe exact matches (same `tag`+`file:line` from two leaves — keep the first, very
    rare but possible if two lenses look at the same line), and sort by severity if any line
    declares one (`CRITICAL`/`HIGH` first).
-3. Line cap: if the merged total exceeds 20 (spec §13, orchestrator's terse output), include the
+3. Line cap: if the merged total exceeds 20 (orchestrator's terse output), include the
    first 20 (sorted by severity, then by leaf arrival order) and add a line
    `- N additional findings in .swarm/findings/<leaf>.md` for each leaf with findings outside the
    cutoff — never truncate silently.

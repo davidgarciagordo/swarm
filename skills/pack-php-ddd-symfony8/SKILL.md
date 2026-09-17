@@ -5,10 +5,10 @@ description: Stack pack for PHP + DDD + Symfony 8 repositories — detection mar
 
 # pack-php-ddd-symfony8
 
-First stack pack of the `swarm` plugin (spec §8, §8.1 row 1). **It's not invoked: it's READ.** The
+First stack pack of the `swarm` plugin. **It's not invoked: it's READ.** The
 domain orchestrator resolves this directory's absolute path and passes it as a header line
 `pack: <path>` in the leaf's prompt; the leaf does a `Read` of the files it needs
-(spec §3.1 — frontmatter is never mutated at runtime, it's never preloaded as a skill).
+(frontmatter is never mutated at runtime, it's never preloaded as a skill).
 
 ## Detection
 
@@ -36,12 +36,12 @@ receives the `pack:` line — each falls back to its documented generic mode.
 `migration-engineer`, `doc-writer` receive the pack's already-resolved path as the `pack:` line of
 their own launch header (the domain orchestrator injects it) and do a direct `Read` of
 the files they need. `pattern-advisor`/`domain-modeler` receive NO `pack:` line at all —
-they only honor the `stack:` already declared in `.swarm/context-pack.md` (spec §8), without
+they only honor the `stack:` already declared in `.swarm/context-pack.md`, without
 resolving or reading any pack file directly.
 
 ## Precedence rule
 
 What this pack says WINS over the leaf's generic knowledge, and its `requirements.json`
-entries win over the equivalent ones in the plugin's `requirements.json` (spec §7:
-same identity key → the pack wins). Whatever the pack does NOT cover, the leaf resolves with its
+entries win over the equivalent ones in the plugin's `requirements.json` (same identity key →
+the pack wins). Whatever the pack does NOT cover, the leaf resolves with its
 own generic judgment — an incomplete pack never blocks, it just stops contributing.

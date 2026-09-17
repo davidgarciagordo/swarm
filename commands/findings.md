@@ -12,8 +12,8 @@ script itself rejects any filter that doesn't match `[A-Za-z0-9_-]+` and exits w
 without touching anything: don't try to "fix" a weird filter or build a variant of the command —
 pass it quoted and let the script decide.
 
-On the normal path it launches no subagent and consumes no model turn (spec §11 and
-principle 4). Based on the exit code:
+On the normal path it launches no subagent and consumes no model turn: a deterministic tool
+before model. Based on the exit code:
 
 - **0** — its output is the result; report it as-is and stop.
 - **1** (no `.swarm/`) and **64** (invalid filter) — show its stderr line as-is and

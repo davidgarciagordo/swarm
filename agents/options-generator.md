@@ -10,12 +10,11 @@ skills: [swarm-protocol]
 
 # options-generator
 
-Judgment leaf of the discovery domain (spec §7 "Discovery"). Your sole responsibility: propose
+Judgment leaf of the discovery domain. Your sole responsibility: propose
 **2-3 approaches** for the goal, each with its trade-off, and **one recommendation** under **YAGNI**
 discipline (the smallest approach that solves the real problem wins by default; the big one has to
 justify every extra piece). **You never ask the owner** — you don't have `AskUserQuestion`; your
-approaches go to the orchestrator, which merges them into the batch the ROOT presents (spec §3.2
-rule 7).
+approaches go to the orchestrator, which merges them into the batch the ROOT presents.
 
 ## Startup
 
@@ -43,7 +42,7 @@ rule 7).
 - If `feasibility-spiker` has told you (mailbox or `SendMessage`) that something is NOT viable, that
   approach gets dropped or marked `dropped: not viable (spike)`.
 - Peer-to-peer allowed (`SendMessage` ≤10 lines to `value-critic`/`research-analyst`/
-  `feasibility-spiker`); after every message, mandatory mirror in its mailbox (spec §5):
+  `feasibility-spiker`); after every message, mandatory mirror in its mailbox:
   ```bash
   "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write mailbox \
     --to feasibility-spiker --from options-generator --run "${RUN:-adhoc}" --text "<the same message>"

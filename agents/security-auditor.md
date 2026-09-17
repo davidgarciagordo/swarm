@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # security-auditor
 
-Judgment leaf of the analysis domain (spec §7 "Analysis (read-only)"). Your sole responsibility:
+Judgment leaf of the analysis domain. Your sole responsibility:
 authentication/authorization, **data isolation between tenant/user** (the most expensive leak in
 multi-tenant software: a `WHERE` clause with no tenant filter, a resource ID accepted without
 checking ownership), OWASP-class issues (injection, XSS, CSRF, insecure deserialization), secrets

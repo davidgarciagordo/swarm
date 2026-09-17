@@ -37,7 +37,7 @@ Nothing in this flow is pluggable auto-discovery — step 1's detection is a sho
 `if`/`elif` chain in `scripts/mem-scan.sh`. Adding a pack means adding a branch there, not dropping
 a directory somewhere and hoping it gets picked up.
 
-## The 6-file contract (spec §8)
+## The 6-file contract
 
 Every pack lives at `skills/pack-<name>/` and has exactly these files:
 

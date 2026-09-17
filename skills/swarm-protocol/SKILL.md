@@ -6,8 +6,7 @@ description: Universal contract for every agent in the swarm plugin — memory, 
 # Swarm protocol
 
 Preloaded (`skills: [swarm-protocol]`) in every agent of the `swarm` plugin. This contract is the
-same for root, domain orchestrators and leaves — spec
-`docs/superpowers/specs/2026-09-01-swarm-design.md` §5, §6, §9.2, §9.3.
+same for root, domain orchestrators and leaves.
 
 ## 1. Before acting
 
@@ -62,12 +61,12 @@ objective: <owner's literal objective>   (only for the domain orchestrator whose
   write …`, `mem-manifest.sh register|summary`) already create the tree they need
   (`findings/`, `run/adhoc/mailbox/`…) on their own, on the first write. Follow the evidence
   contract (§4) with no exception.
-- `tier: light|full` (phase 2, spec §7.0): OPTIONAL line the root adds when launching a domain
+- `tier: light|full` (phase 2): OPTIONAL line the root adds when launching a domain
   orchestrator. Absent ⇒ `full`. An orchestrator uses it to pick the model for its judgment
   leaves when launching them (`light` ⇒ override `model: "sonnet"` in the `Agent` tool for leaves
   whose frontmatter says `opus`); leaves don't receive it and don't need it. Orchestrators may add
   their own lines after the header, always AFTER these.
-- `objective: <text>` (phase 2, spec §7): the owner's literal objective, without the `--tier`
+- `objective: <text>` (phase 2): the owner's literal objective, without the `--tier`
   flag. The root ONLY writes it when launching the domain orchestrator whose own contract declares
   it mandatory (today `discovery-orchestrator`, which forwards it verbatim to its leaves and whose
   verdict is `BLOCKED empty objective` if it arrives empty or absent — see
@@ -83,12 +82,12 @@ objective: <owner's literal objective>   (only for the domain orchestrator whose
 Every agent is launched (`Agent(...)`) NAMED — never anonymous — and its name is exactly its role,
 with no suffixes or variants: the basename of its type (`memory-orchestrator`, `security-auditor`,
 `analysis-orchestrator`…), the same on every run. This is what allows:
-- peer agents to send each other `SendMessage(to: "<role>", ...)` at any time (spec §5) knowing
+- peer agents to send each other `SendMessage(to: "<role>", ...)` at any time knowing
   the name in advance, without having to discover it;
 - the owner (human user) to address a specific agent by its role — "tell security-auditor when
   you're done", "ask memory-builder whether it already has the pack" — and have the orchestrator
   that launched it know exactly who to forward the message to.
-`memory-orchestrator` is the case already mandatory per spec (§4.5, single instance per run,
+`memory-orchestrator` is a case already mandatory (single instance per run,
 always named this way). The same criterion applies to ANY other agent an orchestrator launches, in
 any phase — whoever launches it fixes the name = role, it doesn't leave naming to chance.
 
@@ -117,7 +116,7 @@ that's in no allowlist — the ENTIRE command is denied, including the otherwise
 SWARM_ROOT=/absolute/path/to/repo/.swarm "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" query "tenant" --scope findings
 ```
 
-## 4. Evidence contract (mandatory, spec §6)
+## 4. Evidence contract (mandatory)
 
 Every `swarm:*` agent's output follows this exact format:
 
@@ -290,7 +289,7 @@ care of noting `maxTurns` if applicable, you don't need to mention it separately
 Every agent in this plugin declares, without exception: `name`, `description` (a "Use when…"
 phrase that triggers proactive use), `model`, `tools`, `maxTurns`, `memory: project`,
 `skills: [swarm-protocol]`. Never declare `hooks`, `mcpServers` or `permissionMode` in the
-frontmatter — they're ignored for plugin subagents (spec §3.1) and their presence only confuses
+frontmatter — they're ignored for plugin subagents and their presence only confuses
 whoever reads the file.
 
 ## 8. Complete output examples

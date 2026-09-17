@@ -47,10 +47,6 @@ ejecuta tu objetivo — ver §3 más abajo. `/swarm:init` sigue existiendo como 
 vez quieres ejecutar ese paso a mano (usuarios avanzados, CI) — simplemente ya no es algo que
 necesites conocer ni ejecutar primero.
 
-Si algún día este plugin se publica en un marketplace, la instalación pasaría por el flujo normal de
-marketplace de plugins de Claude Code (`/plugin install swarm` o equivalente) — pero esa vía todavía
-no existe, así que no sigas instrucciones que la den por hecha.
-
 ## 3. Empezar rápido — el único comando que necesitas
 
 ```
@@ -92,9 +88,8 @@ por su cuenta.
 
 Internamente solo lanza `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-init.sh` y reporta el resumen en texto
 plano del propio script tal cual — si el script termina con código distinto de cero, el comando
-informa que `/swarm:init` abortó y muestra la línea de stderr que explica por qué (de
-`docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md`, ítem 1: el resultado esperado es
-`.swarm/` creado, `memory.json` con el backend `files` requerido, `decisions.md` con su cabecera, el
+informa que `/swarm:init` abortó y muestra la línea de stderr que explica por qué (el resultado
+esperado es `.swarm/` creado, `memory.json` con el backend `files` requerido, `decisions.md` con su cabecera, el
 bloque `.gitignore` marcado `# swarm`, y el health-gate en verde).
 
 ### `/swarm:run "<objetivo>"`
@@ -162,8 +157,7 @@ y elige el/los dominio(s) que aplican:
   discovery+design siempre se detiene con un fichero de plan revisable en vez de proceder en
   silencio a construir código.
 
-**Ejemplo real** (`docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md`, ítems 2, 6 y 7 —
-verificado en vivo):
+**Ejemplo real:**
 
 ```
 /swarm:run "audita memoria"
@@ -171,7 +165,7 @@ verificado en vivo):
 Resultado (tras un fix real de un bug a mitad de smoke): pack reconstruido de verdad
 (`context-pack.md` con una línea real `stack: php-ddd-symfony8`), `index.md` sellado, run cerrado
 con `curate`. Un segundo run idéntico contra el mismo repo sin cambios NO reconstruye el pack — el
-chequeo de staleness lo evita (ítem 3).
+chequeo de staleness lo evita.
 
 ```
 /swarm:run
@@ -200,12 +194,10 @@ reimplementar la lógica de presencia de herramientas él mismo. El `requirement
 plugin declara hoy `git`, `python3` y `uuidgen` como `required: true`, y `jq`, `gh`, `docker` como
 opcionales. Ejemplo real, ejecutado contra el propio checkout del plugin (que tiene las tres
 herramientas requeridas):
-`docs/superpowers/plans/2026-09-02-phase1b-smoke-checklist.md`, ítem 1, confirma que
 `requirements-orchestrator` lanza a `env-checker` (nombrado exactamente `env-checker`, con `Agent`,
 nunca `SendMessage`) y el veredicto final es `OK`. Si falta una herramienta requerida, el veredicto
 es `BLOCKED <tool>` con el hint de instalación de `requirements.json` (comando `brew`/`apt`),
-propagado literalmente desde `env-checker` hasta lo que ves — verificado directamente contra el
-script en el ítem 2 de ese mismo checklist.
+propagado literalmente desde `env-checker` hasta lo que ves.
 
 ### `/swarm:status`
 
@@ -275,7 +267,7 @@ cualquier otro dominio sea mejor y más barata. Sí ves su efecto: un pack recon
 el resumen del run, y un segundo run idéntico contra un repo sin cambios se salta visiblemente la
 reconstrucción.
 
-**Ejemplo real** (checklist de smoke de fase 1, ítems 2–3): el primer `/swarm:run "audita memoria"
+**Ejemplo real:** el primer `/swarm:run "audita memoria"
 --tier=light` reconstruyó `context-pack.md` con una línea real `stack: php-ddd-symfony8` y selló
 `index.md`; el run idéntico repetido justo después, con el repo sin tocar, dejó la fecha de
 modificación de `context-pack.md` sin cambios — confirmando que el chequeo de staleness
@@ -314,7 +306,7 @@ nombrando la herramienta exacta que falta más su hint de instalación (un coman
 `- instalado: ...` / `- modificado: ...` con exactamente qué cambió, o `BLOCKED sin aprobación del
 owner` si la línea `approved:` falta, está vacía o no es una lista literal de paquetes.
 
-**Ejemplo real** (`docs/superpowers/plans/2026-09-02-phase1b-smoke-checklist.md`, ítem 1): ejecutado
+**Ejemplo real:** ejecutado
 contra el propio checkout del plugin, `requirements-orchestrator` lanza `env-checker`, que invoca
 `scripts/req-check.sh`, y el veredicto vuelve `OK` porque `git`, `python3` y `uuidgen` están todos
 presentes en la máquina real.
@@ -343,8 +335,7 @@ resuelto detrás — un run posterior lo reconoce comparando contra ese campo `r
 diálogo sin responder, tu batch (sin responder) se guarda igualmente,
 marcado `[pendiente]`, en vez de perderse en silencio.
 
-**Ejemplo real** (`docs/superpowers/plans/2026-09-02-phase2-smoke-checklist.md`, ítem 1, ejecutado
-en vivo por el owner): `/swarm:run "añadir export CSV del listado de facturas" --tier=full` produjo
+**Ejemplo real (ejecutado en vivo por el owner):** `/swarm:run "añadir export CSV del listado de facturas" --tier=full` produjo
 un batch real de 4 preguntas, presentado vía `AskUserQuestion`, respondido, y registrado en
 `decisions.md` con el campo `objective:` literal incluido. El run además detectó un conflicto real
 entre dos de las respuestas (histórico completo vs. un endpoint síncrono) que `value-critic` ya
@@ -373,8 +364,7 @@ dos objetivos, dos runs.
 fix`, más una línea nombrando qué lentes corrieron y por qué. Sin preguntas — analysis nunca invoca
 `AskUserQuestion`.
 
-**Ejemplo real** (`docs/superpowers/plans/2026-09-02-phase3-smoke-checklist.md`, ítem 1):
-`/swarm:run "audita la seguridad de InvoiceController" --tier=full` seleccionó
+**Ejemplo real:** `/swarm:run "audita la seguridad de InvoiceController" --tier=full` seleccionó
 `security-auditor` + `vulnerability-scanner` (el objetivo casó con "seguridad") y devolvió
 hallazgos reales sobre el fixture: `CRITICO` aislamiento de tenant ausente en
 `InvoiceController.php:12`, `ALTO` inyección SQL en `:14`, `ALTO` falta de comprobación de
@@ -406,7 +396,7 @@ precedencia sobre esta vía (ver Análisis arriba).
 real en disco, más una línea `- grill: ...` resumiendo qué cambió o se marcó en la revisión
 adversarial. Tampoco hay preguntas aquí.
 
-**Ejemplo real** (`docs/superpowers/plans/2026-09-03-phase4-smoke-checklist.md`, ítem 1): con el
+**Ejemplo real:** con el
 objetivo "añadir export CSV del listado de facturas" ya cerrado en `decisions.md`,
 `design-orchestrator` lanzó `pattern-advisor` + `domain-modeler` (hallazgos reales: `PATTERN ·
 src/Controller/InvoiceController.php:11 · introduce Repository...`, `MODEL · ...Invoice raíz de
@@ -445,8 +435,7 @@ rama, a través de qué cadena de agentes, y cuántos pasos del plan se marcaron
 reviewer encontró algo por debajo de la severidad que bloquea el merge, líneas explícitas
 `- riesgo aparcado: ...` para que nada se trague en silencio.
 
-**Ejemplo real** (`docs/superpowers/plans/2026-09-03-phase5a-smoke-checklist.md`, ítem 1):
-`implementation-orchestrator`, invocado adhoc sobre un plan real para un value object `Money` con un
+**Ejemplo real:** `implementation-orchestrator`, invocado adhoc sobre un plan real para un value object `Money` con un
 invariante de moneda, produjo dos commits reales en `run-branch` (el commit RED de `test-writer`,
 `7e144a9`; el commit GREEN de `implementer`, `a293ff5`, con citas reales `fichero:línea` para cada
 paso marcado), `quality-fixer` iteró dos veces, y `reviewer` encontró tres problemas reales `MINOR`
@@ -538,8 +527,7 @@ Un pack es puramente aditivo: lo que no cubre, una hoja lo resuelve con su crite
 ## 6. Cómo interpretar la salida
 
 Todo agente de este enjambre —orquestador raíz, orquestadores de dominio y hojas por igual— reporta
-a través del mismo contrato de evidencia
-(`docs/superpowers/specs/2026-09-01-swarm-design.md` §6, validado en vivo por un hook,
+a través del mismo contrato de evidencia (validado en vivo por un hook,
 `skills/swarm-protocol/SKILL.md` §4). Conociendo este formato, puedes leer la salida de *cualquier*
 dominio de la misma manera:
 
@@ -606,8 +594,7 @@ Si no pasas `--tier`, el orquestador lo clasifica por ti según el alcance. Un v
 (cualquier cosa que no sea exactamente `direct`, `light` o `full`, sensible a mayúsculas) se rechaza
 directamente en vez de adivinarse.
 
-Ejemplos reales (`docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md`, ítems 6-7 —
-verificado en vivo):
+Ejemplos reales:
 
 ```
 /swarm:run "audita memoria" --tier=light
@@ -659,5 +646,4 @@ parafrasearlo, así que lo que lees es literalmente lo que dijo el dominio que f
 `.swarm/context-pack.md` se construye una vez y se reutiliza entre runs; solo se reconstruye cuando
 el hash del estado del árbol del repo muestra que realmente está desactualizado. Los hallazgos
 también se deduplican por `agente+tag+fichero:línea` entre runs, así que repetir la misma auditoría
-dos veces seguidas no produce hallazgos duplicados (verificado en vivo en
-`docs/superpowers/plans/2026-09-02-phase3-smoke-checklist.md`, ítem 6).
+dos veces seguidas no produce hallazgos duplicados.

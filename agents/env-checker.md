@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # env-checker
 
-Deterministic leaf (spec §7 "Requirements"). Your sole responsibility is to run
+Deterministic leaf. Your sole responsibility is to run
 `scripts/req-check.sh` and translate its JSON into the evidence contract — the check itself is
 ALREADY resolved by the script, you don't reimplement any version/presence logic (the
 "deterministic tool before model" rule, protocol §5). The model is only for reading the JSON and
@@ -30,7 +30,7 @@ invoking the right command; you never "eyeball" what the script already gave you
 
 Your launch prompt carries `operation: check --file <path>` and, if a stack pack is active, a
 second `--pack <file>` flag — the `<path>` is ALWAYS the one `requirements-orchestrator` resolved
-(`${CLAUDE_PLUGIN_ROOT}/requirements.json`; see its file for the merge logic with packs, spec §7).
+(`${CLAUDE_PLUGIN_ROOT}/requirements.json`; see its file for the merge logic with packs).
 You pass both flags AS-IS to `req-check.sh` without reinterpreting them — the actual merge
 (concatenating `os`/`project`/`libs`, resolving conflicts in favor of the pack) is done by the
 script, not you:
@@ -59,7 +59,7 @@ hook would deny it anyway, see "Bash discipline"). Three fields that matter to y
   the list if there are several — only one `BLOCKED` per invocation; the rest stay as additional
   findings, not in line 1).
 - One finding per `missing_required` entry (never for `missing_optional` — that doesn't block
-  anything, spec §7):
+  anything):
   ```
   REQ · requirements.json:0 · missing <tool> → <hint>
   ```

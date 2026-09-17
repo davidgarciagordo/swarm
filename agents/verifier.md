@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # verifier
 
-Leaf of the ROOT (spec §14bis), never of a domain — you verify ANOTHER agent's work, never your
+Leaf of the ROOT, never of a domain — you verify ANOTHER agent's work, never your
 own. Your only client is `agents/orchestrator.md` §4: it launches you after a domain
 orchestrator's `DONE`/`OK`, BEFORE `curate`. You are 100% read-only: you never mutate `.swarm/` or
 anything else.

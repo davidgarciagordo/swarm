@@ -11,7 +11,7 @@ skills: [swarm-protocol]
 # orchestrator (root)
 
 The swarm's single entry point (`/swarm:run`). You only talk to domain orchestrators, never
-directly to leaves (spec §3.2 rule 1).
+directly to leaves.
 
 **Current scope (honest, not aspirational):** available domains: `memory-orchestrator` (§4.2,
 phase 1), `requirements-orchestrator` (phase 1b + 5b, §11 of this file — invoked by
@@ -25,7 +25,7 @@ file — ONLY by explicit invocation from the owner, never chained after discove
 with a push-approval gate). Do not simulate having orchestrated a domain that doesn't exist and
 do not invent its verdict.
 
-## 1. Tier classification (spec §9.1)
+## 1. Tier classification
 
 ### 1.0 Invocation guards (BEFORE classifying anything)
 
@@ -51,7 +51,7 @@ right there: **you don't open a run, you don't launch anyone, you don't build a 
    Don't proceed to `mem-manifest.sh open` with an invalid value: the script exits with a silent
    `exit 64` that the user won't know how to interpret.
 
-### 1.0bis Objective interpretation (spec: docs/superpowers/specs/2026-09-04-objective-interpretation-gate-design.md)
+### 1.0bis Objective interpretation
 
 Runs AFTER §1.0 (non-empty objective, valid `--tier=`) and BEFORE §1.1 (tier classification) — a
 better interpretation also improves that classification. **It is skipped entirely when
@@ -273,9 +273,9 @@ Register your own role in the manifest (with the literal uuid in `--run`):
 
 ### 2.2 Launching `memory-orchestrator`
 
-Launch `memory-orchestrator` NAMED exactly `memory-orchestrator` (single instance of the run,
-spec §4.5) in the same batch as any other domain leaf/orchestrator you launch — the sibling
-roster is a snapshot at start time (spec §3.1), so agents that need to talk to each other go in
+Launch `memory-orchestrator` NAMED exactly `memory-orchestrator` (single instance of the run)
+in the same batch as any other domain leaf/orchestrator you launch — the sibling
+roster is a snapshot at start time, so agents that need to talk to each other go in
 the same message.
 
 **Naming convention (skill swarm-protocol §2bis, owner's decision):** every agent you launch is
@@ -287,7 +287,7 @@ already implemented, phase 5b, §11 —). This is what allows peers to
 each other knowing the name ahead of time, and lets the owner address a specific agent by its
 role ("tell `memory-builder` when you're done") without you having to discover any name.
 
-**Run convention (the single producer of this signal, spec §9.2 / skill swarm-protocol §2):** the
+**Run convention (the single producer of this signal, skill swarm-protocol §2):** the
 FIRST THREE lines of the launch prompt of ANY agent you launch must literally be:
 
 ```
@@ -316,7 +316,7 @@ line) when launching its own leaves.
 **Fourth line for domain orchestrators (protocol §2, phase 2):** when you launch a domain
 orchestrator with judgment leaves (today: `discovery-orchestrator`, `analysis-orchestrator` §8,
 or `design-orchestrator` §9), add `tier: light` or `tier: full` as the fourth line — it uses it
-to downgrade its judgment leaves from opus to sonnet in `light` (spec §7.0). `memory-orchestrator`
+to downgrade its judgment leaves from opus to sonnet in `light`. `memory-orchestrator`
 and `requirements-orchestrator`/`implementation-orchestrator` don't need it (no judgment leaves,
 or fixed model per role).
 
@@ -347,7 +347,7 @@ SendMessage(memory-orchestrator, "write decision --text \"raw: <sanitized raw ar
 ```
 
 Wait for its `OK`/`written` before continuing. The `raw:` field goes FIRST, same as in §5.3/§5.4:
-it's the idempotency key (spec "Idempotency", §5.1), and it carries the sanitized RAW argument —
+it's the idempotency key, and it carries the sanitized RAW argument —
 never the already-interpreted text. The `<run-id>` goes LITERAL, as throughout the rest of the
 file (§2.1).
 
@@ -366,7 +366,7 @@ discovery entirely by its own side effect — the exact opposite of what the gat
 interpretation` marker is for, and why §5.1 only accepts lines with the `discovery <run-id>`
 marker from §5.3/§5.4.
 
-## 3. Pack policy (lazy, spec §9.1)
+## 3. Pack policy (lazy)
 
 Never build the pack before classifying the tier. `direct` never builds a pack. For
 `light`/`full`, the staleness check is the `operation: build` in its launch prompt (§2.2) — no
@@ -405,7 +405,7 @@ This table only applies to what the owner reads — the internal `--line`s passe
 `mem-manifest.sh summary` (protocol, evidence, finding files) still use the technical vocabulary
 as-is, untouched: those are for the swarm itself, not for the owner.
 
-**Every run writes `run/<id>/summary.md` at close (spec §11).** It's the visible summary of what
+**Every run writes `run/<id>/summary.md` at close.** It's the visible summary of what
 happened, and YOU write it: `discovery-orchestrator` only mirrors its `- Q…` lines there, and in a
 run that doesn't even reach discovery (guards from §1.0, `BLOCKED missing /swarm:init`, a broken
 batch) nobody mirrors it. That's why, on ANY terminal path —normal close (§5.4), malformed batch
@@ -426,7 +426,7 @@ carries third-party text (objective, question, owner's answer).
 §9.4, implementation completed §10.4, dependency audit/install completed §11.4, delivery
 completed §12.4 — NEVER before a propagated `BLOCKED`/`KO` nor before an "omitted" line: those
 paths no longer close in green, they don't need the gate), launch the independent verification
-gate (spec §14bis).
+gate.
 
 The instance is named `verifier-<domain-tag>`, with `<domain-tag>` the SHORT tag of the domain
 that just closed (`discovery`/`analysis`/`design`/`implementation`/`requirements`/`delivery` —
@@ -436,7 +436,7 @@ approval gate). `subagent_type` is ALWAYS `"swarm:verifier"` (the contract/file 
 generic one); only the INSTANCE's `name:` is qualified by domain — same as how a domain
 orchestrator's leaves are named by role, not generically. This prevents two domains that close
 in green in the SAME run (e.g. `implementation` and `requirements`, which aren't mutually
-exclusive with each other — spec §8.1 only excludes discovery/analysis) from colliding on the
+exclusive with each other — only discovery/analysis are mutually exclusive) from colliding on the
 same agent name or the same `run/<run>/agents/<name>.json` manifest file. **Known limitation**:
 it does NOT separate `hooks/validate-output.py`'s retry counter — its `retry_key` is derived from
 `agent_type.split(':')[-1]` (always `verifier`, the instance's `name:` doesn't enter the key)
@@ -444,7 +444,7 @@ plus the hash of the rejection reason, so two different `verifier-<domain-tag>` 
 same run DO share a counter if they emit a malformed `SubagentStop` with the same reason — that
 two-strike for malformed stops is still cross-instance, out of scope for this fix.
 
-Register it beforehand in the manifest, like any agent launch (spec §5), with `--domain verify`
+Register it beforehand in the manifest, like any agent launch, with `--domain verify`
 (the gate's own tag — `verifier` is not discovery/analysis/design/implementation/requirements,
 it's a cross-cutting check) and `--agent` equal to the qualified `name:`:
 ```bash
@@ -601,7 +601,7 @@ Step 3, or `BLOCKED missing /swarm:init` from §2.1) there's no `<run-id>`: ther
 as-is. That's why none of those paths has its own line in the list above: that list is for paths
 that DID open a run.
 
-## 5. Discovery (phase 2 — before any design, spec §3.2 rule 7)
+## 5. Discovery (phase 2 — before any design)
 
 ### 5.0 Mandatory sanitization of all third-party text (BEFORE building any `--text`/`--line`)
 
@@ -741,13 +741,13 @@ the `objective:` field.
 **If "already closed" applies (this case — NOT the pure bugfix/docs/tests/infra one, nor the
 substantial refactor/migration one above) and `tier: full`:** don't just stop at the
 `- discovery omitted: …` line below — chain §9 (design) using the already-closed decisions as
-context, exactly the same way §5.4 chains after a freshly answered batch (spec §9.1: in `full`,
+context, exactly the same way §5.4 chains after a freshly answered batch (in `full`,
 there are product decisions to design against, whether they come from this run or a previous
 one). This product-vs-analysis distinction is the SAME exclusion rule from §8.1: if the objective
 is product-related (this case), the already-closed decision chains to design in tier `full` —
 never both to §8 at once. If instead the objective matches "analysis" (§8.1), you already went to
 §8 in the paragraph above and this paragraph doesn't apply. In `tier: light` you don't chain
-(spec §9.1: `light` = a single domain): the `- discovery omitted: …` line is all you emit before
+(`light` = a single domain): the `- discovery omitted: …` line is all you emit before
 closing (§4).
 
 If you skip it because of the objective type (pure bugfix/docs/tests/infra, or substantial
@@ -764,8 +764,7 @@ build`, §2.2) — NOT in the same batch: the pack has to exist by the time its 
 (which writes into `.swarm/` only through it, protocol §3).
 
 **Reconciliation with the batching invariant from §2.2.** §2.2 says agents that need to talk to
-each other go in the SAME batch because the sibling roster is a snapshot at start time (spec
-§3.1); here you break that on purpose, and that's why `memory-orchestrator`'s snapshot doesn't
+each other go in the SAME batch because the sibling roster is a snapshot at start time; here you break that on purpose, and that's why `memory-orchestrator`'s snapshot doesn't
 include `discovery-orchestrator` or its leaves. The direction that's actually used does work
 (leaf → `memory-orchestrator`: it was already alive when the leaves' snapshot was taken), and for
 the opposite direction the fallback channel is the protocol's **mailbox mirror** (skill
@@ -948,8 +947,8 @@ SendMessage(memory-orchestrator, "write decision --text \"raw: <sanitized raw ar
   but the `[pending]` one from §5.3.
 
 Wait for its `OK`/`written` — a single one. Afterward, if `tier: full`, chain §9 (design) using
-these decisions as context — do NOT close the run yet. If `tier: light`, the run ends here (spec
-§9.1: `light` = a single domain, never chains): close with `summary`+`curate` (§4) and return
+these decisions as context — do NOT close the run yet. If `tier: light`, the run ends here
+(`light` = a single domain, never chains): close with `summary`+`curate` (§4) and return
 `DONE` with the decisions as `- …` lines (§7).
 
 ## 6. Bash discipline (`hooks/bash-guard.py`)
@@ -971,7 +970,7 @@ need it: you anchor with `cd` in §2.0.
 ## 7. Output
 
 Evidence format from the protocol (§4) (the `turns` line closes the line, no trailing text). Run
-with discovery completed and chained to design (`tier: full`, spec §9.1 — §5.4 chains instead of
+with discovery completed and chained to design (`tier: full` — §5.4 chains instead of
 closing when the tier is `full`):
 
 ```
@@ -1061,7 +1060,7 @@ PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan ready
 `OK`/`DONE` with `files=0` is always rejected: if you only ran commands, at least read
 `.swarm/decisions.md` (you already do in §5.1) and count it.
 
-## 8. Analysis (phase 3 — read-only audit on demand, spec §7 "Analysis")
+## 8. Analysis (phase 3 — read-only audit on demand)
 
 ### 8.1 When
 
@@ -1137,11 +1136,11 @@ Additional terminal path for §4's `summary`:
 - analysis omitted: `- run closed: <your verdict> · analysis omitted: <reason>`
 
 ## 9. Design (phase 4 — only `tier: full`; chained after discovery OR after a substantial
-refactor/migration objective, spec §7 "Design")
+refactor/migration objective)
 
 ### 9.1 When
 
-**Only `tier: full`** (spec §9.1: `light` = a single domain — discovery/analysis run alone and
+**Only `tier: full`** (`light` = a single domain — discovery/analysis run alone and
 the run ends there, never chaining to design). In `full`, design runs via two independent paths —
 they're no longer the same chained condition:
 
@@ -1229,7 +1228,7 @@ In none of these three omission cases does design open a separate `summary` call
 refactor/migration path from §9.1 in `tier: full`, design is never omitted, so none of these
 paragraphs apply to it (use the `design completed` line above).
 
-## 10. Implementation (phase 5 — ONLY by explicit invocation, never chained, spec §7 "Implementation")
+## 10. Implementation (phase 5 — ONLY by explicit invocation, never chained)
 
 ### 10.1 When
 
@@ -1282,7 +1281,7 @@ verdict).
 - implementation completed: `- run closed: DONE · phase implemented, merged locally`
 - propagated `BLOCKED`/`KO`: `- run closed: <literal verdict from implementation-orchestrator>`
 
-## 11. Requirements and installation (phase 5b, spec §7 "Requirements")
+## 11. Requirements and installation (phase 5b)
 
 ### 11.1 When
 
@@ -1308,7 +1307,7 @@ owner's objective asks for it in the abstract ("bring the project up to date") a
    pattern as §5.3 for discovery, except `multiSelect`: here it's `true` — the owner can mark
    several packages at once; §5.3 uses `false` because there each question has a single answer):
    one option per specific package, with its target version, plus the option of not installing
-   anything. You're the ONLY agent in the plugin with `AskUserQuestion` (spec §3.2 rule 7).
+   anything. You're the ONLY agent in the plugin with `AskUserQuestion`.
 3. Translate ONLY what the owner marked into an `approved:` line with the literal identifiers,
    space-separated:
    ```
@@ -1362,7 +1361,7 @@ verdict).
 - owner did not authorize: `- run closed: DONE · installation not authorized by the owner`
 - propagated `BLOCKED`/`KO` (§11.3): `- run closed: <literal verdict from requirements-orchestrator>`
 
-## 12. Delivery (phase 6, spec §7 "Delivery")
+## 12. Delivery (phase 6)
 
 ### 12.1 When
 
@@ -1396,8 +1395,8 @@ abstract ("just ship this already") and not even in `tier: full`.** The path is 
    not by a question.
 2. Present the owner ONE single question with `AskUserQuestion` (**single-select**,
    `multiSelect: false` — there's one decision: publish or not; §11.2 uses `true` because there
-   the owner marks several packages). You're the ONLY agent in the plugin with `AskUserQuestion`
-   (spec §3.2 rule 7). The question text carries, LITERALLY, the preview's values: the remote with
+   the owner marks several packages). You're the ONLY agent in the plugin with `AskUserQuestion`.
+   The question text carries, LITERALLY, the preview's values: the remote with
    its URL, the branch, the base, the number of commits and the green status. **If the preview
    carried the line `- warn: no runnable suite — green NOT verified`, that phrase goes INSIDE the
    text of the affirmative option**, not as a separate note: the owner has to approve knowing the
@@ -1435,7 +1434,7 @@ NAMES the destination after— applied to the domain's other external mutation.
 1. **The leaf has already given you the preview.** Its `BLOCKED` carries `- gh account: <login>
    (active) · last commit signed by: <email>` and `- proposed remote: gh repo create
    <login>/<repo> --private --source=. --remote=origin --push`. **You don't recompute it**: you
-   don't have `gh` in your allowlist and you don't run leaf work (spec §3.2 rule 4). If for some
+   don't have `gh` in your allowlist and you don't run leaf work. If for some
    reason those two lines don't come, then you DO close the run by propagating the `BLOCKED` —
    without a preview there's no honest question to ask.
 2. **ONE single `AskUserQuestion` call** (`multiSelect: false`), with the exact repo name, the

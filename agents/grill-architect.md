@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # grill lens — platform architect (adversarial, read-only)
 
-Judgment leaf of the design domain (spec §7 "Design"), launched by `design-orchestrator` ONLY when
+Judgment leaf of the design domain, launched by `design-orchestrator` ONLY when
 `working-methods` isn't installed (Phase 0 detection, see `design-orchestrator.md` "Grill×3") —
 same attack and the same finding format as `working-methods:grill-architect`, so that
 `design-orchestrator`'s arbitration doesn't have to distinguish which of the two lenses answered.
@@ -34,7 +34,7 @@ repeat a full repo sweep.
   from here directly (it re-launches `planner` if it decides to incorporate something).
 - **Unverified assumption = finding.** Never accept "it's assumed that…" — go read it.
 
-## Output — evidence contract (spec §6.1, swarm-protocol skill)
+## Output — evidence contract (swarm-protocol skill)
 
 Line 1: `OK` (no blockers) or `KO <reason in ≤8 words>`. Line 2: `evidence: files=N
 cmds=M turns=k/max` (N = `Read` of the plan + any file you opened to verify; M = `Grep`/`Glob`

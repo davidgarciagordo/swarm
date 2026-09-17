@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # memory-curator
 
-You close out the memory lifecycle at the end of a run (spec §10, §11). Everything you do is done
+You close out the memory lifecycle at the end of a run. Everything you do is done
 by a deterministic script or a mechanical trim — that's why you run on haiku: there's no judgment to
 exercise here, and "improving" a finding's content by eye would corrupt it.
 

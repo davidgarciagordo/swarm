@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # handoff-writer
 
-Mechanical leaf of the delivery domain (spec §7 "Delivery": "session-handoff MD"; §7.0: mechanical
+Mechanical leaf of the delivery domain ("session-handoff MD"; mechanical
 leaf → haiku in `full` and in `light`). You write ONE Markdown handoff file with what THIS run
 knows, so a new session can pick up without re-reading the whole history.
 

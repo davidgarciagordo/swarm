@@ -88,8 +88,7 @@ CI who want to run it explicitly, or re-check the health-gate on its own.
 
 Internally it just executes `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-init.sh` and reports the script's
 own plain-text summary verbatim — if the script exits non-zero, the command tells you `/swarm:init`
-aborted and shows the stderr line that explains why (from
-`docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md` item 1: the expected result is
+aborted and shows the stderr line that explains why (the expected result is
 `.swarm/` created, `memory.json` with the `files` backend required, `decisions.md` with its header,
 the `.gitignore` block marked `# swarm`, and the health-gate green).
 
@@ -155,8 +154,7 @@ picks the domain(s) that apply:
   merging real code is the most consequential thing the swarm does, so a discovery+design run always
   stops with a reviewable plan file instead of silently proceeding to code.
 
-**Real worked example** (`docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md`, items 2, 6
-and 7 — verified live):
+**Worked example:**
 
 ```
 /swarm:run "audita memoria"
@@ -164,7 +162,7 @@ and 7 — verified live):
 Result (after a real bug fix mid-smoke): pack rebuilt for real (`context-pack.md` with a real
 `stack: php-ddd-symfony8` line), `index.md` sealed, run closed via `curate`. A second identical run
 against the same, unchanged repo does *not* rebuild the pack — the staleness check short-circuits
-it (item 3).
+it.
 
 ```
 /swarm:run
@@ -191,12 +189,10 @@ turn spawns `env-checker` to run the deterministic check (`scripts/req-check.sh`
 re-implementing tool-presence logic itself. The plugin's own `requirements.json` currently declares
 `git`, `python3`, and `uuidgen` as `required: true`, and `jq`, `gh`, `docker` as optional. Real
 worked example, run against the plugin's own checkout (which has all three required tools):
-`docs/superpowers/plans/2026-09-02-phase1b-smoke-checklist.md` item 1 confirms
 `requirements-orchestrator` launches `env-checker` (named exactly `env-checker`, spawned with
 `Agent`, never `SendMessage`) and the final verdict is `OK`. If a required tool is missing, the
 verdict is `BLOCKED <tool>` with the install hint from `requirements.json` (`brew`/`apt` command),
-propagated literally from `env-checker` up to what you see — verified against the script directly
-in item 2 of that same checklist.
+propagated literally from `env-checker` up to what you see.
 
 ### `/swarm:status`
 
@@ -209,7 +205,7 @@ findings. Takes no arguments; any text you type after the command is ignored.
 
 Deterministic first: in the normal path it runs `${CLAUDE_PLUGIN_ROOT}/scripts/swarm-status.sh` and
 reports its plain-text output verbatim — **no subagent is launched and no model turn is spent**
-reading and formatting `.swarm/` (spec §11, principle 4: a deterministic tool before a model). If
+reading and formatting `.swarm/`: a deterministic tool before a model. If
 `.swarm/` doesn't exist yet, it shows the script's own stderr line pointing you at `/swarm:init`
 instead of failing silently. If the script can't interpret what's on disk (a `run.json` truncated by
 an interrupted run, or `findings/*.md` entries missing the header a different plugin version wrote),
@@ -261,7 +257,7 @@ runs).
 domain's output better and cheaper. You *do* see its effect: a rebuilt pack is announced in the run
 summary, and a second identical run against an unchanged repo visibly skips the rebuild.
 
-**Real example** (phase 1 smoke checklist, items 2–3): first `/swarm:run "audita memoria"
+**Real example:** first `/swarm:run "audita memoria"
 --tier=light` rebuilt `context-pack.md` with a real `stack: php-ddd-symfony8` line and sealed
 `index.md`; the identical run repeated immediately after, with the repo untouched, left
 `context-pack.md`'s file-modification time unchanged — confirming the staleness check
@@ -299,7 +295,7 @@ of `DEP · file:line · problem → fix` findings. `install` → a `- instalado:
 ...` summary of exactly what changed, or `BLOCKED sin aprobación del owner` if the `approved:` line
 is missing, empty, or not a literal package list.
 
-**Real example** (`docs/superpowers/plans/2026-09-02-phase1b-smoke-checklist.md`, item 1): run
+**Real example:** run
 against the plugin's own checkout, `requirements-orchestrator` launches `env-checker`, which shells
 out to `scripts/req-check.sh`, and the verdict comes back `OK` because `git`, `python3`, and
 `uuidgen` are all present on the real machine.
@@ -327,8 +323,7 @@ resolved `objective:` — a later run recognizes it by matching that `raw:` fiel
 dialog, your (unanswered) batch is still saved, marked
 `[pendiente]`, instead of being silently lost.
 
-**Real example** (`docs/superpowers/plans/2026-09-02-phase2-smoke-checklist.md`, item 1, run live by
-the owner): `/swarm:run "añadir export CSV del listado de facturas" --tier=full` produced a real
+**Real example (run live by the owner):** `/swarm:run "añadir export CSV del listado de facturas" --tier=full` produced a real
 4-question batch, presented via `AskUserQuestion`, answered, and recorded in `decisions.md` complete
 with the literal `objective:` field. The run also caught a genuine conflict between two of the
 answers (full history vs. a synchronous endpoint) that `value-critic` had already flagged to
@@ -355,8 +350,7 @@ both an audit and a redesign? Run them as two separate objectives.
 **What you get back:** a list of findings, each one line: `TAG · file:line · problem → fix`, plus a
 line naming which lenses ran and why. No questions asked — analysis never invokes `AskUserQuestion`.
 
-**Real example** (`docs/superpowers/plans/2026-09-02-phase3-smoke-checklist.md`, item 1):
-`/swarm:run "audita la seguridad de InvoiceController" --tier=full` selected
+**Real example:** `/swarm:run "audita la seguridad de InvoiceController" --tier=full` selected
 `security-auditor` + `vulnerability-scanner` (goal matched "seguridad") and returned real findings
 against the fixture: `CRITICO` tenant isolation missing at `InvoiceController.php:12`, `ALTO` SQL
 injection at `:14`, `ALTO` missing authorization check at `:9`. The run closed with
@@ -387,7 +381,7 @@ above).
 file on disk, plus a `- grill: ...` line summarizing what the adversarial review changed or flagged.
 No questions asked here either.
 
-**Real example** (`docs/superpowers/plans/2026-09-03-phase4-smoke-checklist.md`, item 1): with the
+**Real example:** with the
 "añadir export CSV del listado de facturas" objective already closed in `decisions.md`,
 `design-orchestrator` launched `pattern-advisor` + `domain-modeler` (real findings: `PATTERN ·
 src/Controller/InvoiceController.php:11 · introduce Repository...`, `MODEL · ...Invoice raíz de
@@ -424,8 +418,7 @@ branch, through which agent chain, and how many plan steps got checked off — p
 found anything below merge-blocking severity, explicit `- riesgo aparcado: ...` lines so nothing is
 silently swallowed.
 
-**Real example** (`docs/superpowers/plans/2026-09-03-phase5a-smoke-checklist.md`, item 1):
-`implementation-orchestrator`, invoked adhoc on a real plan for a `Money` value object with a
+**Real example:** `implementation-orchestrator`, invoked adhoc on a real plan for a `Money` value object with a
 currency invariant, produced two real commits on `run-branch` (`test-writer`'s RED commit
 `7e144a9`, `implementer`'s GREEN commit `a293ff5` with real `fichero:línea` citations for each
 checked-off step), `quality-fixer` iterated twice, and `reviewer` found three real `MINOR` issues
@@ -517,8 +510,8 @@ pack is purely additive: what it doesn't cover, a leaf resolves with its generic
 ## 6. How to read the output
 
 Every agent in this swarm — root orchestrator, domain orchestrators, and leaves alike — reports
-through the same evidence contract (`docs/superpowers/specs/2026-09-01-swarm-design.md` §6,
-enforced live by a hook, `skills/swarm-protocol/SKILL.md` §4). Once you know this format, you can
+through the same evidence contract (enforced live by a hook, `skills/swarm-protocol/SKILL.md` §4).
+Once you know this format, you can
 read *any* domain's output the same way:
 
 ```
@@ -579,8 +572,7 @@ If you don't pass `--tier`, the orchestrator classifies it for you by scope. An 
 (anything other than exactly `direct`, `light`, or `full`, case-sensitive) is rejected outright
 rather than guessed at.
 
-Worked examples (`docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md`, items 6-7 —
-verified live):
+Worked examples:
 
 ```
 /swarm:run "audita memoria" --tier=light
@@ -628,5 +620,4 @@ said.
 **Does it re-read my whole codebase every time?** No — that's the point of the memory domain (§5).
 `.swarm/context-pack.md` is built once and reused across runs; it's only rebuilt when the repo's
 tree-state hash shows it's actually stale. Findings are deduplicated by `agent+tag+file:line`
-across runs too, so re-running the same audit twice in a row doesn't produce duplicate findings
-(verified live in `docs/superpowers/plans/2026-09-02-phase3-smoke-checklist.md` item 6).
+across runs too, so re-running the same audit twice in a row doesn't produce duplicate findings.

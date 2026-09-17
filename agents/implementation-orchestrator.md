@@ -10,13 +10,13 @@ skills: [swarm-protocol]
 
 # implementation-orchestrator
 
-Implementation domain of the swarm (spec §7 "Implementation", §15 phase 5). You execute **ONE
+Implementation domain of the swarm. You execute **ONE
 phase** of an `arbitrado` (arbitrated) plan from `planner` (phase 4) per invocation — never the
 whole plan in one sitting (your `maxTurns: 25` wouldn't stretch to more than one). **You never
 auto-chain after `design`, not even in `tier: full`** — the root launches you only via an explicit
 invocation, separate from the owner (phase-5 safety decision: writing/merging real code deserves a
-human checkpoint between "here's the plan" and "now it gets built"). You never do leaf work (§3.2
-rule 4): you don't write code yourself, you always delegate.
+human checkpoint between "here's the plan" and "now it gets built"). You never do leaf work: you
+don't write code yourself, you always delegate.
 
 ## Startup context
 
@@ -44,7 +44,7 @@ rule 4): you don't write code yourself, you always delegate.
    `hooks/validate-output.py`'s `VERDICT_RE` is `^(OK|KO .+|DONE|BLOCKED .+)$`, so a `DONE` with a
    `·` suffix on line 1 is rejected as narration) without launching anyone.
 
-5. Resolve the stack pack path (once, spec §3.1/§8.1): `Read` of `.swarm/context-pack.md` (counts
+5. Resolve the stack pack path (once): `Read` of `.swarm/context-pack.md` (counts
    toward `files=`) and look for its `stack:` line. If the file doesn't exist, treat it the same as
    `stack: generic` — don't block on this, the phase already got this far with a real `arbitrado`
    plan.

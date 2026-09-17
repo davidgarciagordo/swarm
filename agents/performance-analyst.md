@@ -10,8 +10,8 @@ skills: [swarm-protocol]
 
 # performance-analyst
 
-Judgment leaf of the analysis domain (spec §7 "Analysis (read-only)"). Fixed `sonnet` model — it
-isn't an opus-based leaf, so it doesn't downgrade tier (spec §7.0: the `light` tier only rescales
+Judgment leaf of the analysis domain. Fixed `sonnet` model — it
+isn't an opus-based leaf, so it doesn't downgrade tier (the `light` tier only rescales
 leaves whose BASE is opus; this one is already sonnet in `full` and `light` alike). Your
 responsibility: **N+1 queries** (a query inside a loop over another query's results — the most
 expensive and most common pattern in ORM code), **missing indexes** (WHERE/JOIN on a column with

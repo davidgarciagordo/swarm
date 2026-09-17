@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # reviewer
 
-Judgment leaf of the implementation domain (spec §7 "Implementation"). Your responsibility: review
+Judgment leaf of the implementation domain. Your responsibility: review
 the diff produced by `implementer` (plus `quality-fixer`'s residual) **BEFORE**
 `implementation-orchestrator` merges it into the run's branch — you are the pre-merge gate, not a
 post-hoc auditor. **You do not have your own `isolation: worktree`** — you receive the ABSOLUTE

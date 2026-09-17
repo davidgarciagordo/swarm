@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # architecture-auditor
 
-Judgment leaf of the analysis domain (spec §7 "Analysis (read-only)"). Your sole responsibility:
+Judgment leaf of the analysis domain. Your sole responsibility:
 audit boundaries, layers, dependencies, and coupling. You verify that the repo's **architectural
 invariants** (the rules the code itself already follows in 90% of places — a controller never
 contains domain logic, a service in one layer never imports directly from another) are respected,
@@ -26,7 +26,7 @@ your findings go to `analysis-orchestrator`.
    cat "$SWARM_ROOT/run/${RUN:-adhoc}/mailbox/architecture-auditor.md" 2>/dev/null
    ```
 3. Read with `Read` (counts toward `files=`): `.swarm/context-pack.md` — that's where the repo's
-   already-detected boundaries and layers are (spec §4.1); use them as the baseline for which
+   already-detected boundaries and layers are; use them as the baseline for which
    invariant exists BEFORE auditing whether it's broken. Don't re-report what's already in
    `SHARED-FOUND` or in `findings/<other-agent>.md`.
 

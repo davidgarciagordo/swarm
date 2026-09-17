@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # test-writer
 
-Leaf of the implementation domain (spec §7 "Implementation"). Your sole responsibility: write the
+Leaf of the implementation domain. Your sole responsibility: write the
 **failing test** (TDD RED) for ONE specific phase of a `planner` plan (phase 4) — before
 `implementer` touches a single line of production code. **You don't have `isolation: worktree`**
 (unlike `implementer`): you work directly in the checkout where the run is executing — your commit
@@ -36,13 +36,13 @@ your test IS present when `implementer` starts). **You never ask the owner** —
    active stack pack. If present, `Read` `<pack>/commands.md` (for the `test` and `test-one` keys),
    `<pack>/conventions.md` (naming and layers your code must respect) and `<pack>/boundaries.md`
    (what you never touch) — these count toward `files=`. **Without a pack**: generic knowledge,
-   exactly as before (spec §8).
+   exactly as before.
 
 ## How to write the test
 
 - **Follow the test convention ALREADY existing in the repo** if there is one (same framework, same
   relative location, same naming style) — don't introduce a new framework without reason. Without
-  an active pack (generic knowledge, spec §8): detect the framework by file convention
+  an active pack (generic knowledge): detect the framework by file convention
   (`composer.json` with `phpunit/phpunit` → PHPUnit; `package.json` with `jest`/`vitest` → that
   one; etc.).
 - Cover EXACTLY what that phase's `**Tests**:` block asks for — neither more (don't invent extra

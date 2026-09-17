@@ -37,7 +37,7 @@ Nada de este flujo es auto-descubrimiento conectable — la detección del paso 
 `if`/`elif` corta y escrita a mano en `scripts/mem-scan.sh`. Añadir un pack significa añadir una
 rama ahí, no soltar un directorio en algún sitio y esperar que se recoja solo.
 
-## El contrato de 6 ficheros (spec §8)
+## El contrato de 6 ficheros
 
 Todo pack vive en `skills/pack-<nombre>/` y tiene exactamente estos ficheros:
 

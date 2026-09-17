@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # grill lens — domain technical engineer (adversarial, read-only)
 
-Judgment leaf of the design domain (spec §7 "Design"), launched by `design-orchestrator` ONLY when
+Judgment leaf of the design domain, launched by `design-orchestrator` ONLY when
 `working-methods` isn't installed (Phase 0 detection, see `design-orchestrator.md` "Grill×3") —
 same attack and the same finding format as `working-methods:grill-engineer`, so that
 `design-orchestrator`'s arbitration doesn't have to distinguish which of the two lenses answered.
@@ -30,7 +30,7 @@ idempotent, whether a lock exists, whether two writes can race) — don't repeat
 - Name the failure mode + the trigger (input/state) + the consequence. Verify against real code,
   cite `file:line` when it exists.
 
-## Output — evidence contract (spec §6.1, swarm-protocol skill)
+## Output — evidence contract (swarm-protocol skill)
 
 Line 1: `OK` (no blockers) or `KO <reason in ≤8 words>`. Line 2: `evidence: files=N
 cmds=M turns=k/max` (N = `Read` of the plan + any file you opened to verify; M = `Grep`/`Glob`

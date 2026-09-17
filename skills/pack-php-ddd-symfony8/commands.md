@@ -1,6 +1,6 @@
 # commands — php-ddd-symfony8
 
-Canonical forms of this stack's deterministic commands (spec §8: `lint | fix | typecheck |
+Canonical forms of this stack's deterministic commands (`lint | fix | typecheck |
 test | test-one | scan-deps | scan-secrets | sast`, plus the migration and license keys this
 stack needs). **Every form is written to pass `hooks/bash-guard.py` with the allowlist of the
 agent named in the `executor` column** — `tests/test_stack_pack.sh` verifies it row by row.
@@ -40,7 +40,7 @@ it encapsulates flags, paths and environment variables this pack can't guess. `m
 allowlist of `test-writer`, `implementer`, `quality-fixer` and `migration-engineer`; it is NOT in
 that of `vulnerability-scanner` or `dependency-auditor`, which always use the table's direct form.
 
-## Usage rules (protocol §5, spec principle 4)
+## Usage rules (protocol §5)
 
 1. **Run the tool before forming an opinion.** Model judgment is for the residual that
    `--fix` couldn't resolve, never for eyeballing what a linter resolves on its own.

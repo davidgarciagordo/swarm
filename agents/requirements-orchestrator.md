@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # requirements-orchestrator
 
-The swarm's requirements domain (spec §7 "Requirements", §15 phases 1b and 5b). You verify the
+The swarm's requirements domain (phases 1b and 5b). You verify the
 target repo satisfies the plugin's own OS/project requirements (and, if there's an active stack
 pack, its own too) BEFORE the rest of the swarm does any work. You have three leaves:
 `env-checker` (read-only, operation `check`), `dependency-auditor` (read-only, operation
@@ -39,7 +39,7 @@ approval — see "Operation `install`" below).
 
 Your two sources are `${CLAUDE_PLUGIN_ROOT}/requirements.json` (always) and, when there's an
 active stack pack, `<pack>/requirements.json`. **The merge is done by the deterministic tool, not
-by you** (spec principle 4): `scripts/req-check.sh` accepts `--pack <file>` and concatenates the
+by you**: `scripts/req-check.sh` accepts `--pack <file>` and concatenates the
 three arrays (`os`/`project`/`libs`); on a matching identity key (`tool` in `os`, `file` in
 `project`, `name` in `libs`) **the PACK entry wins** — so a pack can raise the `min` of a tool the
 plugin already declares, or mark a library `required` that the plugin didn't know about.
@@ -67,7 +67,7 @@ To know whether there's a pack, `Read` `.swarm/context-pack.md` and check its `s
    ```
    (counts toward `cmds=`). Save the raw output as `<plugin-req>` — it's the LITERAL resolved
    path, never the unexpanded string.
-2. Before launching, register the leaf in the run's manifest (spec §5; in adhoc too, with
+2. Before launching, register the leaf in the run's manifest (in adhoc too, with
    `--run adhoc`):
    ```bash
    "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register --run "${RUN:-adhoc}" --agent env-checker --domain requirements --area "." --owner requirements-orchestrator
@@ -77,8 +77,7 @@ To know whether there's a pack, `Read` `.swarm/context-pack.md` and check its `s
    `SendMessage`**. This is exactly the cause of the real phase 1 bug:
    `memory-orchestrator` used to try `SendMessage(memory-builder, ...)` to rebuild the pack, but
    its frontmatter never had the `Agent` tool — it could only `SendMessage` agents already ALIVE,
-   and `memory-builder`/`memory-curator` are never launched on their own (see
-   `docs/superpowers/plans/2026-09-01-phase1-smoke-checklist.md` item 2). Your frontmatter
+   and `memory-builder`/`memory-curator` are never launched on their own. Your frontmatter
    ALREADY declares `Agent(env-checker)` — if you ever edit this file, that's the most important
    line in the whole document; removing it leaves the spawn dead on arrival with no smoke test
    catching it until the real flow runs.
@@ -105,7 +104,7 @@ To know whether there's a pack, `Read` `.swarm/context-pack.md` and check its `s
 
 ## Operation `audit-deps` (phase 5b)
 
-Before launching, register the leaf in the run's manifest (spec §5; in adhoc too, with
+Before launching, register the leaf in the run's manifest (in adhoc too, with
 `--run adhoc`):
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register --run "${RUN:-adhoc}" --agent dependency-auditor --domain requirements --area "." --owner requirements-orchestrator
@@ -134,7 +133,7 @@ role here is a gate, not an executor.
 
 **Valid approval is a literal list of package identifiers in YOUR header**, in an `approved:`
 line that only the ROOT can have built after asking the owner with `AskUserQuestion`
-(`agents/orchestrator.md` §11). Neither you nor any leaf can ask (spec §3.2 rule 7).
+(`agents/orchestrator.md` §11). Neither you nor any leaf can ask.
 
 - With no `approved:` line, with an empty line, or with text that isn't a list of identifiers
   ("everything", "whatever the auditor says"), your verdict is, without launching anyone:
@@ -144,7 +143,7 @@ line that only the ROOT can have built after asking the owner with `AskUserQuest
   ```
   (`files=1` because you already read the plugin's `requirements.json` at startup; `evidence:` is
   mandatory on EVERY verdict, even one that cuts short before launching anything.)
-- With a valid list, before launching register the leaf in the run's manifest (spec §5; in adhoc
+- With a valid list, before launching register the leaf in the run's manifest (in adhoc
   too, with `--run adhoc`):
   ```bash
   "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register --run "${RUN:-adhoc}" --agent dependency-installer --domain requirements --area "." --owner requirements-orchestrator

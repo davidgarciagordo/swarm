@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # doc-writer
 
-Leaf of the implementation domain (spec §7: "docs in the pack's format, changelog"). Launched by
+Leaf of the implementation domain. Launched by
 `implementation-orchestrator` **only when the phase changes observable behavior** (a new use case,
 an endpoint, a console command, a public contract) or when the plan has an explicit documentation
 step. You work INSIDE `implementer`'s worktree (absolute path in your prompt, no `isolation:` of

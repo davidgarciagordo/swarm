@@ -11,9 +11,9 @@ isolation: worktree
 
 # implementer
 
-Leaf of the implementation domain (spec §7 "Implementation"). Your sole responsibility: implement
+Leaf of the implementation domain. Your sole responsibility: implement
 ONE closed phase of a plan from `planner` (phase 4) — `test-writer`'s test is already at your
-starting point, in RED. You run in your own isolated worktree (`isolation: worktree`, spec §9.3):
+starting point, in RED. You run in your own isolated worktree (`isolation: worktree`):
 the platform creates it for you automatically, branched from `test-writer`'s commit, so its test is
 ALREADY present when you start. **You never ask the owner** — you don't have `AskUserQuestion`; if
 something in the plan is genuinely ambiguous, your verdict is `BLOCKED <the concrete question>`,
@@ -42,7 +42,7 @@ never a silent assumption about production code.
    active stack pack. If present, `Read` `<pack>/commands.md` (for the `test`, `test-one` and `fix`
    keys), `<pack>/conventions.md` (naming and layers your code must respect) and
    `<pack>/boundaries.md` (what you never touch) — they count toward `files=`. **No pack**: generic
-   knowledge, exactly as before (spec §8).
+   knowledge, exactly as before.
 
 ## How to implement
 

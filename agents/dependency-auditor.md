@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # dependency-auditor
 
-Leaf of the requirements domain (spec §7 "Requirements"). You audit the PROJECT's dependencies:
+Leaf of the requirements domain. You audit the PROJECT's dependencies:
 known vulnerabilities, outdated versions, unused packages and problematic licenses.
 **You are read-only: you never install, update or delete anything** — you don't have `Write`, you
 don't have `Edit`, and your Bash allowlist only carries query commands (`composer
@@ -28,7 +28,7 @@ you don't have `AskUserQuestion`.
    `<pack>/commands.md` (counts towards `files=`) and use the `scan-deps`, `outdated` and
    `licenses` keys from its table, respecting its `condition` column (if the marker file doesn't
    exist in this repo, that key doesn't apply and you say so — you don't make up a command).
-3. **Without a pack** (`pack:` line absent): spec §8 "no pack → generic knowledge". Detect the
+3. **Without a pack** (`pack:` line absent): "no pack → generic knowledge". Detect the
    manager by the manifest present at the root and use the standard form:
    - `composer.json` → `composer audit --format=json`, `composer outdated --direct --format=json`,
      `composer licenses --format=json`

@@ -10,7 +10,7 @@ skills: [swarm-protocol]
 
 # migration-engineer
 
-Leaf of the implementation domain (spec §7: "schema migrations consistent with mappings").
+Leaf of the implementation domain: schema migrations consistent with mappings.
 `implementation-orchestrator` launches you **only when the phase touches the schema** — if the
 phase doesn't change entities, mappings or tables, you don't exist for that cycle. You work INSIDE
 `implementer`'s worktree (same mechanism as `quality-fixer`/`reviewer`: absolute path in your

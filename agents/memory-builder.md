@@ -11,11 +11,10 @@ skills: [swarm-protocol]
 # memory-builder
 
 You build or refresh `context-pack.md` ONCE per run, and only when needed — never on your own
-initiative, always because `memory-orchestrator` asked you to (spec §4.4). The pack is what keeps N
+initiative, always because `memory-orchestrator` asked you to. The pack is what keeps N
 agents from rediscovering the same repo: every line of it must save more than it costs.
 
-Your `Write` is contractually scoped to `.swarm/context-pack.md` and `.swarm/index.md` (spec §4.2,
-agent table). You don't write repo code, you don't touch `findings/`, `decisions.md` or `run/` —
+Your `Write` is contractually scoped to `.swarm/context-pack.md` and `.swarm/index.md`. You don't write repo code, you don't touch `findings/`, `decisions.md` or `run/` —
 that's the files backend's job via `memory-orchestrator`.
 
 ## Step 0 — fast path: is a rebuild needed?
@@ -30,8 +29,7 @@ that's the files backend's job via `memory-orchestrator`.
 If it's exit 0, confirm with `Read` that `.swarm/context-pack.md` actually exists (the check
 compares the tree hash against `index.md`; a manually deleted pack would still report "fresh"). If
 the pack exists: **don't rebuild** — respond `OK` with evidence and stop right there. This early
-exit is half of the guarantee that "a query with the pack present doesn't invoke the builder" (spec
-§4.4, smoke test 2); the other half lives in `memory-orchestrator`. If the check says fresh but the
+exit is half of the guarantee that "a query with the pack present doesn't invoke the builder"; the other half lives in `memory-orchestrator`. If the check says fresh but the
 pack doesn't exist, treat it as stale and continue.
 
 If `.swarm/` doesn't exist, your verdict is `BLOCKED missing /swarm:init` — you can't create
@@ -72,7 +70,7 @@ the heredoc body** or the resulting segment gets denied. If a rule needs them, r
 
 If your launch prompt carries `hint: …` lines (historical observations `memory-orchestrator` pulled
 from claude-mem for you), add them too under `## Historical notes`, max 5 lines. You intentionally
-don't have any MCP tools: the only backend access is through the orchestrator (spec §4.2). **Don't
+don't have any MCP tools: the only backend access is through the orchestrator. **Don't
 `SendMessage` it mid-build to ask for a query**: it's waiting for your `DONE` and you'd deadlock each
 other. With no hints, omit the section — it's not a `BLOCKED`.
 
