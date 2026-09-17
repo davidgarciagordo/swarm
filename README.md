@@ -1,6 +1,25 @@
+**English** | [Español](README.es.md)
+
 # 🐝 swarm
 
-Claude Code plugin. Single-responsibility agent swarm for the software development lifecycle — analysis, design, implementation, delivery — optimized for quality per token. Full design in `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Built so far: phases 1, 1b, 2, 3, 4, 5a, 5b and 6** — memory subsystem, root orchestrator, requirements domain (environment check + dependency audit + owner-approved dependency install), discovery domain (questions batch presented to the owner via `AskUserQuestion`), analysis domain (read-only codebase audit across 7 lenses), design domain (writes a real implementation plan, adversarially reviewed by grill×3, arbitrated by `design-orchestrator` itself), implementation domain (RED→GREEN TDD per phase in an isolated worktree, with conditional schema-migration and documentation steps, gated by `reviewer` BEFORE a local merge — only by explicit owner invocation, never auto-chained), delivery domain (publishes an already-merged branch — push + PR + handoff — only by explicit, separate owner invocation, gated by an owner-approved `AskUserQuestion` that names remote/branch/base, never merges the PR itself), and the first stack pack (`php-ddd-symfony8`, auto-detected from `composer.json`).
+Claude Code plugin. Single-responsibility agent swarm for the software development lifecycle — analysis, design, implementation, delivery — optimized for quality per token. Full design in `docs/superpowers/specs/2026-09-01-swarm-design.md`.
+
+**v1 complete** — all 7 domains built:
+
+- **Memory** — unified context-pack + findings, scanned once per run, shared across every domain.
+- **Requirements** — environment check, read-only dependency audit, owner-approved dependency install.
+- **Discovery** — one batch of questions presented to the owner via `AskUserQuestion`.
+- **Analysis** — read-only codebase audit across 7 lenses.
+- **Design** — writes a real implementation plan, adversarially reviewed by grill×3, arbitrated by `design-orchestrator` itself.
+- **Implementation** — RED→GREEN TDD per phase in an isolated worktree, with conditional schema-migration and documentation steps, gated by `reviewer` BEFORE a local merge — only by explicit owner invocation, never auto-chained.
+- **Delivery** — publishes an already-merged branch (push + PR + handoff) — only by explicit, separate owner invocation, gated by an owner-approved `AskUserQuestion` that names remote/branch/base, never merges the PR itself.
+
+Plus the first stack pack (`php-ddd-symfony8`, auto-detected from `composer.json`) and an
+independent verify gate (`verifier`) before every green close.
+
+**Not in v1, on purpose** (spec §16): an Agent Teams execution mode, visual/UI design work,
+external CI, more than one stack pack at a time, a 3-level agent hierarchy, multi-stack
+monorepos, and cost telemetry beyond what the CLI already exposes.
 
 For a full usage guide (installation, the 5 commands, every domain, worked examples, how to read
 the output) see `docs/USAGE.md`. To add a stack pack of your own, see `docs/EXTENDING-PACKS.md`.
@@ -212,9 +231,10 @@ No agent scans the repo or `.swarm/` twice, and no agent writes `.swarm/` direct
 
 **See it applied → [examples/](examples/README.md)**: 5 copy-paste prompts — a full tier:full feature, a refactor that skips discovery, an ambiguous objective the interpretation gate asks about, the same objective run again (no repeat question), and a narrow tier:light lookup.
 
-## 📍 Current status — what's built
+## 📍 Phase-by-phase detail
 
-Phases from spec §15:
+All phases below are built (v1 complete, spec §15). Kept here as a reference for what each one
+actually contains — see "Not in v1, on purpose" above for what's deliberately excluded instead.
 
 1. **Core (built).** `orchestrator`, memory subsystem (`memory-orchestrator` + `memory-builder` + `memory-curator`, `files`/`claude-mem` backends), `swarm-protocol` skill, hooks (evidence-contract validation + bash allowlist), `/swarm:init`, smoke tests 1-8.
 1b. **Requirements — env check (built).** `requirements-orchestrator`, `env-checker`, `req-check.sh`, `requirements.json`, `/swarm:doctor`.

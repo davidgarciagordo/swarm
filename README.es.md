@@ -1,6 +1,25 @@
+[English](README.md) | **Español**
+
 # 🐝 swarm
 
-Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`. **Construido hasta ahora: fases 1, 1b, 2, 3, 4, 5a, 5b y 6** — subsistema de memoria, orquestador raíz, dominio de requisitos (chequeo de entorno + auditoría de dependencias + instalación aprobada por el owner), dominio discovery (batch de preguntas presentado al owner con `AskUserQuestion`), dominio de análisis (auditoría read-only del código en 7 lentes), dominio de diseño (escribe un plan de implementación real, revisado adversarialmente por grill×3, arbitrado por el propio `design-orchestrator`), dominio de implementación (TDD RED→GREEN por fase en un worktree aislado, con pasos condicionales de migración de esquema y documentación, `reviewer` como gate ANTES del merge local — solo por invocación explícita del owner, nunca encadenado), dominio de entrega (publica una rama ya fusionada — push + PR + handoff — solo por invocación explícita y separada del owner, con gate de `AskUserQuestion` aprobado por el owner que nombra remoto/rama/base, nunca mergea el PR él mismo), y el primer stack pack (`php-ddd-symfony8`, detectado automáticamente desde `composer.json`).
+Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ciclo de desarrollo — análisis, diseño, implementación, entrega — optimizado en calidad por token. Diseño completo en `docs/superpowers/specs/2026-09-01-swarm-design.md`.
+
+**v1 completo** — los 7 dominios construidos:
+
+- **Memoria** — context-pack + hallazgos unificados, escaneados una vez por run, compartidos entre todos los dominios.
+- **Requisitos** — chequeo de entorno, auditoría de dependencias read-only, instalación de dependencias aprobada por el owner.
+- **Discovery** — un único batch de preguntas presentado al owner con `AskUserQuestion`.
+- **Análisis** — auditoría read-only del código en 7 lentes.
+- **Diseño** — escribe un plan de implementación real, revisado adversarialmente por grill×3, arbitrado por el propio `design-orchestrator`.
+- **Implementación** — TDD RED→GREEN por fase en un worktree aislado, con pasos condicionales de migración de esquema y documentación, `reviewer` como gate ANTES del merge local — solo por invocación explícita del owner, nunca encadenado.
+- **Entrega** — publica una rama ya fusionada (push + PR + handoff) — solo por invocación explícita y separada del owner, con gate de `AskUserQuestion` aprobado por el owner que nombra remoto/rama/base, nunca mergea el PR él mismo.
+
+Más el primer stack pack (`php-ddd-symfony8`, detectado automáticamente desde `composer.json`) y
+un gate de verificación independiente (`verifier`) antes de todo cierre en verde.
+
+**Fuera de v1, a propósito** (spec §16): un modo de ejecución Agent Teams, trabajo de diseño
+visual/UI, CI externo, más de un stack pack a la vez, una jerarquía de agentes a 3 niveles,
+monorepos multi-stack, y telemetría de coste más allá de lo que ya expone el CLI.
 
 Para una guía de uso completa (instalación, los 5 comandos, cada dominio, ejemplos reales, cómo
 interpretar la salida) ver `docs/USAGE.es.md`. Para añadir tu propio stack pack, ver
@@ -214,9 +233,11 @@ Ningún agente escanea el repo o `.swarm/` dos veces, y ningún agente escribe `
 
 **Verlo aplicado → [examples/](examples/README.es.md)**: 5 prompts copy-paste — una funcionalidad completa tier:full, un refactor que se salta discovery, un objetivo ambiguo que el gate de interpretación pregunta, el mismo objetivo relanzado (sin repetir la pregunta), y una consulta acotada tier:light.
 
-## 📍 Estado actual — qué está construido
+## 📍 Detalle fase por fase
 
-Fases según spec §15:
+Todas las fases de abajo están construidas (v1 completo, spec §15). Se dejan aquí como referencia
+de qué contiene cada una — ver "Fuera de v1, a propósito" arriba para lo que queda deliberadamente
+excluido.
 
 1. **Núcleo (construido).** `orchestrator`, subsistema de memoria (`memory-orchestrator` + `memory-builder` + `memory-curator`, backends `files`/`claude-mem`), skill `swarm-protocol`, hooks (validación del contrato de evidencia + allowlist de bash), `/swarm:init`, smoke tests 1-8.
 1b. **Requisitos — chequeo de entorno (construido).** `requirements-orchestrator`, `env-checker`, `req-check.sh`, `requirements.json`, `/swarm:doctor`.
