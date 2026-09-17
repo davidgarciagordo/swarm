@@ -36,7 +36,7 @@ harmless even if your cwd already were the repo root — same convention as the 
 
 1. **The domain's contract.** `agents/<domain>.md` is a PLUGIN file, not one from the target repo —
    it lives under `${CLAUDE_PLUGIN_ROOT}/agents/`, and this only "works" today because this repo
-   (multiagents) happens to BE the plugin itself; in any other consumer repo that relative path
+   (swarm) happens to BE the plugin itself; in any other consumer repo that relative path
    doesn't exist. The `Read` tool doesn't expand environment variables (the shell does), so NEVER
    `Read` bare `agents/<domain>.md` or the unexpanded string
    `${CLAUDE_PLUGIN_ROOT}/agents/<domain>.md`. First resolve the ABSOLUTE path with a command from

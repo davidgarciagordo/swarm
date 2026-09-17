@@ -16,19 +16,29 @@ reales cuando una decisión necesita a una persona, y nunca empuja nada a ningú
 
 ## 2. Instalación
 
-Todavía no hay listing en ningún marketplace, así que hoy la única vía real de instalación es
-local: apuntar Claude Code directamente al checkout.
-
 ```bash
-claude --plugin-dir /ruta/a/multiagents
+/plugin marketplace add davidgarciagordo/swarm
+/plugin install swarm
 ```
 
-Sustituye `/ruta/a/multiagents` por dondequiera que hayas clonado este repo (por ejemplo
-`/Users/davidgarciagordo/projects/multiagents`). Esto carga los comandos, agentes, skills y hooks
-del plugin para esa sesión — los tres comandos `/swarm:*` quedan disponibles, y sus definiciones de
-agente se pueden invocar desde cualquier punto de la conversación. No hay nada que compilar ni
-`npm install`: es un conjunto de ficheros markdown de agente/comando/skill más unos pocos scripts de
-shell, leídos directamente por Claude Code.
+O toda la suite (este + design-review, token-economy, forge-methodology, working-methods,
+automations) desde [un único catálogo](https://github.com/davidgarciagordo/claude-plugins):
+
+```bash
+/plugin marketplace add davidgarciagordo/claude-plugins
+/plugin install swarm@davidgarciagordo-plugins
+```
+
+Para desarrollo local, apunta Claude Code directamente a tu checkout en su lugar:
+
+```bash
+claude --plugin-dir /ruta/a/swarm
+```
+
+Esto carga los comandos, agentes, skills y hooks del plugin para esa sesión — los cinco comandos
+`/swarm:*` quedan disponibles, y sus definiciones de agente se pueden invocar desde cualquier punto
+de la conversación. No hay nada que compilar ni `npm install`: es un conjunto de ficheros markdown
+de agente/comando/skill más unos pocos scripts de shell, leídos directamente por Claude Code.
 
 No necesitas un paso de preparación: la primera vez que escribes `/swarm:run "<objetivo>"` en el repo
 target (el repo sobre el que realmente quieres trabajar — no tiene por qué ser este), crea el

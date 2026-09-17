@@ -7,10 +7,16 @@ the output) see `docs/USAGE.md`. To add a stack pack of your own, see `docs/EXTE
 
 ## 📦 Install
 
-No marketplace listing yet — local dev only:
+```bash
+/plugin marketplace add davidgarciagordo/swarm
+/plugin install swarm
+```
+
+Or the whole suite (this + design-review, token-economy, forge-methodology, working-methods, automations) from [one catalog](https://github.com/davidgarciagordo/claude-plugins):
 
 ```bash
-claude --plugin-dir /path/to/multiagents
+/plugin marketplace add davidgarciagordo/claude-plugins
+/plugin install swarm@davidgarciagordo-plugins
 ```
 
 ## 🚀 Quickstart
