@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "swarm",
   "displayName": "Swarm",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Swarm of single-responsibility Claude Code agents for the development cycle, optimized for quality per token.",
   "author": { "name": "David García Gordo" },
   "license": "MIT",
