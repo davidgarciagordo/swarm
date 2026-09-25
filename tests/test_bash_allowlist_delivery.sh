@@ -98,8 +98,8 @@ rm -rf "$fixture2_dir"
 push_all_cmd_occurrences="$(grep -c 'git remote get-url --push --all origin' "$PLUGIN_ROOT/agents/release-manager.md")"
 [ "$push_all_cmd_occurrences" -ge 2 ] && push_all_ok=0 || push_all_ok=1
 assert_eq "0" "$push_all_ok" "release-manager.md prescribes 'git remote get-url --push --all origin' literally at least twice (phase A preview source, phase B re-verification) — found $push_all_cmd_occurrences"
-assert_eq "0" "$(has_file "$PLUGIN_ROOT/agents/release-manager.md" 'BLOCKED remoto con varios destinos de push')" "documents the new BLOCKED verdict for a remote with more than one push destination"
-assert_eq "0" "$(has_file "$PLUGIN_ROOT/agents/release-manager.md" 'destinos de push')" "documents the discrepancia line naming the destination COUNT, not trying to encode multiple URLs into url="
+assert_eq "0" "$(has_file "$PLUGIN_ROOT/agents/release-manager.md" 'BLOCKED remote with multiple push destinations')" "documents the new BLOCKED verdict for a remote with more than one push destination"
+assert_eq "0" "$(has_file "$PLUGIN_ROOT/agents/release-manager.md" 'push destinations')" "documents the discrepancia line naming the destination COUNT, not trying to encode multiple URLs into url="
 # no leftover single-line "git remote get-url --push origin" (missing --all) as a standalone fenced
 # command anywhere — checked WITHOUT a trailing '$' anchor bug: trims each line fully and compares it
 # for EXACT equality against the vulnerable form, so trailing text on the same line cannot hide a match.

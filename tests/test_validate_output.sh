@@ -163,6 +163,63 @@ EOF
 )"
 assert_eq "" "$out" "a real 150+ char - grill: line with arbitration summary is accepted"
 
+# ---------- WAITING <n>: live async children, the hook must NOT force a verdict ----------
+vo() { python3 -c 'import json,sys; d={"agent_type": sys.argv[1], "last_assistant_message": sys.argv[2]}
+if len(sys.argv) > 3: d["agent_id"] = sys.argv[3]
+print(json.dumps(d))' "$@" | python3 "$HOOK"; }
+waiting_ok="$(printf 'WAITING 2\npending: research-analyst, feasibility-spiker')"
+out="$(vo swarm:waiting-parent "$waiting_ok")"
+assert_eq "" "$out" "WAITING 2 with 2 pending children is accepted silently (no forced verdict)"
+assert_eq "1" "$(cat "$SWARM_ROOT/run/adhoc/waiting/waiting-parent")" "accepted WAITING bumps the per-agent waiting counter"
+assert_eq "1" "$([ -e "$SWARM_ROOT/run/adhoc/retries" ] && ls "$SWARM_ROOT/run/adhoc/retries" | grep -q "^waiting-parent-" && echo 0 || echo 1)" "accepted WAITING does not touch the retry counter"
+# after the children report, the real verdict is validated normally
+out="$(vo swarm:waiting-parent "$(printf 'DONE\nevidence: files=1 cmds=3 turns=9/15\n- findings: value-critic,options-generator,research-analyst,feasibility-spiker')")"
+assert_eq "" "$out" "the later real verdict passes normal validation"
+# malformed WAITING: count mismatch, missing pending line, zero, duplicate names
+out="$(vo swarm:waiting-mismatch "$(printf 'WAITING 2\npending: research-analyst')")"
+assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "WAITING 2 naming only 1 child is blocked"
+out="$(vo swarm:waiting-nopending "WAITING 1")"
+assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "WAITING without a pending: line is blocked"
+out="$(vo swarm:waiting-zero "$(printf 'WAITING 0\npending: x')")"
+assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "WAITING 0 is blocked (no live children means emit a verdict)"
+out="$(vo swarm:waiting-dup "$(printf 'WAITING 2\npending: a-leaf, a-leaf')")"
+assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "WAITING with duplicate child names is blocked"
+# anti-dodge cap: the 7th WAITING of the same agent in the same run is rejected
+for i in 1 2 3 4 5 6; do vo swarm:waiting-staller "$(printf 'WAITING 1\npending: slow-leaf')" >/dev/null; done
+out="$(vo swarm:waiting-staller "$(printf 'WAITING 1\npending: slow-leaf')")"
+assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "WAITING past the cap is blocked (cannot stall forever)"
+assert_eq "0" "$(echo "$out" | grep -qF 'emite un veredicto' && echo 0 || echo 1)" "cap rejection tells the agent to emit a verdict"
+# the cap is per agent INSTANCE (agent_id): a parallel/round-2 instance has its own budget
+for i in 1 2 3 4 5 6; do vo swarm:waiting-inst "$(printf 'WAITING 1\npending: slow-leaf')" id-a >/dev/null; done
+out="$(vo swarm:waiting-inst "$(printf 'WAITING 1\npending: slow-leaf')" id-b)"
+assert_eq "" "$out" "another instance of the same agent does not share the WAITING cap"
+assert_eq "1" "$(cat "$SWARM_ROOT/run/adhoc/waiting/waiting-inst-id-b")" "counter keyed by agent_id"
+# a verdict resets that instance's counter
+vo swarm:waiting-inst "$(printf 'DONE\nevidence: files=1 cmds=1 turns=3/15')" id-a >/dev/null
+assert_eq "1" "$([ -e "$SWARM_ROOT/run/adhoc/waiting/waiting-inst-id-a" ] && echo 0 || echo 1)" "a verdict resets the WAITING counter"
+out="$(vo swarm:waiting-inst "$(printf 'WAITING 1\npending: slow-leaf')" id-a)"
+assert_eq "" "$out" "after the reset the instance may WAIT again"
+# no .swarm/ => no counter => WAITING is not unlimited, it is rejected
+out="$(SWARM_ROOT="$fixture/no-such-swarm" vo swarm:waiting-nocounter "$(printf 'WAITING 1\npending: slow-leaf')")"
+assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "WAITING without a storable counter is blocked"
+
+# a turn that is neither WAITING nor a verdict is still blocked (the premature-stop path is unchanged)
+out="$(vo swarm:waiting-prose "still waiting for my children, will report later")"
+assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "prose instead of WAITING/verdict is still blocked"
+
+# ---------- English fixed vocabulary (agents were translated) is exempt from the 120 cap ----------
+long_lenses="- lenses: security-auditor, vulnerability-scanner, architecture-auditor, opportunity-analyst, solid-auditor, reason: objective matched CI"
+out="$(vo swarm:analysis-orchestrator "$(printf 'DONE\nevidence: files=1 cmds=3 turns=9/20\n%s' "$long_lenses")")"
+assert_eq "" "$out" "a 120+ char English '- lenses:' line is accepted"
+out="$(vo swarm:analysis-orchestrator "$(printf 'DONE\nevidence: files=1 cmds=3 turns=9/20\n- 14 additional findings in .swarm/findings/architecture-auditor.md')")"
+assert_eq "" "$out" "English '- N additional findings in' line is accepted"
+long_assumed="- assumed: Q2 [Approach] endpoint over the current listing (recommended option, launch forbade questions, recorded as ASSUMED)"
+out="$(vo swarm:orchestrator "$(printf 'DONE\nevidence: files=3 cmds=5 turns=12/30\n%s' "$long_assumed")")"
+assert_eq "" "$out" "a 120+ char '- assumed:' line (non-interactive run) is accepted"
+long_prose="- this is just a long sentence of narration that happens to start with a dash and keeps going well beyond the one hundred twenty cap"
+out="$(vo swarm:orchestrator "$(printf 'DONE\nevidence: files=3 cmds=5 turns=12/30\n%s' "$long_prose")")"
+assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "long '- ' prose outside the fixed vocabulary is still blocked"
+
 rm -rf "$fixture"
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

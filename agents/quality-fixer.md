@@ -1,7 +1,8 @@
 ---
 name: quality-fixer
 description: Use when implementation-orchestrator needs lint/format/typecheck --fix run against implementer's just-written code, with model judgment only for what --fix couldn't resolve. Points at implementer's worktree via an absolute path, never gets its own isolation. Never asks the owner.
-model: haiku
+model: inherit
+tier: standard
 tools: Read, Grep, Glob, Edit, Bash, SendMessage
 maxTurns: 10
 memory: project

@@ -44,12 +44,13 @@ done
 
 # El punto de entrada raíz: /swarm:run debe invocar al agente orchestrator.
 assert_eq "0" "$([ -f "$PLUGIN_ROOT/agents/orchestrator.md" ] && echo 0 || echo 1)" "agents/orchestrator.md exists"
-assert_file_contains "$PLUGIN_ROOT/commands/run.md" "orchestrator" "run.md invoca al orchestrator"
-assert_file_contains "$PLUGIN_ROOT/commands/run.md" '\$ARGUMENTS' "run.md pasa \$ARGUMENTS"
+assert_file_contains "$PLUGIN_ROOT/commands/run.md" "orchestrator" "run.md invokes the orchestrator"
+assert_file_contains "$PLUGIN_ROOT/commands/run.md" '\$ARGUMENTS' "run.md passes \$ARGUMENTS"
+assert_file_contains "$PLUGIN_ROOT/commands/run.md" 'name: "orchestrator"' "run.md names the root orchestrator (owner relay addressee)"
 
-# /swarm:doctor (fase 5b): el chequeo incluye el stack pack activo y nunca instala nada.
+# /swarm:doctor (phase 5b): the check includes the active stack pack and never installs anything.
 assert_file_contains "$PLUGIN_ROOT/commands/doctor.md" "pack" "doctor documents that the check includes the active stack pack"
-assert_file_contains "$PLUGIN_ROOT/commands/doctor.md" "nunca instala" "doctor states it never installs"
+assert_file_contains "$PLUGIN_ROOT/commands/doctor.md" "never installs" "doctor states it never installs"
 
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

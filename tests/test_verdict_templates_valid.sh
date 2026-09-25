@@ -68,7 +68,7 @@ for stem in $AGENT_FILES; do
 import re, sys, json
 
 VERDICT_START_RE = re.compile(r'^(OK\b|KO\s|DONE\b|BLOCKED\s)')
-NEGATION_RE = re.compile(r'nunca', re.I)
+NEGATION_RE = re.compile(r'nunca|never', re.I)
 
 text = open(sys.argv[1]).read()
 parts = text.split('---\n', 2)

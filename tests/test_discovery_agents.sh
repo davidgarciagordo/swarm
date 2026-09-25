@@ -18,13 +18,14 @@ guard() { # guard <agent_type> <command> -> "allow" | "deny"
 }
 
 # ---------- contrato común a TODO agente del dominio (regla 7: nadie pregunta al owner) ----------
-check_common() { # check_common <name> <model> <maxTurns>
+check_common() { # check_common <name> <tier> <maxTurns>
   local f="$PLUGIN_ROOT/agents/$1.md" name="$1"
   assert_eq "0" "$([ -f "$f" ] && echo 0 || echo 1)" "agents/$name.md exists"
   [ -f "$f" ] || return
   local front tools
   front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"
-  assert_eq "0" "$(echo "$front" | grep -q "^model: $2\$" && echo 0 || echo 1)" "$name model is $2 (spec §7)"
+  assert_eq "0" "$(echo "$front" | grep -q '^model: inherit$' && echo 0 || echo 1)" "$name model is inherit (MODEL TIERS contract)"
+  assert_eq "0" "$(echo "$front" | grep -q "^tier: $2\$" && echo 0 || echo 1)" "$name tier is $2 (MODEL TIERS contract)"
   assert_eq "0" "$(echo "$front" | grep -q "^maxTurns: $3\$" && echo 0 || echo 1)" "$name maxTurns is $3 (spec §7)"
   assert_eq "1" "$(has "$tools" 'AskUserQuestion')" "$name NEVER has AskUserQuestion (spec §3.2 rule 7)"
   assert_eq "0" "$(has "$tools" 'SendMessage')" "$name has SendMessage (peer-to-peer §5)"
@@ -37,8 +38,8 @@ check_common() { # check_common <name> <model> <maxTurns>
 for leaf in value-critic options-generator; do
   f="$PLUGIN_ROOT/agents/$leaf.md"
   case "$leaf" in
-    value-critic) check_common "$leaf" opus 8 ;;
-    options-generator) check_common "$leaf" opus 10 ;;
+    value-critic) check_common "$leaf" judgement 8 ;;
+    options-generator) check_common "$leaf" judgement 10 ;;
   esac
   [ -f "$f" ] || continue
   front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"
@@ -56,7 +57,7 @@ assert_eq "0" "$(has "$(body "$PLUGIN_ROOT/agents/value-critic.md" 2>/dev/null)"
 assert_eq "0" "$(has "$(body "$PLUGIN_ROOT/agents/options-generator.md" 2>/dev/null)" 'YAGNI')" "options-generator states YAGNI discipline"
 
 # ---------- T3: research-analyst ----------
-check_common research-analyst sonnet 15
+check_common research-analyst judgement 15
 f="$PLUGIN_ROOT/agents/research-analyst.md"
 if [ -f "$f" ]; then
   front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"
@@ -72,7 +73,7 @@ if [ -f "$f" ]; then
 fi
 
 # ---------- T4: feasibility-spiker ----------
-check_common feasibility-spiker sonnet 15
+check_common feasibility-spiker standard 15
 f="$PLUGIN_ROOT/agents/feasibility-spiker.md"
 if [ -f "$f" ]; then
   front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"
@@ -81,11 +82,11 @@ if [ -f "$f" ]; then
   assert_eq "0" "$(has "$tools" 'Write')" "spiker can Write (its spike)"
   assert_eq "1" "$(has "$tools" 'Agent')" "spiker spawns nobody"
   assert_eq "0" "$(has "$(body "$f")" 'memory-orchestrator')" "spiker body routes every .swarm write through memory-orchestrator (protocol §3)"
-  assert_eq "0" "$(has "$(body "$f")" 'BLOCKED falta swarm-root')" "spiker blocks without an absolute swarm-root"
+  assert_eq "0" "$(has "$(body "$f")" 'BLOCKED missing swarm-root')" "spiker blocks without an absolute swarm-root"
 fi
 
 # ---------- T5: discovery-orchestrator (el contrato de spawn vive en test_discovery_orchestrator_spawns.sh) ----------
-check_common discovery-orchestrator sonnet 15
+check_common discovery-orchestrator judgement 15
 
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

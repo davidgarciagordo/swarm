@@ -59,7 +59,7 @@ KEYS = {"lint","fix","typecheck","test","test-one","scan-deps","outdated","licen
         "scan-secrets","sast","migrate-diff","migrate-status","migrate-up"}
 
 def is_header_or_separator(first_cell):
-    return first_cell in ("clave", "---") or set(first_cell) <= set("- :")
+    return first_cell in ("clave", "key", "---") or set(first_cell) <= set("- :")
 
 data_lines = 0
 parsed = 0

@@ -10,12 +10,13 @@ Plugin de Claude Code. Enjambre de agentes con responsabilidad única para el ci
 - **Requisitos** — chequeo de entorno, auditoría de dependencias read-only, instalación de dependencias aprobada por el owner.
 - **Discovery** — un único batch de preguntas presentado al owner con `AskUserQuestion`.
 - **Análisis** — auditoría read-only del código en 7 lentes.
-- **Diseño** — escribe un plan de implementación real, revisado adversarialmente por grill×3, arbitrado por el propio `design-orchestrator`.
-- **Implementación** — TDD RED→GREEN por fase en un worktree aislado, con pasos condicionales de migración de esquema y documentación, `reviewer` como gate ANTES del merge local — solo por invocación explícita del owner, nunca encadenado.
+- **Diseño** — escribe un plan de implementación real, revisado por el panel de revisión independiente (`review-orchestrator`), arbitrado por el propio `design-orchestrator`.
+- **Implementación** — TDD RED→GREEN por fase en un worktree aislado, con pasos condicionales de migración de esquema y documentación, el panel de revisión como gate ANTES del merge local — solo por invocación explícita del owner, nunca encadenado.
 - **Entrega** — publica una rama ya fusionada (push + PR + handoff) — solo por invocación explícita y separada del owner, con gate de `AskUserQuestion` aprobado por el owner que nombra remoto/rama/base, nunca mergea el PR él mismo.
 
-Más el primer stack pack (`php-ddd-symfony8`, detectado automáticamente desde `composer.json`) y
-un gate de verificación independiente (`verifier`) antes de todo cierre en verde.
+Más el primer stack pack (`php-ddd-symfony8`, detectado automáticamente desde `composer.json`),
+un gate de verificación independiente (`verifier`) antes de todo cierre en verde y (0.2) un panel de
+revisión que puntúa todo artefacto sobre el que alguien va a actuar — ver "Tiers de modelo y panel de revisión" más abajo.
 
 **Fuera de v1, a propósito:** un modo de ejecución Agent Teams, trabajo de diseño
 visual/UI, CI externo, más de un stack pack a la vez, una jerarquía de agentes a 3 niveles,
@@ -53,8 +54,8 @@ guía completa.
 
 - `/swarm:run "<objetivo>"` — el punto de entrada único; lanza el orquestador raíz. `--tier=direct|light|full` está disponible para usuarios avanzados/CI — ver la sección Avanzado de `docs/USAGE.es.md`.
 - `/swarm:init` — crea `.swarm/` en el repo target, health-gated sobre el backend `files`. Ya no es un paso obligatorio — `/swarm:run "<objetivo>"` lo ejecuta por ti automáticamente.
-- `/swarm:doctor` — verifica los requisitos de entorno del repo contra `requirements.json`.
-- `/swarm:status` — resumen determinista, sin turno de modelo, del run actual, tier, agentes y hallazgos abiertos.
+- `/swarm:doctor` — verifica los requisitos de entorno del repo contra `requirements.json`, más dos comprobaciones orientativas (nunca bloquean): el modelo efectivo por tier, y si los worktrees de los agentes partirían de un `origin/HEAD` desfasado.
+- `/swarm:status` — resumen determinista, sin turno de modelo, del run actual, tier, agentes, hallazgos abiertos y las últimas puntuaciones del panel de revisión.
 - `/swarm:findings [agente|TAG] [--all]` — consulta filtrada determinista, sin turno de modelo, de los hallazgos del enjambre.
 
 ## ⚙️ Cómo funciona
@@ -63,42 +64,48 @@ guía completa.
 
 ```mermaid
 flowchart TD
-    O["orchestrator (raíz · opus)"]
-    MO["memory-orchestrator (haiku)"]
-    MB["memory-builder (sonnet)"]
-    MC["memory-curator (haiku)"]
-    RO["requirements-orchestrator (haiku)"]
-    EC["env-checker (haiku)"]
-    DA["dependency-auditor (sonnet)"]
-    DI["dependency-installer (sonnet)"]
-    DO["discovery-orchestrator (sonnet)"]
-    VC["value-critic (opus)"]
-    RA["research-analyst (sonnet)"]
-    OG["options-generator (opus)"]
-    FS["feasibility-spiker (sonnet)"]
-    AO["analysis-orchestrator (sonnet)"]
-    OA["opportunity-analyst (opus)"]
-    AA["architecture-auditor (opus)"]
-    SA["security-auditor (opus)"]
-    VS["vulnerability-scanner (haiku)"]
-    PA["performance-analyst (sonnet)"]
-    DMA["data-model-auditor (sonnet)"]
-    SOA["solid-auditor (opus)"]
-    DGO["design-orchestrator (sonnet)"]
-    PADV["pattern-advisor (sonnet)"]
-    DM["domain-modeler (opus)"]
-    PL["planner (opus)"]
-    IO["implementation-orchestrator (sonnet)"]
-    TW["test-writer (sonnet)"]
-    IM["implementer (sonnet)"]
-    ME["migration-engineer (sonnet)"]
-    DW["doc-writer (sonnet)"]
-    QF["quality-fixer (haiku)"]
-    RV["reviewer (opus)"]
-    VER["verifier (opus)"]
-    DLO["delivery-orchestrator (haiku)"]
-    RM["release-manager (sonnet)"]
-    HW["handoff-writer (haiku)"]
+    O["orchestrator (raíz · judgement)"]
+    MO["memory-orchestrator (mechanical)"]
+    MB["memory-builder (mechanical)"]
+    MC["memory-curator (mechanical)"]
+    RO["requirements-orchestrator (judgement)"]
+    EC["env-checker (mechanical)"]
+    DA["dependency-auditor (mechanical)"]
+    DI["dependency-installer (mechanical)"]
+    DO["discovery-orchestrator (judgement)"]
+    VC["value-critic (judgement)"]
+    RA["research-analyst (judgement)"]
+    OG["options-generator (judgement)"]
+    FS["feasibility-spiker (standard)"]
+    AO["analysis-orchestrator (judgement)"]
+    OA["opportunity-analyst (judgement)"]
+    AA["architecture-auditor (judgement)"]
+    SA["security-auditor (judgement)"]
+    VS["vulnerability-scanner (mechanical)"]
+    PA["performance-analyst (judgement)"]
+    DMA["data-model-auditor (judgement)"]
+    SOA["solid-auditor (judgement)"]
+    DGO["design-orchestrator (judgement)"]
+    PADV["pattern-advisor (judgement)"]
+    DM["domain-modeler (judgement)"]
+    PL["planner (judgement)"]
+    IO["implementation-orchestrator (judgement)"]
+    TW["test-writer (standard)"]
+    IM["implementer (standard)"]
+    ME["migration-engineer (standard)"]
+    DW["doc-writer (standard)"]
+    QF["quality-fixer (standard)"]
+    VER["verifier (judgement)"]
+    DLO["delivery-orchestrator (judgement)"]
+    RM["release-manager (standard)"]
+    HW["handoff-writer (standard)"]
+    REVO["review-orchestrator (judgement)"]
+    CC["completeness-critic (judgement)"]
+    FC["fact-checker (judgement)"]
+    SC["simplicity-critic (judgement)"]
+    GR["grill-architect / grill-operator / grill-engineer (judgement)"]
+    RF["refuter (judgement)"]
+    BJ["blind-judge (judgement)"]
 
     O --> MO
     MO --> MB
@@ -130,24 +137,32 @@ flowchart TD
     IO --> ME
     IO --> DW
     IO --> QF
-    IO --> RV
     O -. gate de verificación, antes de todo cierre en verde .-> VER
     O -. solo invocación explícita, nunca encadenada .-> DLO
     DLO --> RM
     DLO --> HW
+    DGO -. plan .-> REVO
+    IO -. diff, before merge .-> REVO
+    O -. analysis report .-> REVO
+    REVO --> CC
+    REVO --> FC
+    REVO --> SC
+    REVO --> GR
+    REVO --> RF
+    REVO --> BJ
 ```
 
-El `orchestrator` raíz (opus) clasifica el tier del run y habla con siete dominios hoy:
+El `orchestrator` raíz (tier `judgement`) clasifica el tier del run y habla con siete dominios hoy:
 
 - **`memory-orchestrator`** dirige a `memory-builder` (construye/refresca el context-pack) y `memory-curator` (compacta hallazgos, GC).
 - **`requirements-orchestrator`** dirige a `env-checker` (chequeo de herramientas OS/proyecto, `operation: check` de `/swarm:doctor`), `dependency-auditor` (auditoría read-only de CVEs/desactualización/licencias, `operation: audit-deps`) y `dependency-installer` (mutante, `operation: install`, lanzado solo con una aprobación itemizada del owner que la raíz recoge vía `AskUserQuestion` — ver `agents/orchestrator.md` §11). `/swarm:doctor` también invoca a `requirements-orchestrator` directamente, en modo adhoc, fuera de cualquier run, para un chequeo de entorno simple.
 - **`discovery-orchestrator`** dirige las cuatro hojas de discovery y devuelve UN batch de preguntas que la raíz presenta con `AskUserQuestion`.
 - **`analysis-orchestrator`** selecciona un subconjunto de sus 7 lentes read-only según el objetivo y reenvía sus hallazgos directamente.
-- **`design-orchestrator`** corre solo en `tier: full`, por cualquiera de dos vías independientes — tras discovery cerrar decisiones de producto, o directamente desde un objetivo de refactor/migración que se saltó discovery pero aún necesita un rediseño real. Lanza `pattern-advisor` + `domain-modeler` en una tanda, luego `planner` escribe el plan real, luego grill×3 lo revisa adversarialmente y `design-orchestrator` arbitra los hallazgos él mismo, sin preguntar nunca al owner.
-- **`implementation-orchestrator`** secuencia `test-writer` (RED) → `implementer` (worktree aislado, GREEN) → `migration-engineer` (condicional, solo fases que tocan esquema) → `doc-writer` (condicional, solo fases con cambio de comportamiento observable) → `quality-fixer` (`--fix` determinista + residual) → `reviewer` (gate severidad-tagged ANTES del merge) → merge local a la rama del run, para UNA fase de un plan ya `arbitrado` por invocación — solo cuando el owner lo pide explícitamente, nunca encadenado tras discovery/diseño.
-- **`delivery-orchestrator`** (haiku) secuencia `release-manager` (sonnet — fase A previsualiza los comandos exactos de push/PR, fase B los ejecuta solo con una cabecera `approved-push:` itemizada que la raíz construye a partir de una aprobación real vía `AskUserQuestion`, y `operation: configure-remote` arranca un remoto ausente bajo su propio gate `approved-remote:` separado) y `handoff-writer` (haiku, en cualquier camino terminal) — lanzado solo por una petición explícita y separada del owner que nombre la entrega, nunca encadenado tras implementación, nunca mergeando el PR él mismo (ver `agents/orchestrator.md` §12).
+- **`design-orchestrator`** corre solo en `tier: full`, por cualquiera de dos vías independientes — tras discovery cerrar decisiones de producto, o directamente desde un objetivo de refactor/migración que se saltó discovery pero aún necesita un rediseño real. Lanza `pattern-advisor` + `domain-modeler` en una tanda, luego `planner` escribe el plan real, luego el panel de revisión (`review-orchestrator`) lo revisa y `design-orchestrator` arbitra él mismo los hallazgos que sobreviven, sin preguntar nunca al owner.
+- **`implementation-orchestrator`** secuencia `test-writer` (RED) → `implementer` (worktree aislado, GREEN) → `migration-engineer` (condicional, solo fases que tocan esquema) → `doc-writer` (condicional, solo fases con cambio de comportamiento observable) → `quality-fixer` (`--fix` determinista + residual) → el panel de revisión sobre el diff (gate ANTES del merge) → merge local a la rama del run, para UNA fase de un plan ya `arbitrado` por invocación — solo cuando el owner lo pide explícitamente, nunca encadenado tras discovery/diseño.
+- **`delivery-orchestrator`** secuencia `release-manager` (fase A previsualiza los comandos exactos de push/PR, fase B los ejecuta solo con una cabecera `approved-push:` itemizada que la raíz construye a partir de una aprobación real vía `AskUserQuestion`, y `operation: configure-remote` arranca un remoto ausente bajo su propio gate `approved-remote:` separado) y `handoff-writer` (en cualquier camino terminal) — lanzado solo por una petición explícita y separada del owner que nombre la entrega, nunca encadenado tras implementación, nunca mergeando el PR él mismo (ver `agents/orchestrator.md` §12).
 
-Antes de cualquier cierre en verde de un run — cierre normal, análisis, diseño, implementación, una auditoría/instalación de requisitos o una entrega — la raíz lanza **`verifier`** (opus, read-only), un gate único y genérico que comprueba de forma independiente que el veredicto del dominio que cierra traza a hallazgos realmente persistidos y cumple su propio contrato `## Salida`; un `KO` le da al dominio una oportunidad de corregir, un segundo `KO` cierra el run `BLOCKED` en vez de en falso verde.
+Antes de cualquier cierre en verde de un run — cierre normal, análisis, diseño, implementación, una auditoría/instalación de requisitos o una entrega — la raíz lanza **`verifier`** (read-only), un gate único y genérico que comprueba de forma independiente que el veredicto del dominio que cierra traza a hallazgos realmente persistidos y cumple su propio contrato `## Salida`; un `KO` le da al dominio una oportunidad de corregir, un segundo `KO` cierra el run `BLOCKED` en vez de en falso verde.
 
 ### Flujo de `/swarm:run`
 
@@ -218,7 +233,7 @@ sequenceDiagram
 
 `direct` nunca abre run ni toca memoria — la raíz responde ella misma. `light`/`full` abren un run y siempre comprueban el pack antes de hacer nada más; el pack solo se reconstruye si está stale (tree-state hash), nunca incondicionalmente.
 
-Con el pack listo, un objetivo **de producto** (nueva funcionalidad, nuevo producto, cambio de comportamiento visible para el usuario) pasa por discovery antes de cualquier diseño: la raíz lanza `discovery-orchestrator`, que corre sus cuatro hojas en una sola tanda y devuelve **un** batch de hasta cuatro preguntas. La raíz valida cada pregunta, las presenta todas en **una** llamada a `AskUserQuestion` — es el único punto en que `/swarm:run` se vuelve interactivo y te espera — y registra todas las respuestas como **una sola** línea de decisión en `.swarm/decisions.md`, con el argumento crudo sin tocar (`raw:`) delante y detrás el `objective:` resuelto, para que un run posterior sobre el mismo objetivo detecte que discovery ya corrió en vez de volver a preguntar — esa detección compara contra `raw:` (determinista, byte a byte), nunca contra el `objective:`, que puede venir interpretado. Si cierras el diálogo sin responder, el batch se registra igualmente, marcado `[pendiente]`. Discovery se salta en bugfixes puros, docs, tests e infraestructura (ahí design también se salta), en un objetivo de refactor/migración (ahí design NO se salta — ver Diseño abajo), y para un objetivo que `decisions.md` ya cerró; el salto siempre se reporta en la salida.
+Con el pack listo, un objetivo **de producto** (nueva funcionalidad, nuevo producto, cambio de comportamiento visible para el usuario) pasa por discovery antes de cualquier diseño: la raíz lanza `discovery-orchestrator`, que corre sus cuatro hojas en una sola tanda y devuelve **un** batch de hasta cuatro preguntas. La raíz valida cada pregunta, las presenta todas en **una** llamada a `AskUserQuestion` — es el único punto en que `/swarm:run` se vuelve interactivo y te espera — y registra todas las respuestas como **una sola** línea de decisión en `.swarm/decisions.md`, con el argumento crudo sin tocar (`raw:`) delante y detrás el `objective:` resuelto, para que un run posterior sobre el mismo objetivo detecte que discovery ya corrió en vez de volver a preguntar — esa detección compara contra `raw:` (determinista, byte a byte), nunca contra el `objective:`, que puede venir interpretado. Si cierras el diálogo sin responder, el batch se registra igualmente, marcado `[pendiente]`. Discovery se salta en bugfixes puros, docs, tests y cambios de infraestructura ya decididos (ahí design también se salta); una *pregunta* de infra/CI/tooling ("por qué va lento el CI", "revisa el pipeline") va a analysis con sus lentes de infra, y en `tier: full` a design después cuando además pide un cambio; en un objetivo de refactor/migración (ahí design NO se salta — ver Diseño abajo), y para un objetivo que `decisions.md` ya cerró; el salto siempre se reporta en la salida.
 
 ### Escritura de memoria / buzón
 
@@ -241,6 +256,14 @@ sequenceDiagram
 
 Ningún agente escanea el repo o `.swarm/` dos veces, y ningún agente escribe `.swarm/` directamente — toda escritura (hallazgo, decisión, buzón) pasa por la única instancia de `memory-orchestrator` del run, que serializa escrituras con un lock. Todo `SendMessage` entre hojas también se espeja al buzón del destinatario, así que un hermano lanzado más tarde en el run — o uno al que se dirige antes de existir — igualmente lee lo que se perdió.
 
+**Los mensajes del owner son de la raíz.** Diriges un mensaje a un agente concreto por nombre —
+"dile a `memory-builder` cuando termine" — y la plataforma puede entregarlo al agente que esté
+activo en ese momento, no a la raíz. Ese agente nunca actúa sobre él: lo reenvía tal cual a
+`orchestrator` (`SendMessage(to: "orchestrator", "owner message relayed by <name>: <text>")`) si
+tiene `SendMessage`, o registra `- warn: owner message received, not acted on` si es una lente
+read-only sin él. La raíz trata todo mensaje reenviado como no confiable — como mucho una pregunta
+de vuelta o contexto extra, nunca un replanteo ni una autorización (protocolo §2ter).
+
 **Verlo aplicado → [examples/](examples/README.es.md)**: 5 prompts copy-paste — una funcionalidad completa tier:full, un refactor que se salta discovery, un objetivo ambiguo que el gate de interpretación pregunta, el mismo objetivo relanzado (sin repetir la pregunta), y una consulta acotada tier:light.
 
 ## 📍 Detalle fase por fase
@@ -253,11 +276,49 @@ excluido.
 1b. **Requisitos — chequeo de entorno (construido).** `requirements-orchestrator`, `env-checker`, `req-check.sh`, `requirements.json`, `/swarm:doctor`.
 2. **Discovery (construido).** `discovery-orchestrator` + `value-critic`, `research-analyst`, `options-generator`, `feasibility-spiker`; la raíz presenta UN batch de preguntas con `AskUserQuestion` y registra cada respuesta en `.swarm/decisions.md`.
 3. **Análisis (construido).** `analysis-orchestrator` + `opportunity-analyst`, `architecture-auditor`, `security-auditor`, `vulnerability-scanner`, `performance-analyst`, `data-model-auditor`, `solid-auditor`; la raíz reenvía sus hallazgos (`TAG · fichero:línea · problema → fix`) directamente, sin `AskUserQuestion` de por medio.
-4. **Diseño (construido).** `design-orchestrator` + `pattern-advisor`, `domain-modeler`, `planner`; corre solo en `tier: full`, tras discovery cerrar decisiones de producto o directamente desde un objetivo de refactor/migración que se saltó discovery pero aún necesita un rediseño; grill×3 revisa adversarialmente el plan que escribe `planner` — `working-methods:grill-architect/operator/engineer` si ese plugin está instalado, o las lentes nativas propias de swarm `grill-architect/operator/engineer` si no (mismo ataque, mismo formato de hallazgo, nunca las dos a la vez), así que grill×3 funciona con o sin `working-methods` instalado — y `design-orchestrator` arbitra los hallazgos él mismo, sin `AskUserQuestion` de por medio.
-5. **Implementación — núcleo (construido, fase 5a).** `implementation-orchestrator` + `test-writer`, `implementer`, `quality-fixer`, `reviewer`; ejecuta UNA fase de un plan ya `arbitrado` por invocación (TDD RED→GREEN en el worktree aislado de `implementer`, `quality-fixer` aplica `--fix` al residual, `reviewer` hace gate de hallazgos severidad-tagged ANTES del merge local a la rama del run); solo por invocación explícita del owner, nunca encadenado tras discovery/diseño.
+4. **Diseño (construido).** `design-orchestrator` + `pattern-advisor`, `domain-modeler`, `planner`; corre solo en `tier: full`, tras discovery cerrar decisiones de producto o directamente desde un objetivo de refactor/migración que se saltó discovery pero aún necesita un rediseño; el panel de revisión revisa el plan que escribe `planner` — sus lentes grill son `working-methods:grill-architect/operator/engineer` si ese plugin está instalado, o las lentes nativas propias de swarm `grill-architect/operator/engineer` si no (mismo ataque, mismo formato de hallazgo, nunca las dos a la vez) — y `design-orchestrator` arbitra él mismo los hallazgos que sobreviven, sin `AskUserQuestion` de por medio.
+5. **Implementación — núcleo (construido, fase 5a).** `implementation-orchestrator` + `test-writer`, `implementer`, `quality-fixer`, `reviewer`; ejecuta UNA fase de un plan ya `arbitrado` por invocación (TDD RED→GREEN en el worktree aislado de `implementer`, `quality-fixer` aplica `--fix` al residual, el panel de revisión hace de gate sobre el diff ANTES del merge local a la rama del run; `reviewer` queda solo como alias fino); solo por invocación explícita del owner, nunca encadenado tras discovery/diseño.
 5b. **Requisitos — auditoría/instalación de dependencias + stack pack (construido).** `dependency-auditor` (auditoría read-only de CVEs/desactualización/licencias, `operation: audit-deps` de `requirements-orchestrator`) y `dependency-installer` (mutante, `operation: install`, solo con una aprobación itemizada del owner recogida por la raíz vía `AskUserQuestion` — `agents/orchestrator.md` §11); `migration-engineer` y `doc-writer` se suman a la secuencia de `implementation-orchestrator` (ambos condicionales — fases que tocan esquema y fases con cambio de comportamiento observable, respectivamente); el primer stack pack, `php-ddd-symfony8` (`skills/pack-php-ddd-symfony8/`), detectado automáticamente desde un `composer.json` con requisito `symfony/*`.
 6. **Entrega (construido).** `delivery-orchestrator` (secuencia `release-manager` + `handoff-writer`), `release-manager` (gate de push/PR en dos fases — preview de `prepare-release`, `publish-release` solo con una cabecera `approved-push:` itemizada, `configure-remote` arranca un remoto ausente bajo un gate `approved-remote:` separado), `handoff-writer` (handoff de sesión en cualquier camino terminal); gate en la raíz, `agents/orchestrator.md` §12 — solo por invocación explícita y separada del owner, nunca encadenado, nunca mergea el PR él mismo. Más `/swarm:status` y `/swarm:findings` — comandos deterministas, sin turno de modelo, sobre el estado de `.swarm/`.
-14bis. **Gate de verificación independiente (construido).** `verifier` (opus, read-only, genérico — sin conocimiento de ningún dominio concreto); la raíz lo lanza antes de todo cierre en verde de cualquier dominio para comprobar que las afirmaciones del veredicto que cierra trazan a hallazgos realmente persistidos y que las líneas obligatorias de su propio contrato están presentes; two-strike: un `KO` devuelve el dominio a corregir una vez, un segundo `KO` cierra el run `BLOCKED` en vez de en falso verde.
+14bis. **Gate de verificación independiente (construido).** `verifier` (read-only, genérico — sin conocimiento de ningún dominio concreto); la raíz lo lanza antes de todo cierre en verde de cualquier dominio para comprobar que las afirmaciones del veredicto que cierra trazan a hallazgos realmente persistidos y que las líneas obligatorias de su propio contrato están presentes; two-strike: un `KO` devuelve el dominio a corregir una vez, un segundo `KO` cierra el run `BLOCKED` en vez de en falso verde.
+
+## 🎚️ Tiers de modelo y panel de revisión
+
+**Ningún agente nombra un modelo.** Cada agente declara `model: inherit` más un `tier:` —
+`judgement` (auditar, lentes de revisión, juez, planificar, orquestar), `standard` (ejecutar un plan
+cerrado, escribir código/tests/docs) o `mechanical` (correr scripts, curar memoria, recoger datos del
+entorno). El mapeo tier → modelo vive solo en [`models.json`](models.json) (candidatos ordenados por
+tier + un mapa `escalation`); un `.swarm/models.json` con el mismo esquema lo sobrescribe por tier,
+que es como un host no-Anthropic mapea los tiers a sus propios ids. Todo orquestador resuelve el
+modelo de sus hijos con `scripts/model-resolve.sh` — determinista, nunca una suposición de un modelo:
+
+- un spawn que falla porque un modelo no existe lo marca no disponible (`--mark-unavailable`, con
+  sello de tiempo y caducidad de 24h) y reintenta una vez;
+- `judgement` nunca cae al modelo de un tier inferior: una lista agotada resuelve a `inherit` (el
+  modelo de la sesión), y el tier de run `light` reduce amplitud, nunca un modelo de juicio;
+- un hijo cuya salida falla la verificación se reintenta una vez con `--escalate <tier>`, que se
+  salta cualquier tier que resuelva al mismo modelo (reintentar en el mismo modelo no es escalar);
+- el juez ciego se resuelve con `--avoid <modelo del productor>`; cuando no se puede demostrar la
+  independencia (sin candidato distinto, o el productor corrió en `inherit`) el panel lo dice en su salida.
+
+**Panel de revisión (`review-orchestrator`).** Todo artefacto sobre el que alguien va a actuar — un
+plan de diseño, un diff de implementación antes del merge, un informe de análisis — pasa por lentes
+independientes de objetivo único (`completeness-critic`, `fact-checker`, `simplicity-critic`, las
+tres lentes grill), un dedup determinista (`scripts/review-dedup.sh`), un `refuter` para los
+hallazgos bloqueantes y un `blind-judge` que puntúa de 0 a 10 (KO por debajo de 7). Las puntuaciones
+se añaden a `.swarm/judgements.jsonl` (gitignorado, lo muestra `/swarm:status`). Máximo dos rondas,
+impuestas por un contador en `.swarm/run/<run>/review/`; un segundo KO escala al owner. Lo único que
+no pasa por el panel son los objetivos `direct`, que no abren run. Política:
+`skills/swarm-protocol/judgement.md`.
+
+**`WAITING <n>`.** Un orquestador cuyos hijos `background: true` siguen corriendo cierra su turno con
+`WAITING <n>` + `pending: <nombres>` en vez de un veredicto prematuro; el hook de salida lo limita a 6
+por instancia de agente (se reinicia con su siguiente veredicto) y lo rechaza si no puede contarlo.
+
+**Guard de Bash.** Los agentes sin `Write`/`Edit` no pueden redirigir la salida a un fichero (`>`,
+`>>`) ni usar `--output` de git. `docker exec` solo está en allowlists con nombre, solo ejecuta
+comandos internos de lectura y solo en contenedores listados, uno por línea, en el
+`.swarm/docker-containers` del repo.
 
 ## 🏷️ Convención de nombres
 

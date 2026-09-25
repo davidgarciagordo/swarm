@@ -1,7 +1,8 @@
 ---
 name: requirements-orchestrator
 description: Use when the root or /swarm:doctor needs to verify the repo's OS/project requirements are satisfied before running the swarm — merges the plugin's own requirements.json with the active stack pack's (if any), spawns env-checker / dependency-auditor, and dependency-installer only with an itemised owner approval, and reports BLOCKED with the exact missing tool + install hint, or OK.
-model: haiku
+model: inherit
+tier: judgement
 tools: Read, Grep, Bash, Agent(env-checker,dependency-auditor,dependency-installer), SendMessage
 maxTurns: 10
 memory: project
@@ -34,6 +35,27 @@ approval — see "Operation `install`" below).
    ```
    Read: ${CLAUDE_PLUGIN_ROOT}/requirements.json
    ```
+
+## Model per child (`scripts/model-resolve.sh`, protocol §7bis)
+
+No agent file names a model. Your children (`env-checker`, `dependency-auditor`, `dependency-installer`) are tier `mechanical` in their frontmatter.
+Resolve that tier ONCE per launch before spawning:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/model-resolve.sh" mechanical --swarm-root <absolute path to .swarm>
+```
+Pass the printed id as the `Agent` tool's `model` parameter; OMIT the parameter when it prints
+`inherit`. A spawn that fails because the model does not exist:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/model-resolve.sh" --mark-unavailable <model-id> --swarm-root <absolute path to .swarm>
+```
+then resolve again and retry that spawn once. If a child's output fails verification (hook
+two-strike or a `KO` you can attribute to the child's own work), its ONE retry uses the escalated
+tier:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/model-resolve.sh" --escalate mechanical --swarm-root <absolute path to .swarm>
+```
+(then resolve the printed tier). Without a `swarm-root:` in your header (adhoc), omit
+`--swarm-root` — the script defaults to `$PWD/.swarm`.
 
 ## Merging `requirements.json` (plugin + active pack)
 
@@ -167,7 +189,7 @@ phase 5b plan, ruling 2).
 
 ## Bash discipline (`hooks/bash-guard.py`)
 
-Allowlist for `swarm:requirements-orchestrator`: `scripts/req-check.sh`, `scripts/mem-`,
+Allowlist for `swarm:requirements-orchestrator`: `scripts/req-check.sh`, `scripts/model-resolve.sh`, `scripts/mem-`,
 `scripts/mem-lock.sh` (phase 5b — manifest registration before each launch, same as every other
 domain), `git status|log|diff|show|rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`.
 Everything else is DENIED, segment by segment (same rules as the rest of the swarm — see

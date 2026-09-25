@@ -1,7 +1,8 @@
 ---
 name: test-writer
 description: Use when implementation-orchestrator needs the failing test for ONE phase of a plan, written BEFORE the implementer touches any production code — TDD red step, commits directly to the run's current branch. Never asks the owner.
-model: sonnet
+model: inherit
+tier: standard
 tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage
 maxTurns: 20
 memory: project

@@ -46,6 +46,16 @@ assert_eq "0" "$(echo "$out" | grep -q 'delivery' && echo 0 || echo 1)" "lists e
 assert_eq "0" "$(echo "$out" | grep -q 'fase implementada' && echo 0 || echo 1)" "echoes the run summary lines"
 assert_eq "0" "$(echo "$out" | grep -qE 'abiertos?: *1' && echo 0 || echo 1)" "counts ONLY open findings (1 of 2)"
 
+# 2b. puntuaciones del panel (judgements.jsonl) → se muestran
+echo '{"run":"RUN1","stage":"design","artifact_type":"plan","score":8,"verdict":"OK","lenses":"fact-checker","model":"opus"}' > "$root/.swarm/judgements.jsonl"
+out="$(SWARM_ROOT="$root/.swarm" bash "$SCRIPT" 2>&1)"; rc=$?
+assert_eq "0" "$rc" "exits 0 with a judgements.jsonl present"
+assert_eq "0" "$(echo "$out" | grep -qF 'RUN1 design/plan score=8 OK' && echo 0 || echo 1)" "shows the panel scores"
+echo 'not json' >> "$root/.swarm/judgements.jsonl"
+out="$(SWARM_ROOT="$root/.swarm" bash "$SCRIPT" 2>&1)"; rc=$?
+assert_eq "2" "$rc" "a malformed judgements.jsonl line is reported, not hidden"
+rm -f "$root/.swarm/judgements.jsonl"
+
 # 3. .swarm/ sin ningún run → exit 0, sin ruido
 root2="$(mktemp -d "${TMPDIR:-/tmp}/swarm-status2.XXXXXX")"
 mkdir -p "$root2/.swarm"

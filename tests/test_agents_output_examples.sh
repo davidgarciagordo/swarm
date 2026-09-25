@@ -20,7 +20,7 @@ for f in "$PLUGIN_ROOT"/agents/*.md; do
   blkdir="$TMP/$name"
   mkdir -p "$blkdir"
   awk -v dir="$blkdir" '
-    /^## ([0-9]+\.[ ]+)?Salida/ { insec=1; next }
+    /^## ([0-9]+\.[ ]+)?Output/ { insec=1; next }
     insec && /^## / { insec=0 }
     insec && /^```/ {
       if (inblk) { inblk=0; close(out) }

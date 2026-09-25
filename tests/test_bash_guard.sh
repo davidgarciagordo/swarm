@@ -222,5 +222,25 @@ EOF
 )"
 assert_eq "0" "$(echo "$out" | grep -q '"permissionDecision": "deny"' && echo 0 || echo 1)" "swarm:verifier cannot find (default fallback has it, verifier's explicit profile does not)"
 
+# Review-panel regressions: non-file_writers cannot write; plugin scripts only when plugin-rooted.
+_decision() {  # $1 agent, $2 command -> "deny" | "allow"
+  local payload
+  payload="$(python3 -c 'import json,sys; print(json.dumps({"agent_type": sys.argv[1], "tool_name": "Bash", "tool_input": {"command": sys.argv[2]}}))' "$1" "$2")"
+  if printf '%s' "$payload" | _run_hook | grep -q '"permissionDecision": "deny"'; then echo deny; else echo allow; fi
+}
+assert_eq "deny" "$(_decision swarm:reviewer "grep \$'\\'' -r . >/tmp/evil")" "ANSI-C \$'\\'' does not hide a > redirect (reviewer)"
+assert_eq "deny" "$(_decision swarm:fact-checker "cat \$'\\'' > /tmp/evil")" "ANSI-C \$'\\'' does not hide a > redirect (fact-checker)"
+assert_eq "allow" "$(_decision swarm:reviewer "grep \$'a\\'b' -r . 2>/dev/null")" "ANSI-C string with escaped quote + /dev/null stays allowed"
+for flag in -fprint -fprint0 -fprintf -fls; do
+  assert_eq "deny" "$(_decision swarm:dependency-auditor "find . $flag /tmp/evil")" "find $flag is denied (writes a file)"
+done
+assert_eq "deny" "$(_decision swarm:review-orchestrator "scripts/model-resolve.sh grill-architect")" "bare scripts/model-resolve.sh (target repo's file) is denied"
+assert_eq "deny" "$(_decision swarm:review-orchestrator "scripts/review-dedup.sh dedup")" "bare scripts/review-dedup.sh (target repo's file) is denied"
+assert_eq "allow" "$(_decision swarm:review-orchestrator '${CLAUDE_PLUGIN_ROOT}/scripts/review-dedup.sh dedup')" "plugin-rooted review-dedup.sh is allowed"
+assert_eq "allow" "$(_decision swarm:review-orchestrator "$PLUGIN_ROOT/scripts/model-resolve.sh grill-architect")" "absolute plugin path to model-resolve.sh is allowed"
+assert_eq "deny" "$(_decision swarm:fact-checker "/tmp/scripts/mem-evil.sh")" "/tmp/scripts/mem-*.sh is not a plugin mem script"
+assert_eq "deny" "$(_decision swarm:fact-checker '${CLAUDE_PLUGIN_ROOT}/../../tmp/scripts/mem-evil.sh')" "a .. escape out of the plugin root is denied"
+assert_eq "allow" "$(_decision swarm:fact-checker '${CLAUDE_PLUGIN_ROOT}/scripts/mem-read.sh x')" "plugin-rooted mem script is allowed"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

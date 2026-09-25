@@ -8,5 +8,6 @@
     { "tool": "docker", "required": false, "install": { "brew": "docker", "apt": "docker.io" } }
   ],
   "project": [],
-  "libs": []
+  "libs": [],
+  "advisory": ["models", "worktree-base"]
 }

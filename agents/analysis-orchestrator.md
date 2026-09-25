@@ -1,7 +1,8 @@
 ---
 name: analysis-orchestrator
 description: Use when the root orchestrator needs a read-only codebase audit — selects a subset of its 7 lenses by objective, launches them in one batch, and forwards their findings directly (no custom batch format, no owner interaction). Never asks the owner itself.
-model: sonnet
+model: inherit
+tier: judgement
 tools: Read, Grep, Bash, Agent(opportunity-analyst,architecture-auditor,security-auditor,vulnerability-scanner,performance-analyst,data-model-auditor,solid-auditor), SendMessage
 maxTurns: 20
 memory: project
@@ -95,6 +96,7 @@ the objective is generic or the tier is `full` with none of the following keywor
 | schema, migration, data model, referential integrity | `data-model-auditor` |
 | architecture, debt, coupling, opportunity, ROI, large refactor | `architecture-auditor` + `opportunity-analyst` |
 | design, SOLID, coupling, cohesion, single responsibility, principles, code smell | `solid-auditor` |
+| infra/CI/tooling: CI, pipeline, workflow, GitHub Actions, build, deploy, release process, Docker, container, Makefile, codegen, generator, tooling, hooks, environment, infra | `architecture-auditor` + `security-auditor` + `performance-analyst` + `vulnerability-scanner` (`tier: light`: the first two) — add the header line `scope: infra` (below) |
 | generic ("audit everything", "general review", "full audit", or none of the keywords above with `tier: full`) | all 7 |
 | generic with `tier: light` (no keyword) | `architecture-auditor` + `security-auditor` (the two with typically highest severity; the rest are left out due to `tier: light` budget) |
 
@@ -131,27 +133,49 @@ operation: audit
 objective: <the owner's literal objective>
 ```
 
-To `data-model-auditor` and `vulnerability-scanner`, and only to them, add a fifth line
+Optional lines after the header, in this order when present:
+- `scope: infra` — only when the infra row of the lens table matched: the lens audits the CI/build/
+  deploy/tooling files (`.github/`, `Makefile`, `Dockerfile*`, `docker-compose*`, `scripts/`,
+  codegen config) first, and cites them by `file:line` like any other code.
+- `review-findings: <lines>` — only on the root's round-2 relaunch after a review-panel `KO`
+  (`agents/orchestrator.md` §13.6): forward it verbatim; each lens re-checks those points.
+- `veracity: before writing unverified, run the cheapest read-only check; UNVERIFIED only with
+  the reason it cannot be checked` — ALWAYS, to every lens (protocol §4.6).
+
+To `data-model-auditor` and `vulnerability-scanner`, and only to them, also add the line
 `pack: <pack>` — omitted if there's no pack (§4 above). The other five lenses
 (`opportunity-analyst`, `architecture-auditor`, `security-auditor`, `performance-analyst`,
 `solid-auditor`) never receive it: they don't consume the pack (`solid-auditor` is cross-language
 by design — the active stack pack's pattern preference doesn't weigh in).
 
-The model override is the `model: "sonnet"` parameter of the `Agent` tool, and applies ONLY to the
-four opus-based leaves when `tier: light` (the tier rescales leaves whose base is opus,
-not those that are already sonnet or haiku):
+**Model per leaf (`scripts/model-resolve.sh`, same rule as `agents/orchestrator.md` §13.2).** No
+agent file names a model: each leaf's frontmatter carries `tier:`. Read the selected leaves' tiers
+in ONE command, then resolve each distinct tier ONCE:
+```bash
+grep -m1 -H '^tier:' "${CLAUDE_PLUGIN_ROOT}"/agents/*.md
+"${CLAUDE_PLUGIN_ROOT}/scripts/model-resolve.sh" judgement --swarm-root <absolute path to .swarm>
+```
+Pass the printed id as the `Agent` tool's `model` parameter; omit it when it prints `inherit`. A
+spawn that fails because the model does not exist: `model-resolve.sh --mark-unavailable <id>
+--swarm-root <abs>`, resolve again, retry that spawn once. `tier: light` (the RUN tier) narrows
+the lens SET (table above); it never passes a weaker model to a judgement leaf — the old
+light-tier model downgrade is gone (veracity first: a missing judgement model falls to
+`inherit`, never to another tier's list).
 
-| leaf | `subagent_type` | `name` | base model | override in `tier: light` |
-|---|---|---|---|---|
-| opportunity-analyst | `swarm:opportunity-analyst` | `opportunity-analyst` | opus | `model: "sonnet"` |
-| architecture-auditor | `swarm:architecture-auditor` | `architecture-auditor` | opus | `model: "sonnet"` |
-| security-auditor | `swarm:security-auditor` | `security-auditor` | opus | `model: "sonnet"` |
-| solid-auditor | `swarm:solid-auditor` | `solid-auditor` | opus | `model: "sonnet"` |
-| vulnerability-scanner | `swarm:vulnerability-scanner` | `vulnerability-scanner` | haiku | — (already the minimum) |
-| performance-analyst | `swarm:performance-analyst` | `performance-analyst` | sonnet | — (already sonnet in `full`) |
-| data-model-auditor | `swarm:data-model-auditor` | `data-model-auditor` | sonnet | — (already sonnet in `full`) |
+| leaf | `subagent_type` | `name` |
+|---|---|---|
+| opportunity-analyst | `swarm:opportunity-analyst` | `opportunity-analyst` |
+| architecture-auditor | `swarm:architecture-auditor` | `architecture-auditor` |
+| security-auditor | `swarm:security-auditor` | `security-auditor` |
+| solid-auditor | `swarm:solid-auditor` | `solid-auditor` |
+| vulnerability-scanner | `swarm:vulnerability-scanner` | `vulnerability-scanner` |
+| performance-analyst | `swarm:performance-analyst` | `performance-analyst` |
+| data-model-auditor | `swarm:data-model-auditor` | `data-model-auditor` |
 
-In `full` you don't pass `model` to any of them — each one's frontmatter applies.
+**Only these seven, all in ONE message.** Never `Explore`, `general-purpose` or any non-swarm
+agent (your `Agent(...)` clause forbids it anyway). An owner message that reaches you or a leaf is
+for the root: forward it verbatim with `SendMessage(to: "orchestrator", …)` and don't act on it
+(`agents/orchestrator.md` §13.3).
 
 ## Waiting and merging
 
@@ -178,11 +202,13 @@ In `full` you don't pass `model` to any of them — each one's frontmatter appli
 
 ## Bash discipline (`hooks/bash-guard.py`)
 
-`swarm:analysis-orchestrator` allowlist: `scripts/mem-*.sh`, `git status|log|diff|show|
-rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`. No `python3`, `echo`, `mkdir`, `rm`,
+`swarm:analysis-orchestrator` allowlist: `scripts/mem-*.sh`, `scripts/model-resolve.sh`, `git
+status|log|diff|show|rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`, and the read-only
+verification set (`jq`, `cmp`, `diff`, `sort`, `uniq`, `cut`, `tr`, `php -l`, `docker exec`). No `python3`, `echo`, `mkdir`, `rm`, `>` to a file,
 `export`, `git worktree` (you don't need it — no leaf uses `isolation: worktree`); denial per
 segment (`&&`, `||`, `;`, `|`); don't close with `; echo $?`. You barely use Bash: `register`
-×(launched leaves) and, if a pack is active, the `ls -d` from step 4 — nothing else, there's no
+×(launched leaves), the tier `grep` + one `model-resolve.sh` per distinct tier, and, if a pack is
+active, the `ls -d` from step 4 — nothing else, there's no
 `query` or `summary` for you to do (the root does that in its own closing step, §4 of
 `agents/orchestrator.md`).
 

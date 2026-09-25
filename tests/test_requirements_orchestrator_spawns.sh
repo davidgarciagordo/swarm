@@ -23,7 +23,7 @@ assert_eq "0" "$(echo "$tools_line" | grep -qF 'SendMessage' && echo 0 || echo 1
 # La leccion tiene que estar TAMBIEN en la prosa del cuerpo, no solo en el frontmatter -- quien
 # edite este fichero a mano despues no debe poder quitar el Agent sin verlo documentado ahi mismo.
 body="$(awk '/^---$/{n++; next} n>=2{print}' "$AGENT_FILE")"
-assert_eq "0" "$(echo "$body" | grep -qF 'no preexiste' && echo 0 || echo 1)" "body explicitly documents that env-checker does not preexist"
+assert_eq "0" "$(echo "$body" | grep -qF "doesn't pre-exist" && echo 0 || echo 1)" "body explicitly documents that env-checker does not preexist"
 assert_eq "0" "$(echo "$body" | grep -qF 'Agent' && echo 0 || echo 1)" "body prose mentions the Agent tool explicitly, not just the frontmatter"
 
 # Regresion de allowlist: hooks/bash-guard.py matchea entradas NO prefijadas por "scripts/mem" por
@@ -62,7 +62,7 @@ assert_eq "1" "$(has "$body" 'no hay pack todavía')" "requirements-orchestrator
 assert_eq "1" "$(has "$body" 'NO implementes lógica de fusión ahora')" "the inert merge instruction is gone"
 assert_eq "0" "$(has "$body" '--pack')" "requirements-orchestrator passes --pack to the deterministic check"
 assert_eq "0" "$(has "$body" 'approved:')" "requirements-orchestrator documents the approved: line it must forward"
-assert_eq "0" "$(has "$body" 'BLOCKED sin aprobación del owner')" "requirements-orchestrator refuses install without owner approval"
+assert_eq "0" "$(has "$body" 'BLOCKED no owner approval')" "requirements-orchestrator refuses install without owner approval"
 assert_eq "1" "$(has "$body" 'dependency-installer no implementado aún')" "the phase-1b install stub is gone"
 assert_eq "0" "$(has "$body" 'operation: audit-deps')" "requirements-orchestrator documents the audit-deps operation"
 
@@ -70,7 +70,7 @@ assert_eq "0" "$(has "$body" 'operation: audit-deps')" "requirements-orchestrato
 # <pack>/requirements.json como pack: a dependency-auditor, que espera un DIRECTORIO. La linea
 # guard-rail explicita tiene que seguir en el cuerpo para que un futuro editor no repita la
 # confusion fichero-vs-directorio.
-assert_eq "0" "$(has "$body" 'nunca** le añadas `/requirements.json`')" "requirements-orchestrator pins the file-vs-directory guard-rail wording (f173a04 regression)"
+assert_eq "0" "$(has "$body" 'never** append `/requirements.json`')" "requirements-orchestrator pins the file-vs-directory guard-rail wording (f173a04 regression)"
 
 # Regresion Important de la review final de fase 5b: el --file de env-checker debe ser una ruta
 # LITERAL resuelta con ls -d, nunca la cadena sin expandir ${CLAUDE_PLUGIN_ROOT}/requirements.json

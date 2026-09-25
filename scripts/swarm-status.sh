@@ -137,6 +137,26 @@ print("runs recientes: %d" % len(recents))
 for started, name, tier in recents[:5]:
     print("  - %s (%s, %s)" % (name, tier, started))
 
+judgements = os.path.join(swarm_root, "judgements.jsonl")
+if os.path.isfile(judgements):
+    import json
+    scores, bad_j = [], 0
+    with open(judgements) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            try:
+                j = json.loads(line)
+                scores.append((j["run"], j["stage"], j["artifact_type"], int(j["score"]), j["verdict"]))
+            except (ValueError, KeyError, TypeError):
+                bad_j += 1
+    if bad_j:
+        print("no interpretable: %d líneas de judgements.jsonl" % bad_j)
+        unparsed.append(("judgements.jsonl", bad_j))
+    print("veredictos del panel: %d" % len(scores))
+    for run, stage, atype, score, verdict in scores[-5:]:
+        print("  - %s %s/%s score=%d %s" % (run, stage, atype, score, verdict))
+
 if unparsed:
     sys.exit(2)
 PYEOF

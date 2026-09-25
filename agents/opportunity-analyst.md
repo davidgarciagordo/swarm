@@ -1,7 +1,8 @@
 ---
 name: opportunity-analyst
 description: Use when analysis-orchestrator audits a codebase for technical debt and product/architecture opportunities — returns quick wins with ROI, read-only, never asks the owner.
-model: opus
+model: inherit
+tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage
 maxTurns: 15
 memory: project
@@ -30,6 +31,14 @@ reports them.
 3. Read with the `Read` tool (counts toward `files=`): `.swarm/context-pack.md` (what already
    exists, where the repo's boundaries are). Don't repeat a finding already present in
    `findings/<other-agent>.md` or in the pack's `SHARED-FOUND` (protocol §1 point 2).
+
+## Optional header lines (from `analysis-orchestrator`)
+
+After `objective:`, your header may carry, in this order:
+- `review-findings: <lines>` — present only on a round-2 relaunch after a review-panel `KO`
+  (`agents/orchestrator.md` §13.6). Re-check EACH listed point against the repo first: fix the
+  claim in your output if it was wrong, or keep it with fresh `file:line` evidence if it holds.
+- `veracity: …` — protocol §4.6, always present; follow it.
 
 ## What to look for
 

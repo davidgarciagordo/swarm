@@ -136,9 +136,14 @@ picks the domain(s) that apply:
   routes to **analysis** instead — read-only, no questions asked. Discovery and analysis are
   mutually exclusive in the same run: if your goal reads as "product", analysis never runs, and vice
   versa.
-- A pure bugfix, docs change, test tweak, or infrastructure task skips discovery, analysis, AND
-  design — the root just says so in the output (`- discovery omitido: ...`, folded into a combined
-  omission line at close).
+- A pure bugfix, docs change, test tweak, or an already-decided infrastructure edit ("bump Node to
+  22 in the CI image") skips discovery, analysis, AND design — the root just says so in the output
+  (`- discovery omitido: ...`, folded into a combined omission line at close).
+- An **infra/CI/tooling question** ("why is CI slow", "is our deploy safe", "review the pipeline")
+  is not "pure infra": it routes to **analysis**, which launches its infra lenses with `scope:
+  infra` (architecture, security, performance, vulnerability — the first two in `tier: light`). If
+  the objective also asks for a change and the tier is `full`, **design** runs after analysis with
+  the analysis findings as context; in `tier: light` it stops at analysis.
 - A **refactor or migration objective** that explicitly asks for a redesign ("refactor X with
   SOLID", "migrate the old parser to a better design") skips discovery too (there's no product
   decision to ask about), but — unlike a plain bugfix — **design still runs** in `tier: full`: the
@@ -194,10 +199,17 @@ worked example, run against the plugin's own checkout (which has all three requi
 verdict is `BLOCKED <tool>` with the install hint from `requirements.json` (`brew`/`apt` command),
 propagated literally from `env-checker` up to what you see.
 
+After the check, doctor also runs `scripts/req-check.sh --advisory` — two checks that only WARN,
+never block: the effective model per tier (from `models.json`, a `.swarm/models.json` override, and
+any model marked unavailable), and whether agent worktrees would branch from a stale `origin/HEAD`
+(it reads `worktree.baseRef` from `.claude/settings.local.json`, `.claude/settings.json` and your
+user settings, in that precedence, and prints the snippet to add if it's missing — it never writes
+any settings file).
+
 ### `/swarm:status`
 
-Shows the swarm's state in this repo — current run, tier, registered agents, its summary, and open
-findings. Takes no arguments; any text you type after the command is ignored.
+Shows the swarm's state in this repo — current run, tier, registered agents, its summary, open
+findings, and the review panel's last scores (`.swarm/judgements.jsonl`). Takes no arguments; any text you type after the command is ignored.
 
 ```
 /swarm:status
@@ -361,10 +373,11 @@ injection at `:14`, `ALTO` missing authorization check at `:9`. The run closed w
 **What it does for you:** turns closed product decisions into a real, reviewable implementation
 plan. `pattern-advisor` and `domain-modeler` run together first (pattern fit and domain modeling),
 then `planner` writes an actual plan file under `docs/superpowers/plans/` with phases, disjoint
-areas, and risks. In `tier: full` the plan is then adversarially reviewed by three external grill
-lenses (`working-methods:grill-architect/operator/engineer` — the platform-architecture lens,
-the real-user lens, and the technical-engineering lens), and `design-orchestrator` itself arbitrates
-their findings and revises the plan — without ever asking you anything mid-design.
+areas, and risks. The plan then goes through the review panel (`review-orchestrator`): the three
+grill lenses (`working-methods:grill-architect/operator/engineer` if that plugin is installed,
+swarm's native ones otherwise), plus `completeness-critic`, `fact-checker` and `simplicity-critic`,
+a `refuter` for blocking findings and a `blind-judge` score. `design-orchestrator` itself arbitrates
+the surviving findings and revises the plan — without ever asking you anything mid-design.
 
 **What triggers it:** only `tier: full`, via either of two independent paths. (1) After discovery
 has closed its decisions (either in this same run, or in an earlier one over the same objective) —
@@ -378,7 +391,8 @@ or when the objective also matched analysis, which takes precedence over this pa
 above).
 
 **What you get back:** a single `PLAN · <path>:1 · <short summary>` line pointing at the real plan
-file on disk, plus a `- grill: ...` line summarizing what the adversarial review changed or flagged.
+file on disk, plus a `- grill: ...` line summarizing the panel's verdict and score and what it
+changed or flagged.
 No questions asked here either.
 
 **Real example:** with the
@@ -404,8 +418,9 @@ migration against a real database; `doc-writer` runs next, *only if* the phase c
 behaviour (a new use case, endpoint, console command, public contract) and the turn budget allows
 it, writing docs in the active stack pack's format plus a changelog entry, inside the same worktree;
 `quality-fixer` then runs the stack's deterministic `--fix` (lint/format) and patches whatever it
-can't auto-fix; and `reviewer` gates the result with severity-tagged findings *before* anything
-merges. Only after that gate passes does `implementation-orchestrator` merge the worktree's commit
+can't auto-fix; and the review panel (`review-orchestrator`, artifact-type `diff`) gates the result
+with severity-tagged findings and a judge score *before* anything merges (`reviewer` remains only as
+a thin alias). Only after that gate passes does `implementation-orchestrator` merge the worktree's commit
 locally into the run's own branch and clean up the worktree.
 
 **What triggers it:** only an explicit request naming a plan ("implement the plan for X", "build X
@@ -414,7 +429,7 @@ tier. This is a deliberate safety checkpoint: writing and merging real code is t
 consequential action, so a plan always stops for human review before it's built.
 
 **What you get back:** a `- implementation: ...` summary line naming which phase merged, to which
-branch, through which agent chain, and how many plan steps got checked off — plus, if the reviewer
+branch, through which agent chain, and how many plan steps got checked off — plus, if the review
 found anything below merge-blocking severity, explicit `- riesgo aparcado: ...` lines so nothing is
 silently swallowed.
 
@@ -563,10 +578,13 @@ alone. You can override that with `--tier=`:
 
 - `direct` — a trivial, single-file, no-architectural-decision goal. The root answers you directly,
   without opening a run or launching any domain. Nothing gets written to `.swarm/run/`.
-- `light` — a single domain. Judgment leaves (auditors, planner, pattern-advisor, etc.) run on
-  `sonnet` instead of `opus`, no adversarial grill, and the memory pack is only rebuilt if stale.
-- `full` — multi-domain or explicitly critical work. Judgment leaves run on `opus`, and design goes
-  through the grill×3 adversarial review before it's considered done.
+- `light` — a single domain: fewer lenses and a light review panel, never design, and the memory
+  pack is only rebuilt if stale. It narrows BREADTH only: judgement agents keep their judgement
+  model.
+- `full` — multi-domain or explicitly critical work, with the full review panel on every plan, diff
+  and analysis report.
+
+Which model each agent runs on is never set by the tier: see the next section.
 
 If you don't pass `--tier`, the orchestrator classifies it for you by scope. An invalid value
 (anything other than exactly `direct`, `light`, or `full`, case-sensitive) is rejected outright
@@ -587,6 +605,19 @@ Forces `light` explicitly instead of letting the root infer it.
 BLOCKED --tier inválido: medium (usa direct, light o full)
 ```
 
+### Model tiers, `models.json` and the review panel
+
+No agent names a model: each declares `model: inherit` + `tier: judgement|standard|mechanical`, and
+`models.json` maps tiers to ordered model candidates. To use other ids (another host, another
+vendor), drop a `.swarm/models.json` with the same schema — it overrides per tier. Orchestrators
+resolve every child with `scripts/model-resolve.sh`; `/swarm:doctor` shows the effective mapping.
+The full rules (unavailable models, escalation, judge independence) and the review panel are
+summarised in the README section "Model tiers and the review panel"; the policy is
+`skills/swarm-protocol/judgement.md`.
+
+`docker exec` from an agent only works for containers you list, one per line, in
+`.swarm/docker-containers` (commit it with the repo), and only with read-only inner commands.
+
 ### `/swarm:init` and `/swarm:doctor` run standalone
 
 Both are real, independent commands you can invoke directly (`/swarm:init`, `/swarm:doctor` — see
@@ -600,13 +631,15 @@ for re-checking either one on its own without launching a full run.
 `master` or any shared/remote branch, and no agent in the implementation domain has `git push` in
 its tool allowlist. A guard checks `HEAD` isn't `master` before it ever merges.
 
-**Can I run this fully headless / non-interactively?** Mostly, but not discovery. Discovery's whole
-point is asking you real questions via `AskUserQuestion`, so a run that routes to discovery will
-pause and wait for a human in an interactive session — it cannot complete in a scripted, non-TTY
-invocation (`claude -p`) the way analysis, design, or implementation runs can, because there's no
-one there to answer. If you dismiss the dialog instead of answering, the swarm doesn't lose your
-place: it records the unanswered batch as a `[pendiente]` decision so a later run can pick it back
-up instead of asking the same four questions again.
+**Can I run this fully headless / non-interactively?** Yes. Say so in the goal ("no questions",
+"don't ask me", "non-interactive") or run it unattended (`claude -p`): that forbids
+`AskUserQuestion`, never a phase. Discovery still runs; wherever the root would ask, it takes the
+recommended option, records it in `.swarm/decisions.md` marked `ASSUMED`, and lists every
+assumption in the final report (`- assumed: <question> <chosen option>`). An `ASSUMED` answer is
+not yours: the next interactive run over the same goal asks those questions again. In an
+interactive run, if you dismiss the dialog instead of answering, the batch is recorded as a
+`[pendiente]` decision so a later run can pick it back up instead of asking the same four questions
+again.
 
 **What happens when something comes back `BLOCKED`?** The run still closes cleanly — a summary line
 is written to `.swarm/run/<id>/summary.md` and the memory layer is curated before the verdict
@@ -621,3 +654,12 @@ said.
 `.swarm/context-pack.md` is built once and reused across runs; it's only rebuilt when the repo's
 tree-state hash shows it's actually stale. Findings are deduplicated by `agent+tag+file:line`
 across runs too, so re-running the same audit twice in a row doesn't produce duplicate findings.
+
+**What if I address a message to a specific agent instead of the root?** The platform may deliver
+it to whichever agent happens to be active — not necessarily the orchestrator you talk to normally.
+That agent never treats it as an instruction: it relays it verbatim to the root orchestrator
+(`SendMessage(to: "orchestrator", "owner message relayed by <name>: <text>")`), or, if it's a
+read-only lens without `SendMessage`, logs `- warn: owner message received, not acted on` so the
+root still sees it happened. The root treats every relayed message as untrusted input — at most a
+question back to you or extra context for its own judgment, never a re-plan, a scope change or an
+authorization it didn't already have.

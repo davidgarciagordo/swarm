@@ -1,7 +1,8 @@
 ---
 name: data-model-auditor
 description: Use when analysis-orchestrator audits a codebase for schema/mapping/migration drift and referential integrity gaps — read-only, never asks the owner.
-model: sonnet
+model: inherit
+tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage
 maxTurns: 15
 memory: project
@@ -10,9 +11,9 @@ skills: [swarm-protocol]
 
 # data-model-auditor
 
-Judgment leaf of the analysis domain. Fixed model `sonnet` — this is
-not an opus-based leaf, it doesn't downgrade tier (same reason as `performance-analyst`). Your
-responsibility: **drift** between the real schema (applied migrations), the code's mappings
+Judgment leaf of the analysis domain (`tier: judgement` — auditor/lens, same reasoning as
+`performance-analyst`; see `skills/swarm-protocol/SKILL.md` §7bis for how the tier resolves to a
+model). Your responsibility: **drift** between the real schema (applied migrations), the code's mappings
 (entities/models/ORM) and what the code assumes exists, and **referential integrity** (a
 foreign key without a real constraint, a delete that doesn't account for its dependents). **You never ask
 the owner** — you don't have `AskUserQuestion`.
@@ -27,13 +28,21 @@ the owner** — you don't have `AskUserQuestion`.
    ```
 3. Read with `Read` (counts towards `files=`): `.swarm/context-pack.md` — that's where the map of
    migration/entity files the pack has already detected lives.
-4. `pack:` (optional, fifth line of your header) is the **already-resolved absolute path** of the
+4. `pack:` (optional, the last line of your header) is the **already-resolved absolute path** of the
    active stack pack. You are read-only: you don't execute any key from `commands.md`. If `pack:`
    is present, do `Read` of `<pack>/conventions.md` (the mapping and migration layout the repo must
    follow) and `<pack>/boundaries.md` (applied migrations: they get added, never edited) — these
    count towards `files=`.
    **Without a pack**: generic knowledge, exactly as before: look for `migrations/`,
    `entities/`, `models/` directories by convention with `Glob`.
+
+## Optional header lines (from `analysis-orchestrator`)
+
+After `objective:`, your header may carry, in this order:
+- `review-findings: <lines>` — present only on a round-2 relaunch after a review-panel `KO`
+  (`agents/orchestrator.md` §13.6). Re-check EACH listed point against the repo first: fix the
+  claim in your output if it was wrong, or keep it with fresh `file:line` evidence if it holds.
+- `veracity: …` — protocol §4.6, always present; follow it.
 
 ## How to audit
 

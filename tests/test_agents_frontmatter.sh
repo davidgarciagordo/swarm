@@ -24,8 +24,10 @@ for f in "$PLUGIN_ROOT"/agents/*.md; do
   # grill-architect/operator/engineer are the same shape: read-only judges that receive their
   # target's path directly in the launch prompt, never talk to memory-orchestrator or a sibling —
   # same contract as working-methods' external grill-* lenses, which also have no SendMessage.
+  # completeness-critic/simplicity-critic are review lenses of the same shape; blind-judge has no
+  # SendMessage ON PURPOSE: it must not be able to ask anyone about the producer (judgement.md §5).
   case "$name" in
-    verifier.md|grill-architect.md|grill-operator.md|grill-engineer.md) ;;
+    verifier.md|grill-architect.md|grill-operator.md|grill-engineer.md|completeness-critic.md|simplicity-critic.md|blind-judge.md) ;;
     *)
       assert_eq "0" "$(echo "$frontmatter" | grep -q 'SendMessage' && echo 0 || echo 1)" "$name tools include SendMessage"
       ;;

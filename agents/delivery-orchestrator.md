@@ -1,7 +1,8 @@
 ---
 name: delivery-orchestrator
 description: Use when the root orchestrator has an explicit owner request to publish work — sequences release-manager (phase A previews the push/PR, phase B executes it with the owner's itemised approval) and then handoff-writer, on every terminal path. Never pushes itself, never builds the approval, never auto-chains after implementation.
-model: haiku
+model: inherit
+tier: judgement
 tools: Read, Grep, Bash, Agent(release-manager,handoff-writer), SendMessage
 maxTurns: 10
 memory: project
@@ -59,6 +60,27 @@ authorize creating a repository, and a remote approval doesn't authorize pushing
      `pack: <pack>` line. **Never pass the string `${CLAUDE_PLUGIN_ROOT}/…` unexpanded**: the leaf
      would `Read` a nonexistent path and silently lose the pack. If `ls -d` fails, proceed WITHOUT a
      pack and add `- warn: pack <stack> declared but missing` to your output.
+
+## Model per child (`scripts/model-resolve.sh`, protocol §7bis)
+
+No agent file names a model. Your children (`release-manager`, `handoff-writer`) are tier `standard` in their frontmatter.
+Resolve that tier ONCE per launch before spawning:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/model-resolve.sh" standard --swarm-root <absolute path to .swarm>
+```
+Pass the printed id as the `Agent` tool's `model` parameter; OMIT the parameter when it prints
+`inherit`. A spawn that fails because the model does not exist:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/model-resolve.sh" --mark-unavailable <model-id> --swarm-root <absolute path to .swarm>
+```
+then resolve again and retry that spawn once. If a child's output fails verification (hook
+two-strike or a `KO` you can attribute to the child's own work), its ONE retry uses the escalated
+tier:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/model-resolve.sh" --escalate standard --swarm-root <absolute path to .swarm>
+```
+(then resolve the printed tier). Without a `swarm-root:` in your header (adhoc), omit
+`--swarm-root` — the script defaults to `$PWD/.swarm`.
 
 ## Sequence (in this order, never in parallel)
 
@@ -149,7 +171,7 @@ Wait for its `DONE` and add its `- handoff: <path>` line to your output. **Soft 
 
 ## Bash discipline (`hooks/bash-guard.py`)
 
-Allowlist for `swarm:delivery-orchestrator`: `scripts/mem-*.sh`, `git status|log|diff|show|rev-parse`,
+Allowlist for `swarm:delivery-orchestrator`: `scripts/mem-*.sh`, `scripts/model-resolve.sh`, `git status|log|diff|show|rev-parse`,
 `ls|cat|head|tail|wc|grep`. **You don't have `git push`, `gh`, `git merge`, `git commit`, or
 `git worktree`** — and it's deliberate: the only one that publishes is the leaf, under its own approval
 gate. Denial per segment; one command per call, never chained with `&&`.

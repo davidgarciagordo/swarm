@@ -1,7 +1,8 @@
 ---
 name: pattern-advisor
 description: Use when design-orchestrator needs the right design pattern for a feature — GoF/tactical DDD/enterprise/idiomatic pattern from the stack pack, citing real precedents from the repo, read-only, never asks the owner.
-model: opus
+model: inherit
+tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage
 maxTurns: 10
 memory: project

@@ -33,11 +33,11 @@ if [ -f "$ORCH" ]; then
   assert_eq "0" "$(has "$b" 'DONE')" "orchestrator body ties the cleanup to the spiker reporting DONE"
   assert_eq "0" "$(has "$b" 'BLOCKED')" "orchestrator body ties the cleanup to DONE or BLOCKED"
   assert_eq "0" "$(has "$b" 'memory-orchestrator')" "orchestrator body justifies the cleanup: the finding is already persisted via memory-orchestrator"
-  assert_eq "0" "$(has "$b" 'warn: worktree del spiker no borrado')" "cleanup failure is a soft failure: one warn line, never a blocked verdict"
+  assert_eq "0" "$(has "$b" "warn: spiker's worktree not deleted")" "cleanup failure is a soft failure: one warn line, never a blocked verdict"
   assert_eq "0" "$(has "$b" 'git worktree')" "orchestrator body documents git worktree in its own bash allowlist"
   # camino descubierto por la review final: spiker lanzado (agentId en mano) que NUNCA reporta y
   # cae por la regla de corte — sin esto, el worktree se fuga igual que antes del fix, por otra vía.
-  assert_eq "0" "$(has "$b" 'warn: feasibility-spiker sin respuesta')" "cut-rule timeout path names the spiker warn line"
+  assert_eq "0" "$(has "$b" 'warn: feasibility-spiker no response')" "cut-rule timeout path names the spiker warn line"
   assert_eq "2" "$(grep -cF 'git worktree remove .claude/worktrees/agent-' "$ORCH")" "cleanup runs in BOTH paths: on DONE/BLOCKED (1bis) and on cut-rule timeout"
   # `git worktree remove` only deletes the directory, never the `worktree-agent-<agentId>` branch
   # the platform created — orphan branch leak, same shape as the worktree leak this file already
@@ -79,7 +79,7 @@ if [ -f "$SPK" ]; then
   assert_eq "0" "$(has "$b" 'discovery-orchestrator')" "spiker attributes the cleanup to its parent discovery-orchestrator"
   assert_eq "0" "$(has "$b" 'git worktree remove')" "spiker names the command its parent runs"
   assert_eq "0" "$(has "$b" 'git branch -D worktree-agent-')" "spiker also names the branch-delete command its parent runs (the worktree remove alone leaves the branch orphaned)"
-  assert_eq "0" "$(has "$b" 'No es automático')" "spiker states explicitly that the cleanup is NOT automatic"
+  assert_eq "0" "$(has "$b" "It's not automatic")" "spiker states explicitly that the cleanup is NOT automatic"
 fi
 
 # ---------- 4. el comando REAL funciona: add -> untracked file -> remove --force ----------

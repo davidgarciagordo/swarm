@@ -1,7 +1,8 @@
 ---
 name: implementer
 description: Use when implementation-orchestrator needs ONE phase of a plan actually built — the leaf that writes real application code (like test-writer and feasibility-spiker write real test/spike code), always in its own isolated worktree so parallel/long-running code changes never dirty the run's main checkout. Never asks the owner.
-model: sonnet
+model: inherit
+tier: standard
 tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage
 maxTurns: 30
 memory: project

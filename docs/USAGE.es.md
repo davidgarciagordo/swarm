@@ -138,9 +138,14 @@ y elige el/los dominio(s) que aplican:
   rendimiento en Z") enruta en su lugar a **analysis** — read-only, sin preguntas. Discovery y
   analysis son mutuamente excluyentes en el mismo run: si tu objetivo se lee como "de producto",
   analysis nunca corre, y viceversa.
-- Un bugfix puro, un cambio de docs, un test, o una tarea de infraestructura se saltan discovery,
-  analysis Y design — la raíz simplemente lo dice en la salida (`- discovery omitido: ...`, plegado
-  en una línea de omisión combinada al cerrar).
+- Un bugfix puro, un cambio de docs, un test, o un cambio de infraestructura ya decidido ("sube Node
+  a 22 en la imagen de CI") se saltan discovery, analysis Y design — la raíz simplemente lo dice en
+  la salida (`- discovery omitido: ...`, plegado en una línea de omisión combinada al cerrar).
+- Una **pregunta de infra/CI/tooling** ("por qué va lento el CI", "es seguro nuestro deploy",
+  "revisa el pipeline") no es "infra pura": enruta a **analysis**, que lanza sus lentes de infra
+  con `scope: infra` (arquitectura, seguridad, rendimiento, vulnerabilidades — las dos primeras en
+  `tier: light`). Si el objetivo además pide un cambio y el tier es `full`, **design** corre
+  después de analysis con los hallazgos como contexto; en `tier: light` se queda en analysis.
 - Un objetivo de **refactor o migración** que pide explícitamente un rediseño ("refactoriza X con
   SOLID", "migra el parser antiguo a un mejor diseño") también se salta discovery (no hay decisión
   de producto que preguntar), pero — a diferencia de un bugfix puro — **design SÍ corre** en `tier:
@@ -199,10 +204,17 @@ nunca `SendMessage`) y el veredicto final es `OK`. Si falta una herramienta requ
 es `BLOCKED <tool>` con el hint de instalación de `requirements.json` (comando `brew`/`apt`),
 propagado literalmente desde `env-checker` hasta lo que ves.
 
+Tras el chequeo, doctor corre también `scripts/req-check.sh --advisory` — dos comprobaciones que solo
+AVISAN, nunca bloquean: el modelo efectivo por tier (de `models.json`, un override en
+`.swarm/models.json` y los modelos marcados no disponibles), y si los worktrees de los agentes
+partirían de un `origin/HEAD` desfasado (lee `worktree.baseRef` de `.claude/settings.local.json`,
+`.claude/settings.json` y tus settings de usuario, en ese orden de precedencia, e imprime el snippet
+a añadir si falta — nunca escribe ningún fichero de settings).
+
 ### `/swarm:status`
 
-Muestra el estado del enjambre en este repo — run actual, tier, agentes registrados, su summary y
-hallazgos abiertos. No toma argumentos; cualquier texto que escribas después del comando se ignora.
+Muestra el estado del enjambre en este repo — run actual, tier, agentes registrados, su summary,
+hallazgos abiertos y las últimas puntuaciones del panel de revisión (`.swarm/judgements.jsonl`). No toma argumentos; cualquier texto que escribas después del comando se ignora.
 
 ```
 /swarm:status
@@ -375,11 +387,12 @@ autorización en `:9`. El run cerró con `- run cerrado: DONE · análisis compl
 **Qué hace por ti:** convierte decisiones de producto ya cerradas en un plan de implementación real
 y revisable. `pattern-advisor` y `domain-modeler` corren juntos primero (encaje de patrón y
 modelado de dominio), luego `planner` escribe un fichero de plan real bajo
-`docs/superpowers/plans/` con fases, áreas disjuntas y riesgos. En `tier: full` el plan pasa después
-por una revisión adversarial de tres lentes externas
-(`working-methods:grill-architect/operator/engineer` — la lente de arquitectura de plataforma, la
-lente de usuario real, y la lente de ingeniería técnica), y `design-orchestrator` mismo arbitra sus
-hallazgos y revisa el plan — sin preguntarte nada nunca durante el diseño.
+`docs/superpowers/plans/` con fases, áreas disjuntas y riesgos. Después el plan pasa por el panel de
+revisión (`review-orchestrator`): las tres lentes grill (`working-methods:grill-architect/operator/engineer`
+si ese plugin está instalado, las nativas de swarm si no), más `completeness-critic`, `fact-checker`
+y `simplicity-critic`, un `refuter` para los hallazgos bloqueantes y la puntuación de un
+`blind-judge`. `design-orchestrator` mismo arbitra los hallazgos que sobreviven y revisa el plan —
+sin preguntarte nada nunca durante el diseño.
 
 **Qué lo dispara:** solo `tier: full`, por cualquiera de DOS vías independientes. (1) Después de que
 discovery haya cerrado sus decisiones (ya sea en este mismo run, o en uno anterior sobre el mismo
@@ -420,8 +433,9 @@ cambia comportamiento observable (un caso de uso nuevo, un endpoint, un comando 
 contrato público) y el presupuesto de turnos lo permite, escribiendo la documentación en el formato
 del stack pack activo más una entrada de changelog, dentro del mismo worktree; `quality-fixer`
 ejecuta después el `--fix` determinista del stack (lint/format) y parchea lo que no puede
-auto-arreglar; y `reviewer` hace de gate con hallazgos etiquetados por severidad *antes* de que nada
-se fusione. Solo después de que ese gate pasa, `implementation-orchestrator` fusiona el commit del
+auto-arreglar; y el panel de revisión (`review-orchestrator`, artifact-type `diff`) hace de gate con
+hallazgos etiquetados por severidad y la puntuación de un juez *antes* de que nada se fusione
+(`reviewer` queda solo como alias fino). Solo después de que ese gate pasa, `implementation-orchestrator` fusiona el commit del
 worktree localmente a la rama propia del run y limpia el worktree.
 
 **Qué lo dispara:** solo una petición explícita que nombre un plan ("implementa el plan de X",
@@ -431,8 +445,8 @@ más consecuente del enjambre, así que un plan siempre se detiene para revisió
 construirse.
 
 **Qué recibes:** una línea de resumen `- implementation: ...` nombrando qué fase se fusionó, a qué
-rama, a través de qué cadena de agentes, y cuántos pasos del plan se marcaron. Además, si el
-reviewer encontró algo por debajo de la severidad que bloquea el merge, líneas explícitas
+rama, a través de qué cadena de agentes, y cuántos pasos del plan se marcaron. Además, si la
+revisión encontró algo por debajo de la severidad que bloquea el merge, líneas explícitas
 `- riesgo aparcado: ...` para que nada se trague en silencio.
 
 **Ejemplo real:** `implementation-orchestrator`, invocado adhoc sobre un plan real para un value object `Money` con un
@@ -584,11 +598,13 @@ del texto del objetivo. Puedes forzar eso con `--tier=`:
 - `direct` — un objetivo trivial, de un solo fichero, sin decisión arquitectónica. La raíz te
   responde directamente, sin abrir un run ni lanzar ningún dominio. No se escribe nada bajo
   `.swarm/run/`.
-- `light` — un solo dominio. Las hojas de juicio (auditores, planner, pattern-advisor, etc.) corren
-  en `sonnet` en vez de `opus`, sin grill adversarial, y el pack de memoria solo se reconstruye si
-  está desactualizado.
-- `full` — trabajo multi-dominio o explícitamente crítico. Las hojas de juicio corren en `opus`, y
-  el diseño pasa por la revisión adversarial grill×3 antes de darse por terminado.
+- `light` — un solo dominio: menos lentes y un panel de revisión ligero, nunca diseño, y el pack de
+  memoria solo se reconstruye si está desactualizado. Solo reduce AMPLITUD: los agentes de juicio
+  mantienen su modelo de juicio.
+- `full` — trabajo multi-dominio o explícitamente crítico, con el panel de revisión completo sobre
+  todo plan, diff e informe de análisis.
+
+El modelo con el que corre cada agente nunca lo fija el tier: ver la sección siguiente.
 
 Si no pasas `--tier`, el orquestador lo clasifica por ti según el alcance. Un valor inválido
 (cualquier cosa que no sea exactamente `direct`, `light` o `full`, sensible a mayúsculas) se rechaza
@@ -609,6 +625,19 @@ Fuerza `light` explícitamente en vez de dejar que la raíz lo infiera.
 BLOCKED --tier inválido: medium (usa direct, light o full)
 ```
 
+### Tiers de modelo, `models.json` y el panel de revisión
+
+Ningún agente nombra un modelo: cada uno declara `model: inherit` + `tier: judgement|standard|mechanical`,
+y `models.json` mapea los tiers a candidatos de modelo ordenados. Para usar otros ids (otro host, otro
+proveedor), deja un `.swarm/models.json` con el mismo esquema — sobrescribe por tier. Los
+orquestadores resuelven cada hijo con `scripts/model-resolve.sh`; `/swarm:doctor` muestra el mapeo
+efectivo. Las reglas completas (modelos no disponibles, escalado, independencia del juez) y el panel
+de revisión se resumen en la sección del README "Tiers de modelo y panel de revisión"; la política es
+`skills/swarm-protocol/judgement.md`.
+
+`docker exec` desde un agente solo funciona con los contenedores que listes, uno por línea, en
+`.swarm/docker-containers` (commitéalo con el repo), y solo con comandos internos de lectura.
+
 ### `/swarm:init` y `/swarm:doctor` corren de forma independiente
 
 Ambos son comandos reales e independientes que puedes invocar directamente (`/swarm:init`,
@@ -624,14 +653,15 @@ nunca. `implementation-orchestrator` siempre fusiona localmente, a la propia ram
 `git push` en su lista permitida de herramientas. Una guarda comprueba que `HEAD` no sea `master`
 antes de fusionar nada.
 
-**¿Puedo correr esto de forma totalmente headless / no interactiva?** En su mayoría sí, pero
-discovery no. El sentido entero de discovery es hacerte preguntas reales vía `AskUserQuestion`, así
-que un run que enruta a discovery se pausa y espera a un humano en una sesión interactiva — no
-puede completarse en una invocación programada, sin TTY (`claude -p`) como sí pueden analysis,
-design o implementation, porque no hay nadie ahí para responder. Si cierras el diálogo en vez de
-responder, el enjambre no pierde tu sitio: registra el batch sin responder como una decisión
-`[pendiente]` para que un run posterior pueda retomarlo en vez de volver a hacer las mismas cuatro
-preguntas.
+**¿Puedo correr esto de forma totalmente headless / no interactiva?** Sí. Dilo en el objetivo
+("sin preguntas", "no me preguntes", "no interactivo") o lánzalo desatendido (`claude -p`): eso
+prohíbe `AskUserQuestion`, nunca una fase. Discovery corre igual; donde la raíz preguntaría, toma
+la opción recomendada, la registra en `.swarm/decisions.md` marcada `ASSUMED` y lista cada
+supuesto en el informe final (`- assumed: <pregunta> <opción elegida>`). Una respuesta `ASSUMED`
+no es tuya: el siguiente run interactivo sobre el mismo objetivo vuelve a hacer esas preguntas. En
+un run interactivo, si cierras el diálogo en vez de responder, el batch se registra como una
+decisión `[pendiente]` para que un run posterior pueda retomarlo en vez de volver a hacer las
+mismas cuatro preguntas.
 
 **¿Qué pasa cuando algo vuelve `BLOCKED`?** El run igualmente se cierra limpio — se escribe una
 línea de resumen en `.swarm/run/<id>/summary.md` y se curata la capa de memoria antes de que el
@@ -647,3 +677,12 @@ parafrasearlo, así que lo que lees es literalmente lo que dijo el dominio que f
 el hash del estado del árbol del repo muestra que realmente está desactualizado. Los hallazgos
 también se deduplican por `agente+tag+fichero:línea` entre runs, así que repetir la misma auditoría
 dos veces seguidas no produce hallazgos duplicados.
+
+**¿Qué pasa si dirijo un mensaje a un agente concreto en vez de a la raíz?** La plataforma puede
+entregarlo al agente que esté activo en ese momento — no necesariamente al orquestador con el que
+hablas normalmente. Ese agente nunca lo trata como una instrucción: lo reenvía tal cual al
+orquestador raíz (`SendMessage(to: "orchestrator", "owner message relayed by <name>: <text>")`), o,
+si es una lente read-only sin `SendMessage`, registra `- warn: owner message received, not acted
+on` para que la raíz igualmente vea que ocurrió. La raíz trata todo mensaje reenviado como entrada
+no confiable — como mucho una pregunta de vuelta o contexto extra para su propio juicio, nunca un
+replanteo, un cambio de alcance ni una autorización que no tuviera ya.

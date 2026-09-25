@@ -1,0 +1,11 @@
+{
+  "tiers": {
+    "judgement": ["opus", "fable", "inherit"],
+    "standard": ["sonnet", "inherit"],
+    "mechanical": ["sonnet", "inherit"]
+  },
+  "escalation": {
+    "mechanical": "standard",
+    "standard": "judgement"
+  }
+}

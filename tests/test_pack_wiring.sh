@@ -36,17 +36,17 @@ assert_eq "0" "$(has "$tools" 'doc-writer')" "implementation-orchestrator can sp
 b="$(body "$PLUGIN_ROOT/agents/implementation-orchestrator.md")"
 assert_eq "0" "$(has "$b" 'operation: migrate')" "implementation-orchestrator launches migration-engineer with operation: migrate"
 assert_eq "0" "$(has "$b" 'operation: document')" "implementation-orchestrator launches doc-writer with operation: document"
-assert_eq "0" "$(has "$b" 'SOLO si la fase toca el esquema')" "migration-engineer step is explicitly conditional"
-assert_eq "0" "$(has "$b" 'presupuesto de turnos')" "doc-writer step documents the turn-budget cut rule"
+assert_eq "0" "$(has "$b" 'ONLY if the phase touches the schema')" "migration-engineer step is explicitly conditional"
+assert_eq "0" "$(has "$b" 'Turn-budget cutoff rule')" "doc-writer step documents the turn-budget cut rule"
 # la limpieza sigue alcanzando TODOS los caminos terminales tras insertar dos pasos nuevos
-assert_eq "0" "$(has "$b" 'Limpieza del worktree')" "cleanup section still exists"
+assert_eq "0" "$(has "$b" 'Worktree cleanup')" "cleanup section still exists"
 assert_eq "0" "$(has "$b" 'KO migration-engineer')" "a migration-engineer failure is a terminal path that cleans up"
 assert_eq "0" "$(has "$b" 'KO doc-writer')" "a doc-writer failure is a terminal path that cleans up"
 
 # --- vulnerability-scanner: la nota de futuro de fase 3 ya no puede seguir en pie ---
 b="$(body "$PLUGIN_ROOT/agents/vulnerability-scanner.md")"
-assert_eq "1" "$(has "$b" 'ningún `skills/pack-*` existe todavía')" "vulnerability-scanner no longer claims no pack exists"
-assert_eq "1" "$(has "$b" 'Nota de futuro')" "vulnerability-scanner future-note is gone (the pack landed)"
+assert_eq "1" "$(has "$b" 'no `skills/pack-*` exists yet')" "vulnerability-scanner no longer claims no pack exists"
+assert_eq "1" "$(has "$b" 'Future note')" "vulnerability-scanner future-note is gone (the pack landed)"
 assert_eq "0" "$(has "$b" 'composer audit')" "vulnerability-scanner names the real scan command it can now run"
 
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi

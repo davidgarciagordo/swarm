@@ -8,7 +8,9 @@ import json
 import os
 import re
 import shlex
+import subprocess
 import sys
+from collections import namedtuple
 
 ALLOWLIST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bash-allowlist.json')
 
@@ -26,7 +28,10 @@ ENV_PREFIX_RE = re.compile(r'^SWARM_ROOT=[A-Za-z0-9_./-]+$')
 
 # `find` sin restricción es un escape hatch (ejecuta/borra arbitrariamente). Solo se permite
 # como buscador de solo lectura.
-FIND_DENIED_FLAGS = ('-exec', '-execdir', '-ok', '-okdir', '-delete')
+FIND_DENIED_FLAGS = (
+    '-exec', '-execdir', '-ok', '-okdir', '-delete',
+    '-fprint', '-fprint0', '-fprintf', '-fls',  # write their output to a FILE
+)
 
 # `scripts/mem-*` debe casar solo con los scripts reales del plugin, no con cualquier binario
 # cuyo basename empiece por `mem-`.
@@ -130,6 +135,9 @@ SUBCOMMAND_ALLOWED_ARGS = {
     ('gh', 'repo'): ('create',),
     ('gh', 'pr'): ('create',),
     ('gh', 'auth'): ('status',),
+    # `claude plugin` only to DETECT installed plugins (working-methods interop); `install`,
+    # `enable`, `marketplace add`… would load third-party code into the owner's session.
+    ('claude', 'plugin'): ('list',),
 }
 
 # Conjunto CERRADO de flags de `gh repo create`. Lo que se protege aquí es la inyección de flags: el
@@ -524,10 +532,20 @@ def strip_plugin_root(word):
     return word
 
 
+def is_plugin_rooted(word):
+    """True if `word` is rooted at the plugin (`${CLAUDE_PLUGIN_ROOT}/…` or its absolute path)
+    and does not climb out of it with `..`. A bare `scripts/x.sh` resolves against the TARGET
+    repo's cwd, so it never names a plugin script."""
+    rel = strip_plugin_root(word)
+    return rel != word and '..' not in rel.split('/')
+
+
 def is_mem_script(word):
-    """`<algo>/scripts/mem-<nombre>.sh` — el basename por sí solo no basta."""
-    head, tail = os.path.split(word)
-    return bool(MEM_SCRIPT_RE.match(tail)) and os.path.basename(head) == 'scripts'
+    """`${CLAUDE_PLUGIN_ROOT}/scripts/mem-<name>.sh` — exactly under the plugin's `scripts/`."""
+    if not is_plugin_rooted(word):
+        return False
+    head, tail = os.path.split(strip_plugin_root(word))
+    return bool(MEM_SCRIPT_RE.match(tail)) and head == 'scripts'
 
 
 def _push_dst(ref):
@@ -810,15 +828,247 @@ def canonical_shape_reason(command):
     return None
 
 
-def segment_allowed(segment, allowlist):
+# ── Read-only verification commands (jq, cmp, diff, sort, uniq, cut, tr, `php -l`, `docker exec`) ──
+# Agents gave up verifying load-bearing claims because the allowlist had no way to compare, sort or
+# lint. These commands only READ, except for the few options below that write a file or run a
+# program; those are denied by SHAPE, so the allowlist entry cannot be turned into a write/exec.
+#   - `sort -o FILE` / `--output` writes a file; `--compress-program=PROG` EXECUTES PROG;
+#     `-T`/`--temporary-directory` writes temp files. GNU accepts unambiguous abbreviations of long
+#     options (`--out`, `--comp`), so a long option is denied when it is a prefix of a denied name.
+#   - `uniq [OPTION]... [INPUT [OUTPUT]]`: a second operand is an OUTPUT file that uniq overwrites.
+#   - `php -l <file>...`: lint only. Any further flag (`-d auto_prepend_file=…`, `-f`, `-r`) is
+#     denied so the lint prefix cannot smuggle in execution.
+#   - `docker exec <container> <cmd>…`: never in `default` (only agents whose own bucket lists it);
+#     no flags at all (no `-u root`, `-e`, `-w`, `--privileged`, `-d`); the container must be listed
+#     in the repo's `.swarm/docker-containers` (one name per line; no file ⇒ every container denied);
+#     the inner command is re-validated against DOCKER_INNER_READ_ONLY ∩ the agent's allowlist
+#     (so no nesting, and an implementer's `make` never reaches the container). Inner argv reaches
+#     the container without a shell; outer-shell substitutions are split out by `all_segments`.
+# `php -r` is NOT added: inline PHP can call system(); the guard cannot validate code. `jq` has no
+# in-place mode, so it needs no shape check (wrappers like `sponge`/`yq -i` are not allowlisted).
+# Output redirection (`>`, `>>`, `>|`, `&>`, `<>`, `>(…)`) to anything but /dev/null|stdout|stderr
+# or an fd dup (`2>&1`), and git's `--output=FILE`, are denied for every agent NOT listed in
+# `file_writers` (bash-allowlist.json = the agents whose `tools:` include Write or Edit): without
+# that, `sort a > f` made the `sort -o` denial pointless for a read-only agent.
+SORT_DENIED_LONG = ('output', 'compress-program', 'temporary-directory')
+SORT_DENIED_SHORT = frozenset('oT')
+SORT_VALUE_SHORT = frozenset('ktS')  # the rest of the cluster is the option's value
+UNIQ_VALUE_FLAGS = frozenset({'-f', '-s', '-w', '--skip-fields', '--skip-chars', '--check-chars'})
+DOCKER_CONTAINER_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+DOCKER_INNER_READ_ONLY = (
+    'git status', 'git log', 'git diff', 'git show', 'git rev-parse',
+    'ls', 'cat', 'head', 'tail', 'wc', 'grep', 'jq', 'cmp', 'diff', 'sort', 'uniq', 'cut', 'tr',
+    'php -l',
+)
+DOCKER_CONTAINERS_FILE = 'docker-containers'
+SAFE_REDIRECT_TARGETS = frozenset({'/dev/null', '/dev/stdout', '/dev/stderr'})
+REDIRECT_WORD_END = ' \t\n;&|<>()'
+
+# Per-call context: whether the agent may write files, and the session cwd (for the repo's
+# container allowlist). Immutable; built once in main().
+GuardCtx = namedtuple('GuardCtx', ['can_write', 'cwd'])
+DEFAULT_CTX = GuardCtx(can_write=True, cwd=None)
+
+
+def _read_redirect_word(segment, j):
+    """Reads the redirection target starting at `j` (quotes removed). Returns (word, end)."""
+    n = len(segment)
+    while j < n and segment[j] in ' \t':
+        j += 1
+    out = []
+    quote = None
+    while j < n:
+        ch = segment[j]
+        if quote:
+            if ch == quote:
+                quote = None
+            else:
+                out.append(ch)
+        elif ch in '\'"':
+            quote = ch
+        elif ch in REDIRECT_WORD_END:
+            break
+        else:
+            out.append(ch)
+        j += 1
+    return ''.join(out), j
+
+
+def output_redirect_targets(segment):
+    """Unquoted output redirections of `segment` that write a FILE (fd dups and /dev/null excluded).
+
+    Same four-state quote automaton as `split_segments` (outside / `'…'` / `"…"` / `$'…'`): the
+    backslash escapes the next character everywhere except inside single quotes, so `$'\\''` does
+    not leave a phantom open quote that hides a later `> file`.
+    """
+    targets = []
+    n = len(segment)
+    i = 0
+    state = None  # None | "'" | '"' | "$'"
+    while i < n:
+        ch = segment[i]
+        if state == "'":
+            if ch == "'":
+                state = None
+            i += 1
+            continue
+        if state in ('"', "$'"):
+            if ch == '\\':
+                i += 2
+                continue
+            if (state == '"' and ch == '"') or (state == "$'" and ch == "'"):
+                state = None
+            i += 1
+            continue
+        if ch == '\\':
+            i += 2
+            continue
+        if segment[i:i + 2] == "$'":
+            state = "$'"
+            i += 2
+            continue
+        if ch in '\'"':
+            state = ch
+            i += 1
+            continue
+        if ch != '>':
+            i += 1
+            continue
+        j = i + 1
+        dup = False
+        if j < n and segment[j] in '>|':
+            j += 1
+        elif j < n and segment[j] == '&':
+            dup = True
+            j += 1
+        elif j < n and segment[j] == '(':
+            targets.append('>(')  # process substitution: runs a command fed by our output
+            i = j + 1
+            continue
+        word, end = _read_redirect_word(segment, j)
+        if dup and (word == '-' or word.isdigit()):
+            i = end
+            continue
+        if word not in SAFE_REDIRECT_TARGETS:
+            targets.append(word or '>')
+        i = end
+    return targets
+
+
+def git_output_flag(words):
+    """True if a git command carries `--output[=FILE]` (git diff/log/show write the patch there)."""
+    if not words or os.path.basename(words[0]) != 'git':
+        return False
+    return any(w == '--output' or w.startswith('--output=') for w in words[1:])
+
+
+def repo_containers(cwd):
+    """Container names allowed for `docker exec` in this repo (`.swarm/docker-containers`)."""
+    roots = []
+    base = os.path.abspath(cwd or os.getcwd())
+    while True:
+        roots.append(base)
+        parent = os.path.dirname(base)
+        if parent == base:
+            break
+        base = parent
+    try:
+        common = subprocess.check_output(
+            ['git', '-C', cwd or os.getcwd(), 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+            stderr=subprocess.DEVNULL, timeout=5,
+        ).decode('utf-8', 'replace').strip()
+        if common:
+            roots.append(os.path.dirname(common))  # main checkout of a worktree
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    for root in roots:
+        path = os.path.join(root, '.swarm', DOCKER_CONTAINERS_FILE)
+        try:
+            with open(path) as fh:
+                return frozenset(
+                    line.strip() for line in fh
+                    if line.strip() and not line.lstrip().startswith('#')
+                )
+        except OSError:
+            continue
+    return frozenset()
+
+
+def sort_segment_denied(words):
+    for word in words[1:]:
+        if word == '--':
+            return False
+        if word.startswith('--'):
+            name = word[2:].split('=', 1)[0]
+            if name and any(d.startswith(name) for d in SORT_DENIED_LONG):
+                return True
+            continue
+        if word.startswith('-') and len(word) > 1:
+            for ch in word[1:]:
+                if ch in SORT_DENIED_SHORT:
+                    return True
+                if ch in SORT_VALUE_SHORT:
+                    break
+    return False
+
+
+def uniq_segment_denied(words):
+    operands = []
+    rest = words[1:]
+    i = 0
+    options_done = False
+    while i < len(rest):
+        word = rest[i]
+        if not options_done and word == '--':
+            options_done = True
+        elif not options_done and word in UNIQ_VALUE_FLAGS:
+            i += 1  # skip the option's value
+        elif not options_done and word.startswith('-') and len(word) > 1:
+            pass
+        else:
+            operands.append(word)
+        i += 1
+    return len(operands) > 1
+
+
+def php_lint_segment_denied(words):
+    files = words[2:]
+    return not files or any(w.startswith('-') for w in files)
+
+
+def docker_exec_allowed(words, allowlist, ctx):
+    if 'docker exec' not in allowlist or len(words) < 4:
+        return False
+    container, inner = words[2], words[3:]
+    if not DOCKER_CONTAINER_RE.match(container):
+        return False  # also rejects every flag (`-u`, `-it`, `--privileged`…) before the container
+    if container not in repo_containers(ctx.cwd):
+        return False
+    inner_allowlist = [p for p in allowlist if p in DOCKER_INNER_READ_ONLY]
+    return segment_allowed(shlex.join(inner), inner_allowlist, ctx)
+
+
+def segment_allowed(segment, allowlist, ctx=DEFAULT_CTX):
+    if not ctx.can_write and output_redirect_targets(segment):
+        return False
     words = segment_words(segment)
     if words and ENV_PREFIX_RE.match(words[0]):
         words = words[1:]
     if not words:
         return False
+    if not ctx.can_write and git_output_flag(words):
+        return False
     first_raw = strip_plugin_root(words[0])
     first_two = ' '.join(words[:2])
     command_word = os.path.basename(first_raw)
+    if words[:2] == ['docker', 'exec']:
+        return docker_exec_allowed(words, allowlist, ctx)
+    if command_word == 'sort' and sort_segment_denied(words):
+        return False
+    if command_word == 'uniq' and uniq_segment_denied(words):
+        return False
+    if words[:2] == ['php', '-l'] and php_lint_segment_denied(words):
+        return False
     if command_word == 'find':
         for word in words[1:]:
             if word in FIND_DENIED_FLAGS:
@@ -883,9 +1133,14 @@ def segment_allowed(segment, allowlist):
             continue
         # Coincidencia EXACTA de la primera palabra (no `startswith`): `ls` no casa `lsof`,
         # `cd` no casa `cdrecord`, `cat` no casa `catfoo`.
+        if prefix.startswith('scripts/'):
+            # plugin scripts only in their plugin-rooted form (never the target repo's scripts/)
+            if first_raw == prefix and is_plugin_rooted(words[0]):
+                return True
+            if prefix.startswith('scripts/mem') and is_mem_script(words[0]):
+                return True
+            continue
         if first_raw == prefix:
-            return True
-        if prefix.startswith('scripts/mem') and is_mem_script(first_raw):
             return True
     return False
 
@@ -930,6 +1185,10 @@ def main():
 
     allowlists = load_allowlist()
     agent_allowlist = allowlists.get('agents', {}).get(agent_type, allowlists.get('default', []))
+    ctx = GuardCtx(
+        can_write=agent_type in allowlists.get('file_writers', []),
+        cwd=data.get('cwd') if isinstance(data.get('cwd'), str) else None,
+    )
 
     # CAPA 2 — allowlist por segmento (cinturón Y tirantes: los chequeos de las rondas 1 y 2 siguen
     # aquí; el gate solo añade una puerta anterior y más estricta).
@@ -939,7 +1198,7 @@ def main():
         deny('sustituciones de comando anidadas más allá del límite del guard: %s' % command.strip())
         return
     for segment in segments:
-        if not segment_allowed(segment, agent_allowlist):
+        if not segment_allowed(segment, agent_allowlist, ctx):
             deny('%s no está en el allowlist de %s' % (segment, agent_type))
             return
 

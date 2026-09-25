@@ -8,6 +8,8 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FILE="$PLUGIN_ROOT/requirements.json"
 ROOT="$PWD"
 PACK_FILE=""
+ADVISORY=0
+SWARM_ROOT_ARG=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -20,6 +22,11 @@ while [ $# -gt 0 ]; do
     --pack)
       [ $# -ge 2 ] || { echo "req-check.sh: --pack requires a value" >&2; exit 64; }
       PACK_FILE="$2"; shift 2 ;;
+    --advisory)
+      ADVISORY=1; shift ;;
+    --swarm-root)
+      [ $# -ge 2 ] || { echo "req-check.sh: --swarm-root requires a value" >&2; exit 64; }
+      SWARM_ROOT_ARG="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -35,6 +42,106 @@ if [ -n "$PACK_FILE" ] && [ ! -f "$PACK_FILE" ]; then
 fi
 
 UNAME="$(uname -s 2>/dev/null || echo unknown)"
+
+# --advisory: non-blocking environment advice for /swarm:doctor (human lines, ALWAYS exit 0).
+# Runs the checks listed in the requirements file's "advisory" array: "models" (effective model per
+# tier + unavailable candidates) and "worktree-base" (origin/HEAD behind HEAD => stale worktrees).
+if [ "$ADVISORY" -eq 1 ]; then
+  [ -n "$SWARM_ROOT_ARG" ] || SWARM_ROOT_ARG="${SWARM_ROOT:-$ROOT/.swarm}"
+  python3 - "$FILE" "$ROOT" "$SWARM_ROOT_ARG" "$SCRIPT_DIR/model-resolve.sh" <<'PYEOF'
+import json, os, subprocess, sys
+
+req_file, root, swarm_root, resolver = sys.argv[1:5]
+try:
+    checks = json.load(open(req_file)).get("advisory", [])
+except (OSError, ValueError, AttributeError):
+    checks = []
+if not isinstance(checks, list):
+    checks = []
+
+
+def run(cmd):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        return r.returncode, r.stdout.strip(), r.stderr.strip()
+    except Exception as exc:
+        return 1, "", str(exc)
+
+
+def models():
+    rc, out, err = run(["bash", resolver, "--show", "--swarm-root", swarm_root])
+    if rc != 0:
+        print("WARN models: cannot resolve tiers (%s)" % (err or "model-resolve.sh failed"))
+        return
+    override = os.path.join(swarm_root, "models.json")
+    source = override if os.path.isfile(override) else "plugin models.json"
+    for line in out.splitlines():
+        parts = line.split()
+        tier, eff = parts[0], parts[1]
+        cands = parts[2].split("=", 1)[1]
+        gone = parts[3].split("=", 1)[1]
+        print("models: %s -> %s (candidates %s; source %s)" % (tier, eff, cands, source))
+        if gone != "-":
+            print("WARN models: %s candidate(s) marked unavailable in %s/models.unavailable: %s"
+                  % (tier, swarm_root, gone))
+
+
+def base_ref_configured():
+    """Path of the settings file whose worktree.baseRef wins, if it is `head`.
+
+    Claude Code precedence: project .claude/settings.local.json > .claude/settings.json > user
+    settings ($CLAUDE_CONFIG_DIR or ~/.claude). The first file that DEFINES baseRef decides.
+    """
+    user_dir = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
+    paths = [os.path.join(root, ".claude", "settings.local.json"),
+             os.path.join(root, ".claude", "settings.json"),
+             os.path.join(user_dir, "settings.json")]
+    for path in paths:
+        try:
+            with open(path) as fh:
+                data = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        wt = data.get("worktree") if isinstance(data, dict) else None
+        if isinstance(wt, dict) and "baseRef" in wt:
+            return path if wt.get("baseRef") == "head" else None
+    return None
+
+
+def worktree_base():
+    rc, _, _ = run(["git", "-C", root, "rev-parse", "--verify", "-q", "origin/HEAD"])
+    if rc != 0:
+        print("worktree-base: no origin/HEAD in this repo - skipped")
+        return
+    rc, out, err = run(["git", "-C", root, "rev-list", "--count", "origin/HEAD..HEAD"])
+    if rc != 0 or not out.isdigit():
+        print("WARN worktree-base: cannot compare origin/HEAD with HEAD (%s)" % err)
+        return
+    ahead = int(out)
+    if ahead == 0:
+        print("worktree-base: ok (origin/HEAD contains HEAD)")
+        return
+    configured = base_ref_configured()
+    if configured:
+        print("worktree-base: ok (origin/HEAD is %d commit(s) behind HEAD, baseRef head set in %s)"
+              % (ahead, configured))
+        return
+    print("WARN worktree-base: origin/HEAD is %d commit(s) behind HEAD - agent worktrees would "
+          "branch from stale code. Add to .claude/settings.json:" % ahead)
+    print('{ "worktree": { "baseRef": "head" } }')
+
+
+for check in checks:
+    if check == "models":
+        models()
+    elif check == "worktree-base":
+        worktree_base()
+    else:
+        print("WARN advisory: unknown check '%s' in requirements file" % check)
+PYEOF
+  exit 0
+fi
+
 
 python3 - "$FILE" "$ROOT" "$UNAME" "$PACK_FILE" <<'PYEOF'
 import json

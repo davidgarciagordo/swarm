@@ -1,7 +1,8 @@
 ---
 name: options-generator
 description: Use when discovery-orchestrator needs 2-3 candidate approaches for a product goal with trade-offs and one recommendation under YAGNI discipline — never asks the owner directly.
-model: opus
+model: inherit
+tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage
 maxTurns: 10
 memory: project

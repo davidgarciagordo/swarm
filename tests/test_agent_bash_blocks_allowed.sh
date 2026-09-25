@@ -15,7 +15,8 @@
 # Method: for each agent file, take its `name:` frontmatter field as `swarm:<name>`, extract every
 # fenced ```bash block from the body, join backslash-continued lines into one logical command
 # (mem-files.sh/mem-manifest.sh calls span several physical lines), skip blank/comment lines, and
-# assert hooks/bash-guard.py allows that exact line for that agent_type. No block in these files
+# substitute each `<placeholder>` with a literal token (agents substitute them before running), and
+# assert hooks/bash-guard.py allows that line for that agent_type. No block in these files
 # is a documented intentional deny, so every extracted line must allow.
 set -u
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,7 +26,7 @@ HOOK="$PLUGIN_ROOT/hooks/bash-guard.py"
 
 # The agents listed in AGENT_FILES (implementation, fase 5a + requirements/pack, fase 5b). Add
 # future agents here to extend the same coverage — no other change needed.
-AGENT_FILES="test-writer implementer quality-fixer reviewer implementation-orchestrator dependency-auditor dependency-installer migration-engineer doc-writer analysis-orchestrator vulnerability-scanner data-model-auditor requirements-orchestrator env-checker verifier release-manager handoff-writer delivery-orchestrator"
+AGENT_FILES="test-writer implementer quality-fixer review-orchestrator fact-checker refuter design-orchestrator implementation-orchestrator dependency-auditor dependency-installer migration-engineer doc-writer analysis-orchestrator vulnerability-scanner data-model-auditor requirements-orchestrator env-checker verifier release-manager handoff-writer delivery-orchestrator memory-orchestrator"
 
 guard() { # guard <agent_type> <command> -> "allow" | "deny"
   local out
@@ -62,6 +63,9 @@ for block in re.findall(r'```bash\n(.*?)```', text, re.S):
         cmd = cmd.strip()
         if not cmd or cmd.startswith("#"):
             continue
+        # `<placeholder>` is substituted by the agent before running (protocol §1); left literal it
+        # would read as a shell redirection, which the guard denies for read-only agents.
+        cmd = re.sub(r"<[A-Za-z][^<>\n]*>", "PLACEHOLDER", cmd)
         print(json.dumps(cmd))
 PYEOF
 )"

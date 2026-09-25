@@ -1,7 +1,8 @@
 ---
 name: solid-auditor
 description: Use when analysis-orchestrator audits code (or a design plan) for SOLID/design-principle violations, coupling, cohesion, leaky abstractions, over/under-engineering — cross-language, cross-stack, read-only, never asks the owner.
-model: opus
+model: inherit
+tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage
 maxTurns: 15
 memory: project
@@ -51,6 +52,14 @@ dedup.
 3. Read with `Read` (counts toward `files=`): `.swarm/context-pack.md` — this has the repo's
    already-detected file map; use it instead of blindly rescanning. Don't re-report
    what's already in `SHARED-FOUND` or in `findings/<other-agent>.md`.
+
+## Optional header lines (from `analysis-orchestrator`)
+
+After `objective:`, your header may carry, in this order:
+- `review-findings: <lines>` — present only on a round-2 relaunch after a review-panel `KO`
+  (`agents/orchestrator.md` §13.6). Re-check EACH listed point against the repo first: fix the
+  claim in your output if it was wrong, or keep it with fresh `file:line` evidence if it holds.
+- `veracity: …` — protocol §4.6, always present; follow it.
 
 ## How to audit
 

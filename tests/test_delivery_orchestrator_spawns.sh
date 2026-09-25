@@ -21,17 +21,18 @@ body="$(awk '/^---$/{n++; next} n>=2{print}' "$F")"
 tools_line="$(echo "$front" | grep '^tools:')"
 has() { echo "$1" | grep -qF -- "$2" && echo 0 || echo 1; }
 
-assert_eq "0" "$(echo "$front" | grep -q '^model: haiku$' && echo 0 || echo 1)" "delivery-orchestrator is haiku (spec §7 and §7.0)"
+assert_eq "0" "$(echo "$front" | grep -q '^model: inherit$' && echo 0 || echo 1)" "delivery-orchestrator model is inherit (MODEL TIERS contract)"
+assert_eq "0" "$(echo "$front" | grep -q '^tier: judgement$' && echo 0 || echo 1)" "delivery-orchestrator tier is judgement (orchestrator, MODEL TIERS contract)"
 assert_eq "0" "$(echo "$front" | grep -q '^maxTurns: 10$' && echo 0 || echo 1)" "delivery-orchestrator has maxTurns 10 (spec §7)"
 assert_eq "0" "$(has "$tools_line" 'Agent(release-manager')" "tools: declares Agent(release-manager,...) — the spawn is otherwise dead on arrival"
 assert_eq "0" "$(has "$tools_line" 'handoff-writer')" "tools: also declares handoff-writer"
 assert_eq "0" "$(has "$tools_line" 'SendMessage')" "tools: also includes SendMessage"
 assert_eq "1" "$(has "$tools_line" 'AskUserQuestion')" "a domain orchestrator cannot ask the owner (spec §3.2 rule 7)"
 
-assert_eq "0" "$(has "$body" 'No preexiste')" "body documents that the leaves do not preexist"
-assert_eq "0" "$(has "$body" 'NUNCA encadenas')" "body states it never auto-chains after implementation"
+assert_eq "0" "$(has "$body" 'does not preexist')" "body documents that the leaves do not preexist"
+assert_eq "0" "$(has "$body" 'NEVER auto-chain')" "body states it never auto-chains after implementation"
 assert_eq "0" "$(has "$body" 'approved-push: remote=')" "forwards the approval line verbatim, with its exact shape"
-assert_eq "0" "$(has "$body" 'nunca construyes')" "states it never builds the approval itself"
+assert_eq "0" "$(has "$body" 'never build either of the two approval lines yourself')" "states it never builds the approval itself"
 assert_eq "0" "$(has "$body" 'operation: prepare-release')" "documents phase A"
 assert_eq "0" "$(has "$body" 'operation: publish-release')" "documents phase B"
 assert_eq "0" "$(has "$body" 'operation: configure-remote')" "documents the remote-bootstrap operation (ruling 3)"
@@ -39,8 +40,8 @@ assert_eq "0" "$(has "$body" 'approved-remote:')" "forwards the remote approval 
 assert_eq "1" "$(has "$body" 'DONE ·')" "no 'DONE · detalle' anywhere"
 
 # handoff en TODOS los caminos terminales: la sección compartida existe y cada camino la referencia
-assert_eq "0" "$(has "$body" '## Handoff — SIEMPRE, en CUALQUIER salida terminal')" "there is ONE shared handoff section"
-refs="$(echo "$body" | grep -cF 'ver "## Handoff — SIEMPRE"')"
+assert_eq "0" "$(has "$body" '## Handoff — ALWAYS, on ANY terminal output')" "there is ONE shared handoff section"
+refs="$(echo "$body" | grep -cF 'see "## Handoff — ALWAYS"')"
 assert_eq "0" "$([ "$refs" -ge 4 ] && echo 0 || echo 1)" "at least 4 terminal paths point at the shared handoff section (got $refs)"
 
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi

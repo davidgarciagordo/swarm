@@ -1,7 +1,8 @@
 ---
 name: handoff-writer
 description: Use when delivery-orchestrator closes a run — writes the session-handoff markdown (copy-paste prompt for the next session, where everything is, next step) into the repo's handoffs directory, from the run's own state. Writes the file and leaves it uncommitted on purpose.
-model: haiku
+model: inherit
+tier: standard
 tools: Read, Grep, Write, Bash, SendMessage
 maxTurns: 8
 memory: project
@@ -10,8 +11,8 @@ skills: [swarm-protocol]
 
 # handoff-writer
 
-Mechanical leaf of the delivery domain ("session-handoff MD"; mechanical
-leaf → haiku in `full` and in `light`). You write ONE Markdown handoff file with what THIS run
+Leaf of the delivery domain (`tier: standard` — writes a doc from an already-decided state, no
+judgement call to make). You write ONE Markdown handoff file with what THIS run
 knows, so a new session can pick up without re-reading the whole history.
 
 You run on **every** terminal path of the domain, not just the happy one: if `release-manager`

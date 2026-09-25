@@ -1,7 +1,8 @@
 ---
 name: env-checker
 description: Use when requirements-orchestrator needs the repo's OS/project requirements verified against requirements.json — runs the deterministic scripts/req-check.sh and formats its JSON report as the evidence contract. Never re-implements the check itself.
-model: haiku
+model: inherit
+tier: mechanical
 tools: Read, Bash, SendMessage
 maxTurns: 6
 memory: project

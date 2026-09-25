@@ -1,7 +1,8 @@
 ---
 name: memory-orchestrator
 description: Use when any swarm agent needs to read, write, build or curate .swarm/ memory — single gate to the memory subsystem (files backend required + claude-mem best-effort). Exactly one live instance per run; resume it via SendMessage instead of spawning another.
-model: haiku
+model: inherit
+tier: mechanical
 tools: Read, Grep, Bash, Agent(memory-builder,memory-curator), SendMessage, mcp__plugin_claude-mem_mcp-search__*
 maxTurns: 12
 memory: project
@@ -33,6 +34,27 @@ return what they say.
    it also counts toward `files=N`). You care about `policy.read`, `policy.write` and, from
    `backends`, the pair `name` + `required`. `files` is `required: true`; `claude-mem` is
    `required: false`.
+
+## Model per child (`scripts/model-resolve.sh`, protocol §7bis)
+
+No agent file names a model. Your children (`memory-builder`, `memory-curator`) are tier `mechanical` in their frontmatter.
+Resolve that tier ONCE per launch before spawning:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/model-resolve.sh" mechanical --swarm-root <absolute path to .swarm>
+```
+Pass the printed id as the `Agent` tool's `model` parameter; OMIT the parameter when it prints
+`inherit`. A spawn that fails because the model does not exist:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/model-resolve.sh" --mark-unavailable <model-id> --swarm-root <absolute path to .swarm>
+```
+then resolve again and retry that spawn once. If a child's output fails verification (hook
+two-strike or a `KO` you can attribute to the child's own work), its ONE retry uses the escalated
+tier:
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/model-resolve.sh" --escalate mechanical --swarm-root <absolute path to .swarm>
+```
+(then resolve the printed tier). Without a `swarm-root:` in your header (adhoc), omit
+`--swarm-root` — the script defaults to `$PWD/.swarm`.
 
 ## Operations (`query | write | build | curate`)
 
@@ -173,7 +195,7 @@ turns; never respond "launch another memory-orchestrator".
 
 ## Bash discipline (`hooks/bash-guard.py`)
 
-Your commands go through a per-agent allowlist. You can use `scripts/mem-*.sh`, `git status|log|
+Your commands go through a per-agent allowlist. You can use `scripts/mem-*.sh`, `scripts/model-resolve.sh`, `git status|log|
 diff|show|rev-parse`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`.
 Everything else is DENIED, and the denial applies to EACH segment separated by `&&`, `||`, `;` or
 `|`. Practical consequences:

@@ -44,25 +44,25 @@ assert_eq "0" "$(has "$body" 'raw:')" "root documents the raw: field"
 assert_eq "0" "$(has "$body" 'raw:.*objective:')" "root documents raw: appearing before objective: in a decision line (same order as the spec's example)"
 
 # --- raw-match reuse path (skip re-interpretation for a raw text already resolved before) ---
-assert_eq "0" "$(has "$body" 'raw:.*es igual')" "§1.0bis describes matching a NEW run's sanitized raw argument against a stored raw: field"
-assert_eq "0" "$(has "$bis_section" '\[pendiente\]')" "§1.0bis's own raw-match reuse path explicitly handles a [pendiente] prior line as NOT resolved (scoped to §1.0bis, not the whole file — §5.3 also uses this term unrelatedly)"
+assert_eq "0" "$(has "$body" 'raw:.*field equals')" "§1.0bis describes matching a NEW run's sanitized raw argument against a stored raw: field"
+assert_eq "0" "$(has "$bis_section" '\[pending\]')" "§1.0bis's own raw-match reuse path explicitly handles a [pendiente] prior line as NOT resolved (scoped to §1.0bis, not the whole file — §5.3 also uses this term unrelatedly)"
 
 # --- I4: Paso 1's Read is anchored to the repo root and tolerates a missing decisions.md ---
 assert_eq "0" "$(has "$bis_section" 'git rev-parse --show-toplevel')" "§1.0bis anchors to the repo root (same cd as §2.0) BEFORE reading .swarm/decisions.md — otherwise a monorepo subdirectory reads the wrong .swarm/"
-assert_eq "0" "$(has "$bis_section" 'fichero no existe')" "§1.0bis Paso 1 treats a missing .swarm/decisions.md as 'no match' and continues, instead of erroring before §2.1's health-gate can diagnose it cleanly"
+assert_eq "0" "$(has "$bis_section" 'is NOT an error')" "§1.0bis Paso 1 treats a missing .swarm/decisions.md as 'no match' and continues, instead of erroring before §2.1's health-gate can diagnose it cleanly"
 
 # --- high-confidence pass-through: zero new output, zero new AskUserQuestion ---
-assert_eq "0" "$(has "$body" 'confianza alta')" "§1.0bis documents the high-confidence pass-through path"
-assert_eq "0" "$(has "$body" 'sin línea de output nueva')" "§1.0bis explicitly states the high-confidence path emits no new output line (happy path stays free)"
+assert_eq "0" "$(has "$body" 'confidence is high')" "§1.0bis documents the high-confidence pass-through path"
+assert_eq "0" "$(has "$body" 'no new output line')" "§1.0bis explicitly states the high-confidence path emits no new output line (happy path stays free)"
 
 # --- low-confidence branch: ONE AskUserQuestion, same one-batch pattern as discovery ---
 assert_eq "0" "$(has "$bis_section" 'AskUserQuestion')" "§1.0bis low-confidence path uses a real AskUserQuestion (scoped to §1.0bis, not the whole file — AskUserQuestion also appears elsewhere, e.g. frontmatter tools list, discovery §5.3)"
 assert_eq "0" "$(has "$front" 'AskUserQuestion')" "root's own tools: frontmatter already includes AskUserQuestion (pre-existing, verify not accidentally removed)"
-assert_eq "0" "$(has "$body" 'hasta 2 alternativas')" "the question offers up to 2 alternatives, matching the spec"
-assert_eq "0" "$(has "$body" 'quiero re-escribirlo yo')" "the question offers a free-rewrite option via Other"
+assert_eq "0" "$(has "$body" 'up to 2 alternatives')" "the question offers up to 2 alternatives, matching the spec"
+assert_eq "0" "$(has "$body" 'I want to rewrite it myself')" "the question offers a free-rewrite option via Other"
 
 # --- outcomes: confirm / alternative / rewrite all become objective: ---
-assert_eq "0" "$(has "$body" 'ESE texto final es el')" "whichever outcome the owner picks becomes the objective: used from here on"
+assert_eq "0" "$(has "$body" 'THAT final text is the')" "whichever outcome the owner picks becomes the objective: used from here on"
 
 # --- C1: §1.0bis itself NEVER writes — memory-orchestrator does not exist until §2.2 ---
 assert_eq "1" "$(has "$bis_section" 'SendMessage\(memory-orchestrator')" "§1.0bis (inside §1, before §2 opens the run) sends NOTHING to memory-orchestrator — that agent is not launched until §2.2"
@@ -71,33 +71,33 @@ assert_eq "0" "$(has "$bis_section" '§2\.3')" "§1.0bis defers its confirm-path
 # --- C1: §2.3 is where the deferred write actually happens, after §2.2 launches memory-orchestrator ---
 assert_eq "0" "$(has "$body" '### 2.3')" "root has a §2.3 section for the gate's deferred persistence"
 p23_pos="$(echo "$body" | grep -n '### 2.3' | head -1 | cut -d: -f1)"
-p22_pos="$(echo "$body" | grep -n '### 2.2 Lanzamiento' | head -1 | cut -d: -f1)"
+p22_pos="$(echo "$body" | grep -n '### 2.2 Launching' | head -1 | cut -d: -f1)"
 pack_pos="$(echo "$body" | grep -n '^## 3\.' | head -1 | cut -d: -f1)"
 assert_eq "0" "$([ -n "$p23_pos" ] && [ -n "$p22_pos" ] && [ "$p22_pos" -lt "$p23_pos" ] && echo 0 || echo 1)" "§2.3 comes AFTER §2.2 (memory-orchestrator is alive before any write)"
 assert_eq "0" "$([ -n "$p23_pos" ] && [ -n "$pack_pos" ] && [ "$p23_pos" -lt "$pack_pos" ] && echo 0 || echo 1)" "§2.3 still lives inside §2 (before §3), so the write happens before any domain orchestrator is launched"
 assert_eq "0" "$(has "$persist_section" 'SendMessage\(memory-orchestrator, "write decision --text')" "§2.3 carries the actual write decision call the gate deferred"
 assert_eq "0" "$(has "$persist_section" '\\\"raw: ')" "§2.3's write decision --text starts with raw: (idempotency key first, same order as §5.4)"
 assert_eq "0" "$(has "$persist_section" '§1.0bis')" "§2.3 names §1.0bis as the step whose resolution it is persisting"
-assert_eq "0" "$(has "$persist_section" 'interpretación resuelta')" "§2.3's line carries the 'interpretación resuelta' marker that keeps §5.1 from mistaking it for a discovery close"
+assert_eq "0" "$(has "$persist_section" 'resolved interpretation')" "§2.3's line carries the 'resolved interpretation' marker that keeps §5.1 from mistaking it for a discovery close"
 
 # --- C2: owner cancels → the run NEVER opens, so no summary/curate (§4's own rule) ---
-assert_eq "0" "$(has "$body" 'BLOCKED interpretación de objetivo sin confirmar')" "cancelling the gate's question produces this exact BLOCKED verdict"
-assert_eq "0" "$(has "$bis_section" 'nunca llegó a abrirse')" "the cancel path routes through §4's existing 'run never opened' branch (no run-id ⇒ no summary/curate), instead of claiming a normal terminal close"
+assert_eq "0" "$(has "$body" 'BLOCKED unconfirmed objective interpretation')" "cancelling the gate's question produces this exact BLOCKED verdict"
+assert_eq "0" "$(has "$bis_section" 'never gets to open')" "the cancel path routes through §4's existing 'run never opened' branch (no run-id ⇒ no summary/curate), instead of claiming a normal terminal close"
 assert_eq "1" "$(has "$close_section" 'interpretación de objetivo cancelada')" "§4's per-terminal-path line list no longer carries a bullet for the gate's cancel path — that path never opens a run, so it has no summary line to write"
 assert_eq "0" "$(has "$close_section" '§1.0bis')" "§4's 'run never opened' branch names the gate's cancel path alongside §1.0's guards"
 
 # --- C3: §5.1 matches on raw:, NEVER on objective:, and never on its own run's gate line ---
-assert_eq "0" "$(has "$s51_section" 'campo \*\*`raw:`\*\*')" "§5.1's idempotency match targets the raw: field"
-assert_eq "1" "$(has "$s51_section" 'campo \*\*`objective:`\*\*')" "§5.1 no longer matches on the objective: field (it may be a non-deterministic LLM interpretation — spec's hard constraint)"
-assert_eq "0" "$(has "$s51_section" 'nunca.*contra .objective:')" "§5.1 states explicitly that the match is never against objective:"
+assert_eq "0" "$(has "$s51_section" 'against the \*\*`raw:`\*\*')" "§5.1's idempotency match targets the raw: field"
+assert_eq "1" "$(has "$s51_section" '\*\*`objective:`\*\* field')" "§5.1 no longer matches on the objective: field (it may be a non-deterministic LLM interpretation — spec's hard constraint)"
+assert_eq "0" "$(has "$s51_section" 'never.*against `objective:`')" "§5.1 states explicitly that the match is never against objective:"
 assert_eq "0" "$(has "$s51_section" 'discovery <run-id>')" "§5.1 additionally requires the discovery-close marker, so an interpretation line is not mistaken for a closed discovery"
-assert_eq "0" "$(has "$s51_section" 'interpretación resuelta')" "§5.1 explicitly ignores the 'interpretación resuelta' line §2.3 writes in the SAME run (otherwise the run skips discovery because of its own side effect)"
-assert_eq "0" "$(has "$body" 'ya resuelto por')" "§5.1 clarifies the objective it consumes may already be resolved by §1.0bis, not always the raw argument"
+assert_eq "0" "$(has "$s51_section" 'resolved interpretation')" "§5.1 explicitly ignores the 'resolved interpretation' line §2.3 writes in the SAME run (otherwise the run skips discovery because of its own side effect)"
+assert_eq "0" "$(has "$body" 'already resolved by §1.0bis')" "§5.1 clarifies the objective it consumes may already be resolved by §1.0bis, not always the raw argument"
 
 # --- C3: every decision line carries raw: + objective:, whoever writes it (§2.3, §5.3, §5.4) ---
-assert_eq "0" "$(has "$s54_section" 'raw: <argumento crudo saneado> · objective: <objetivo literal saneado>')" "§5.4's decision line carries raw: (the run's literal sanitized /swarm:run argument) BEFORE objective:, so §5.1 needs a single parser"
-assert_eq "0" "$(has "$s54_section" 'NUNCA el objetivo ya interpretado')" "§5.4 states raw: must hold the pre-gate raw argument, never the post-gate objective (writing the interpreted text there would reopen the idempotency bug)"
-assert_eq "0" "$(has "$s53_section" 'raw: <argumento crudo saneado> · objective:')" "§5.3's [pendiente] line carries raw: too, so §5.1 can find it and see it is not closed"
+assert_eq "0" "$(has "$s54_section" 'raw: <sanitized raw argument> · objective: <sanitized literal objective>')" "§5.4's decision line carries raw: (the run's literal sanitized /swarm:run argument) BEFORE objective:, so §5.1 needs a single parser"
+assert_eq "0" "$(has "$s54_section" 'NEVER the already-interpreted objective')" "§5.4 states raw: must hold the pre-gate raw argument, never the post-gate objective (writing the interpreted text there would reopen the idempotency bug)"
+assert_eq "0" "$(has "$s53_section" 'raw: <sanitized raw argument> · objective:')" "§5.3's [pendiente] line carries raw: too, so §5.1 can find it and see it is not closed"
 
 # --- full-file regression: no stale claim anywhere that objective always equals the raw /swarm:run argument ---
 stale="$(echo "$body" | grep -n 'argumento crudo de.*swarm:run.*objetivo\|objetivo.*siempre.*argumento crudo' || true)"

@@ -18,6 +18,30 @@ Comportamiento:
     fallo -- dos motivos distintos del mismo agente son cada uno una "primera falta"); al
     SEGUNDO rechazo por el MISMO motivo del mismo agente en el mismo run, se acepta como
     BLOCKED (con systemMessage) en vez de rechazar de nuevo -- nunca bucle infinito.
+
+WAITING status (live async children -- the hook must NOT force a verdict):
+  An agent that launched `background: true` children and ends a turn BEFORE they report is not
+  finished: forcing `OK|KO|DONE|BLOCKED` there made it close with a premature verdict while its
+  children were still alive. The least-magic reliable signal is an EXPLICIT status the agent
+  writes itself -- the hook cannot see the platform's live-children roster:
+
+      WAITING <n>
+      pending: <child-1>, <child-2>, ...      (exactly n names, the children still running)
+
+  Rules the hook enforces:
+    - n is an integer >= 1 and the `pending:` line names exactly n distinct children; otherwise
+      it is rejected like any malformed stop (same one-retry-then-BLOCKED counter).
+    - an accepted WAITING is NOT a verdict: exit 0 with no output, and the retry counter is not
+      touched. The agent's real verdict comes in a later turn and is validated normally.
+    - anti-dodge cap: at most WAITING_CAP accepted WAITINGs per agent INSTANCE per run (counter in
+      run/<run>/waiting/<agent>-<agent_id>, or <agent> when the payload has no agent_id), so
+      parallel or round-2 instances of the same orchestrator never share one cap. A verdict from
+      that instance resets its counter. Past the cap it is rejected: "emit a verdict with what you
+      have" -- an agent cannot stall forever by claiming children.
+    - WAITING needs a stored counter: if it cannot be written (no `.swarm/`, unwritable dir) the
+      WAITING is rejected -- an uncounted WAITING would be an unlimited one.
+  Callers (orchestrators) treat a `WAITING <n>` result as "not done yet", never as DONE/OK and
+  never as a reason to relaunch the child.
 """
 import hashlib
 import json
@@ -32,6 +56,10 @@ EVIDENCE_RE = re.compile(
 )
 FINDING_RE = re.compile(r'^[A-Z0-9_-]+\s*·\s*\S+:\d+\s*·\s.+→.+$')
 MAX_FINDING_LINE_LEN = 120
+WAITING_RE = re.compile(r'^WAITING\s+(\d+)$')
+PENDING_RE = re.compile(r'^pending:\s*(.+)$')
+CHILD_NAME_RE = re.compile(r'^[a-z][a-z0-9-]*$')
+WAITING_CAP = 6
 
 # Formato de batch de discovery-orchestrator (spec §7, agents/discovery-orchestrator.md
 # "## Salida"): una pregunta con hasta 4 opciones (≤8 palabras cada una) más recomendación
@@ -53,14 +81,21 @@ DISCOVERY_Q_RE = re.compile(r'^- Q\d+ \[[^\]]{1,12}\] .+ · [A-D]\) .+ · rec: [
 # "Diseño", agents/design-orchestrator.md "## Salida", sección "Arbitraje") — mismo bug de fondo
 # otra vez: una línea real con el resumen del arbitraje (qué P1 se incorporaron, entre paréntesis)
 # supera con normalidad los 120 chars (review final de fase 4, finding Important #1).
-DISCOVERY_OTHER_RE = re.compile(r'^- (warn|findings|lentes|sin hallazgos|grill): .+$')
+# English vocabulary (the agents were translated) is accepted alongside the original Spanish one:
+# `- lenses:`/`- no findings:` were being rejected as narration once longer than 120 chars.
+# `- assumed:` (non-interactive runs) and `- review:` (review panel verdict) are root vocabulary.
+DISCOVERY_OTHER_RE = re.compile(
+    r'^- (warn|findings|lentes|lenses|sin hallazgos|no findings|grill|assumed|review): .+$'
+)
 # Las otras dos líneas fijas de analysis-orchestrator llevan un prefijo DINÁMICO (el número de
 # hallazgos truncados, el nombre de la hoja) y no caben en el `(a|b|c):` de arriba, así que van en
 # regexes aparte, cada una anclada a su forma exacta documentada en "## Espera y fusión" puntos 3
 # y 4 de agents/analysis-orchestrator.md — siguen siendo exenciones por FORMA, no por "- ":
 # `- N hallazgos adicionales en .swarm/findings/<hoja>.md` (cap de 20 líneas fusionadas) y
 # `- <hoja> BLOCKED: <motivo>` (hoja bloqueada, propagada sin descartar).
-ANALYSIS_ADDITIONAL_RE = re.compile(r'^- \d+ hallazgos adicionales en \.swarm/findings/\S+\.md$')
+ANALYSIS_ADDITIONAL_RE = re.compile(
+    r'^- \d+ (?:hallazgos adicionales en|additional findings in) \.swarm/findings/\S+\.md$'
+)
 ANALYSIS_LEAF_BLOCKED_RE = re.compile(r'^- [a-z][a-z0-9-]* BLOCKED: .+$')
 
 # Vocabulario fijo del dominio delivery (spec §7 "Entrega", agents/release-manager.md y
@@ -72,7 +107,9 @@ ANALYSIS_LEAF_BLOCKED_RE = re.compile(r'^- [a-z][a-z0-9-]* BLOCKED: .+$')
 # sujeta al cap de 120.
 DELIVERY_LONG_RE = re.compile(
     r'^- (preview push|preview pr|pr|pr manual|pr comando|notas|handoff|pushed|remote'
-    r'|remoto propuesto|remoto creado|cuenta gh|hint|siguiente|discrepancia): .+$'
+    r'|remoto propuesto|remoto creado|cuenta gh|hint|siguiente|discrepancia'
+    r'|notes|proposed remote|remote created|gh account|next|discrepancy|command'
+    r'|push destinations|current branch|candidate aliases): .+$'
 )
 
 
@@ -151,6 +188,55 @@ def _bump_retry(swarm_root, path, retries_dir, count):
         pass
 
 
+def _waiting_reason(lines):
+    """None if `lines` is a well-formed WAITING status, else the rejection reason."""
+    n = int(WAITING_RE.match(lines[0].strip()).group(1))
+    if n < 1:
+        return 'WAITING <n> exige n >= 1 (sin hijos vivos, emite un veredicto)'
+    pending = PENDING_RE.match(lines[1].strip()) if len(lines) >= 2 else None
+    if not pending:
+        return 'WAITING <n> exige la línea 2 `pending: <hijo>, ...` con los n hijos vivos'
+    names = [x.strip() for x in pending.group(1).split(',') if x.strip()]
+    if len(set(names)) != n or len(names) != n or not all(CHILD_NAME_RE.match(x) for x in names):
+        return 'WAITING %d exige exactamente %d nombres de hijo distintos en `pending:`' % (n, n)
+    return None
+
+
+def _waiting_key(agent_type, agent_id):
+    base = agent_type.split(':')[-1]
+    safe_id = re.sub(r'[^A-Za-z0-9_.-]', '', agent_id or '')[:64]
+    return '%s-%s' % (base, safe_id) if safe_id else base
+
+
+def _waiting_count(swarm_root, run_id, key):
+    path = os.path.join(swarm_root, 'run', run_id, 'waiting', key)
+    try:
+        with open(path) as f:
+            return int(f.read().strip() or '0'), path
+    except (OSError, ValueError):
+        return 0, path
+
+
+def _bump_waiting(swarm_root, path, count):
+    """True if the counter was stored. Never originates a `.swarm/`, never crashes the hook."""
+    if not os.path.isdir(swarm_root):
+        return False
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w') as f:
+            f.write(str(count + 1))
+    except OSError:
+        return False
+    return True
+
+
+def _reset_waiting(path):
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
 def _block(reason):
     print(json.dumps({'decision': 'block', 'reason': reason}))
     sys.exit(0)
@@ -195,7 +281,19 @@ def main():
 
     reason = None
 
-    if not VERDICT_RE.match(verdict_line):
+    agent_id = data.get('agent_id') if isinstance(data.get('agent_id'), str) else ''
+    waited, waiting_path = _waiting_count(swarm_root, run_id, _waiting_key(agent_type, agent_id))
+
+    if WAITING_RE.match(verdict_line):
+        reason = _waiting_reason(lines)
+        if reason is None:
+            if waited >= WAITING_CAP:
+                reason = ('WAITING repetido %d veces: emite un veredicto con lo que tengas' % WAITING_CAP)
+            elif _bump_waiting(swarm_root, waiting_path, waited):
+                sys.exit(0)
+            else:
+                reason = 'WAITING sin contador posible (no hay .swarm/ escribible): emite un veredicto'
+    elif not VERDICT_RE.match(verdict_line):
         reason = 'línea 1 debe ser un veredicto: OK | KO <motivo> | DONE | BLOCKED <motivo>'
 
     evidence_match = None
@@ -242,6 +340,7 @@ def main():
                     break
 
     if reason is None:
+        _reset_waiting(waiting_path)
         if turns_k is not None and turns_max and turns_k >= turns_max:
             _system_message(
                 'swarm: %s alcanzó maxTurns → tratar como BLOCKED maxTurns' % agent_type

@@ -24,84 +24,84 @@ assert_eq "0" "$(has "$body" 'multiSelect')" "root documents the multiSelect set
 assert_eq "0" "$(has "$body" 'write decision')" "root records the answers as a decision via memory-orchestrator"
 
 # P1-a — saneado de texto ajeno antes de interpolarlo en un --text (el guard no protege dentro de comillas)
-assert_eq "0" "$(has "$body" 'sustituye cada backtick')" "root sanitizes backticks before building --text"
-assert_eq "0" "$(has "$body" 'borra cada `$`')" "root strips \$ before building --text"
-assert_eq "0" "$(has "$body" 'sustituye cada comilla doble')" "root REMOVES double quotes before building --text (never escapes them)"
-assert_eq "1" "$(has "$body" 'escapa cada comilla doble')" "root no longer escapes double quotes as \\\" (bash-guard has no backslash handling)"
-assert_eq "0" "$(has "$body" 'borra cada barra invertida')" "root strips literal backslashes before building --text"
+assert_eq "0" "$(has "$body" 'replace each backtick')" "root sanitizes backticks before building --text"
+assert_eq "0" "$(has "$body" 'delete each `$`')" "root strips \$ before building --text"
+assert_eq "0" "$(has "$body" 'replace each double quote')" "root REMOVES double quotes before building --text (never escapes them)"
+assert_eq "1" "$(has "$body" 'escapes each double quote')" "root no longer escapes double quotes as \\\" (bash-guard has no backslash handling)"
+assert_eq "0" "$(has "$body" 'delete each backslash')" "root strips literal backslashes before building --text"
 
 # N2 — el saneado se aplica también a --line, y se explica por qué se borra en vez de escapar
 assert_eq "0" "$(has "$body" '`--text`/`--fix`/`--line`')" "sanitization rule covers --line too"
-assert_eq "0" "$(has "$body" 'no tiene NINGÚN tratamiento de la barra invertida')" "root explains the bash-guard quote-state mismatch"
+assert_eq "0" "$(has "$body" 'has NO handling of the backslash')" "root explains the bash-guard quote-state mismatch"
 
 # N1 — §5.1 compara texto SANEADO contra texto SANEADO (hoy el campo raw:, ver el gate de §1.0bis)
-assert_eq "0" "$(has "$body" 'por el **saneado de §5.0**, el mismo que aplicaron §5.3/§5.4')" "skip-check sanitizes the CURRENT run's raw argument before comparing"
+assert_eq "0" "$(has "$body" 'the **sanitization in §5.0**, the same one §5.3/§5.4 applied')" "skip-check sanitizes the CURRENT run's raw argument before comparing"
 
 # N6 — el espejo a buzón es de los SendMessage reenviados, no de toda escritura
-assert_eq "1" "$(has "$body" 'aplica a toda escritura')" "root no longer overstates the mailbox mirror scope"
-assert_eq "0" "$(has "$body" 'los `SendMessage` peer-to-peer que reenvía')" "root states the real mailbox-mirror scope"
+assert_eq "1" "$(has "$body" 'applies to every write')" "root no longer overstates the mailbox mirror scope"
+assert_eq "0" "$(has "$body" 'peer-to-peer `SendMessage`s it forwards')" "root states the real mailbox-mirror scope"
 
 # P1-b — UNA sola escritura de decisión (memory-orchestrator tiene maxTurns: 12)
-assert_eq "0" "$(has "$body" 'UNA sola escritura, nunca una por pregunta')" "root batches all answers into ONE write decision"
+assert_eq "0" "$(has "$body" 'ONE single write, never one per question')" "root batches all answers into ONE write decision"
 assert_eq "0" "$(has "$body" 'maxTurns: 12')" "root explains the turn-budget reason for batching"
 
 # P1-c — cancelación del diálogo definida (verdicto + decisión pendiente)
-assert_eq "0" "$(has "$body" 'KO batch sin responder')" "root defines the verdict when the owner cancels AskUserQuestion"
-assert_eq "0" "$(has "$body" '[pendiente]')" "root records a cancelled batch as a PENDING decision"
+assert_eq "0" "$(has "$body" 'KO batch left unanswered')" "root defines the verdict when the owner cancels AskUserQuestion"
+assert_eq "0" "$(has "$body" '[pending]')" "root records a cancelled batch as a PENDING decision"
 
 # P1-d — objective: sigue en la línea de decisión (§5.4); el match de §5.1 va contra raw:
-assert_eq "0" "$(has "$body" 'objective: <objetivo literal saneado>')" "decision line carries the literal objective"
-assert_eq "0" "$(has "$body" 'nunca** contra el texto de las preguntas')" "skip-check matches a stored field, never the regenerated question text"
+assert_eq "0" "$(has "$body" 'objective: <sanitized literal objective>')" "decision line carries the literal objective"
+assert_eq "0" "$(has "$body" '**never** against the question text')" "skip-check matches a stored field, never the regenerated question text"
 
 # P2-a — pre-flight del batch antes de llamar a AskUserQuestion
-assert_eq "0" "$(has "$body" 'BLOCKED batch malformado de discovery-orchestrator')" "root blocks on a malformed batch instead of losing all questions"
+assert_eq "0" "$(has "$body" 'BLOCKED malformed batch from discovery-orchestrator')" "root blocks on a malformed batch instead of losing all questions"
 
 # N3 — el BLOCKED de batch malformado cierra el run (curate), como la cancelación
-assert_eq "0" "$(has "$body" 'Antes de devolver ese `BLOCKED`, cierra el run')" "malformed-batch BLOCKED closes the run with curate"
+assert_eq "0" "$(has "$body" 'Before returning that `BLOCKED`, close the run')" "malformed-batch BLOCKED closes the run with curate"
 
 # P2-b — objective: obligatorio al lanzar discovery
-assert_eq "0" "$(has "$body" '`objective:` — OBLIGATORIA')" "objective: is mandatory, not optional"
-assert_eq "1" "$(has "$body" 'puedes añadir `objective:')" "objective: is no longer documented as optional"
+assert_eq "0" "$(has "$body" '`objective:` — MANDATORY')" "objective: is mandatory, not optional"
+assert_eq "1" "$(has "$body" 'you can optionally add `objective:')" "objective: is no longer documented as optional"
 
 # P2-d — el salto del invariante de tanda (§2.2) queda reconciliado con el espejo a buzón
-assert_eq "0" "$(has "$body" 'espejo a buzón')" "root reconciles the roster-snapshot gap with the mailbox mirror"
+assert_eq "0" "$(has "$body" 'mailbox mirror')" "root reconciles the roster-snapshot gap with the mailbox mirror"
 
 # P2-c — ejemplo separado de skip legítimo (DONE) vs dominio inexistente (BLOCKED)
-assert_eq "0" "$(has "$body" '- discovery omitido: decisions.md ya cerró este objetivo')" "root shows a DONE example for a legitimate discovery skip"
-assert_eq "0" "$(has "$body" 'después de su `OK`/`DONE`')" "root launches discovery only AFTER memory-orchestrator finished build"
-assert_eq "1" "$(has "$body" 'fase 2, no implementado')" "root no longer says discovery is unimplemented"
+assert_eq "0" "$(has "$body" '- discovery omitted: decisions.md already closed this objective')" "root shows a DONE example for a legitimate discovery skip"
+assert_eq "0" "$(has "$body" '**after** the `OK`/`DONE` from `memory-orchestrator`')" "root launches discovery only AFTER memory-orchestrator finished build"
+assert_eq "1" "$(has "$body" 'phase 2, not implemented')" "root no longer says discovery is unimplemented"
 assert_eq "0" "$(has "$body" 'bugfix')" "root documents when discovery is skipped (bugfix/refactor/docs)"
 
 # N7 — discovery-orchestrator sanea el texto de sus hojas antes del summary --line
 dbody="$(awk '/^---$/{n++; next} n>=2{print}' "$PLUGIN_ROOT/agents/discovery-orchestrator.md")"
-assert_eq "0" "$(has "$dbody" 'sustituye cada backtick')" "discovery-orchestrator sanitizes backticks before --line"
-assert_eq "0" "$(has "$dbody" 'sustituye cada comilla doble')" "discovery-orchestrator removes double quotes before --line"
-assert_eq "0" "$(has "$dbody" 'borra cada barra invertida')" "discovery-orchestrator strips backslashes before --line"
-assert_eq "0" "$(has "$dbody" 'el `--line` va saneado por la regla de arriba')" "the summary --line site points at the sanitization rule"
+assert_eq "0" "$(has "$dbody" 'replace every backtick')" "discovery-orchestrator sanitizes backticks before --line"
+assert_eq "0" "$(has "$dbody" 'replace every double quote')" "discovery-orchestrator removes double quotes before --line"
+assert_eq "0" "$(has "$dbody" 'delete every backslash')" "discovery-orchestrator strips backslashes before --line"
+assert_eq "0" "$(has "$dbody" 'the `--line` is sanitized by the rule above')" "the summary --line site points at the sanitization rule"
 
 # N5 — falta objective: ⇒ BLOCKED objetivo vacío (lo que la raíz ya prometía)
-assert_eq "0" "$(has "$dbody" 'BLOCKED objetivo vacío')" "discovery-orchestrator defines the missing-objective verdict"
+assert_eq "0" "$(has "$dbody" 'BLOCKED empty objective')" "discovery-orchestrator defines the missing-objective verdict"
 
 # I2 — todo camino terminal escribe run/<id>/summary.md ANTES del curate (spec §11)
 assert_eq "0" "$(has "$body" 'mem-manifest.sh" summary --run')" "root writes run/<id>/summary.md before closing (spec §11)"
-assert_eq "0" "$(has "$body" 'Todo run escribe `run/<id>/summary.md` al cierre')" "root states the spec §11 summary obligation"
-assert_eq "0" "$(has "$body" '- run cerrado: BLOCKED batch malformado')" "malformed-batch path has its own summary line"
-assert_eq "0" "$(has "$body" '- run cerrado: KO batch sin responder')" "cancelled-dialog path has its own summary line"
-assert_eq "0" "$(has "$body" 'cierra con `summary`+`curate` (§4)')" "normal close and cancellation close with summary + curate"
+assert_eq "0" "$(has "$body" 'Every run writes `run/<id>/summary.md` at close.')" "root states the spec §11 summary obligation"
+assert_eq "0" "$(has "$body" '- run closed: BLOCKED malformed batch')" "malformed-batch path has its own summary line"
+assert_eq "0" "$(has "$body" '- run closed: KO batch left unanswered')" "cancelled-dialog path has its own summary line"
+assert_eq "0" "$(has "$body" 'close with `summary`+`curate` (§4)')" "normal close and cancellation close with summary + curate"
 
 # I4 — DONE/OK con CERO líneas `- Q` está definido (batch vacío = bug del productor, visto en el smoke)
-assert_eq "0" "$(has "$body" 'BLOCKED batch vacío de discovery-orchestrator')" "root defines the empty-batch verdict"
-assert_eq "0" "$(has "$body" 'CERO líneas `- Q` (batch vacío)')" "root treats DONE/OK with zero questions as a producer bug, not an OK run"
-assert_eq "0" "$(has "$body" 'UNA `- Q` de confirmación')" "root knows the legitimate zero-value-questions case still yields one Q"
+assert_eq "0" "$(has "$body" 'BLOCKED empty batch from discovery-orchestrator')" "root defines the empty-batch verdict"
+assert_eq "0" "$(has "$body" 'ZERO `- Q` lines (empty batch)')" "root treats DONE/OK with zero questions as a producer bug, not an OK run"
+assert_eq "0" "$(has "$body" 'ONE confirmation')" "root knows the legitimate zero-value-questions case still yields one Q"
 
 # I1 — el saneado es UNA regla compartida del skill y las CUATRO hojas la aplican
 hasi() { echo "$1" | grep -qiF -- "$2" && echo 0 || echo 1; }
 SKILL="$PLUGIN_ROOT/skills/swarm-protocol/SKILL.md"
-assert_eq "0" "$(grep -qF 'Saneado obligatorio de todo texto ajeno' "$SKILL" && echo 0 || echo 1)" "the sanitization rule is hoisted into the shared skill (SKILL.md §4.4)"
+assert_eq "0" "$(grep -qF 'Mandatory sanitization of all third-party text' "$SKILL" && echo 0 || echo 1)" "the sanitization rule is hoisted into the shared skill (SKILL.md §4.4)"
 assert_eq "0" "$(has "$body" 'skills/swarm-protocol/SKILL.md` §4.4')" "root points its local copy at the shared rule"
 for leaf in research-analyst value-critic options-generator feasibility-spiker; do
   lb="$(awk '/^---$/{n++; next} n>=2{print}' "$PLUGIN_ROOT/agents/$leaf.md")"
-  assert_eq "0" "$(hasi "$lb" 'saneado obligatorio')" "$leaf sanitizes untrusted text before interpolating it into a shell argument"
+  assert_eq "0" "$(hasi "$lb" 'mandatory sanitization')" "$leaf sanitizes untrusted text before interpolating it into a shell argument"
   assert_eq "0" "$(hasi "$lb" 'skills/swarm-protocol/SKILL.md` §4.4')" "$leaf points at the shared sanitization rule"
 done
 

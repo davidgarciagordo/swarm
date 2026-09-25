@@ -1,7 +1,8 @@
 ---
 name: feasibility-spiker
 description: Use when discovery-orchestrator has one concrete feasibility question that only a throwaway spike can answer — builds and runs it in an isolated worktree, in background, and reports viable / not viable. Never asks the owner directly.
-model: sonnet
+model: inherit
+tier: standard
 tools: Read, Write, Edit, Grep, Glob, Bash, SendMessage
 maxTurns: 15
 memory: project

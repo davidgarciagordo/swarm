@@ -1,7 +1,8 @@
 ---
 name: discovery-orchestrator
 description: Use when the root orchestrator needs product discovery before any design — launches value-critic, research-analyst, options-generator and feasibility-spiker in one batch and merges their output into ONE batch of questions+options for the root to present. Never asks the owner itself.
-model: sonnet
+model: inherit
+tier: judgement
 tools: Read, Grep, Bash, Agent(value-critic,research-analyst,options-generator,feasibility-spiker), SendMessage
 maxTurns: 15
 memory: project
@@ -97,12 +98,12 @@ adhoc`):
 
 Each `Agent(...)` is NAMED exactly by its role (skill §2bis) and with this literal header:
 
-| leaf | `subagent_type` | `name` | `operation:` | model |
-|---|---|---|---|---|
-| value-critic | `swarm:value-critic` | `value-critic` | `critique` | opus; if `tier: light` → `model: "sonnet"` |
-| options-generator | `swarm:options-generator` | `options-generator` | `generate` | opus; if `tier: light` → `model: "sonnet"` |
-| research-analyst | `swarm:research-analyst` | `research-analyst` | `research` | sonnet (no override) |
-| feasibility-spiker | `swarm:feasibility-spiker` | `feasibility-spiker` | `spike --question "<your question>"` | sonnet (no override) |
+| leaf | `subagent_type` | `name` | `operation:` |
+|---|---|---|---|
+| value-critic | `swarm:value-critic` | `value-critic` | `critique` |
+| options-generator | `swarm:options-generator` | `options-generator` | `generate` |
+| research-analyst | `swarm:research-analyst` | `research-analyst` | `research` |
+| feasibility-spiker | `swarm:feasibility-spiker` | `feasibility-spiker` | `spike --question "<your question>"` |
 
 Prompt for each spawn (literal lines, in this order; `run-id:` is omitted if `RUN=adhoc`):
 ```
@@ -112,11 +113,25 @@ operation: <from the table>
 objective: <the owner's literal objective>
 ```
 For the spiker the third line is literally `operation: spike --question "<your question>"` (the
-question from step 4 of startup, in double quotes).
+question from step 4 of startup, in double quotes). After the header, ALWAYS add the line
+`veracity: before writing unverified, run the cheapest read-only check; UNVERIFIED only with the
+reason it cannot be checked` (protocol §4.6).
 
-The model override is the `model: "sonnet"` parameter of the `Agent` tool: in tier
-`light` the judgment leaves drop from opus to sonnet. In `full` you don't pass `model` — the
-frontmatter applies.
+**Model per leaf (`scripts/model-resolve.sh`, same rule as `agents/orchestrator.md` §13.2).** No
+agent file names a model; each leaf's frontmatter carries `tier:`. Read the four tiers in ONE
+command and resolve each distinct tier ONCE:
+```bash
+grep -m1 -H '^tier:' "${CLAUDE_PLUGIN_ROOT}"/agents/*.md
+"${CLAUDE_PLUGIN_ROOT}/scripts/model-resolve.sh" judgement --swarm-root <absolute path to .swarm>
+```
+Pass the printed id as the `Agent` tool's `model` parameter; omit it when it prints `inherit`. A
+spawn that fails because the model does not exist: `model-resolve.sh --mark-unavailable <id>
+--swarm-root <abs>`, resolve again, retry once. The RUN tier `light` never passes a weaker model
+to a judgement leaf (the old light-tier model downgrade is gone — veracity first).
+
+**Only these four swarm leaves, all in ONE message** — never `Explore`, `general-purpose` or any
+non-swarm agent. An owner message that reaches you or a leaf is for the root: forward it verbatim
+with `SendMessage(to: "orchestrator", …)` and don't act on it (`agents/orchestrator.md` §13.3).
 
 `research-analyst` and `feasibility-spiker` are `background: true`: their result reaches you as a
 notification in a later turn; `value-critic` and `options-generator` respond in the foreground.
@@ -138,7 +153,16 @@ step it stays orphaned in `git branch` forever.
    respond in the same turn you launch them — it's a synchronous `Agent(...)`. The background ones
    (`research-analyst`, `feasibility-spiker`) reach you as a completion notification in a LATER
    turn — an automatic platform mechanism (not this plugin's): there's no need to check anything
-   or relaunch anyone, you just keep waiting. **There's no fixed turn margin for this wait** — the
+   or relaunch anyone, you just keep waiting. **If your turn ends while a background leaf is still
+   running, your last message is NOT a verdict** (a verdict there would close you with the batch
+   incomplete) — it is exactly:
+   ```
+   WAITING <n>
+   pending: <leaf-1>, <leaf-2>
+   ```
+   (`n` = number of background leaves still running, then exactly those `n` names).
+   `hooks/validate-output.py` accepts it without forcing a verdict and caps it per run; the root
+   treats it as "not done yet". Your real verdict comes in the turn where the last one reported. **There's no fixed turn margin for this wait** — the
    only real limit is your own `maxTurns` (15) from the frontmatter, same as for any other work of
    yours. If you exhaust `maxTurns` without a background one having notified, continue without it
    and note `- warn: <leaf> no response (maxTurns)`. Don't relaunch anyone. **If the one that
@@ -238,8 +262,9 @@ step it stays orphaned in `git branch` forever.
 
 ## Bash discipline (`hooks/bash-guard.py`)
 
-Allowlist for `swarm:discovery-orchestrator`: `scripts/mem-*.sh`, `git status|log|diff|show|
-rev-parse`, **`git worktree`** (only you have it, and only for the `remove --force` from step
+Allowlist for `swarm:discovery-orchestrator`: `scripts/mem-*.sh`, `scripts/model-resolve.sh`, the
+read-only verification set (`jq`, `cmp`, `diff`, `sort`, `uniq`, `cut`, `tr`, `php -l`, `docker
+exec`), `git status|log|diff|show|rev-parse`, **`git worktree`** (only you have it, and only for the `remove --force` from step
 1bis), **`git branch`** (only you have it, and only for the `-D worktree-agent-<agentId>` that
 accompanies that `remove` — the guard denies any other form: another branch, another flag, mass
 deletion), `ls`, `cat`, `head`, `tail`, `wc`, `grep`. No `python3`, `echo`, `mkdir`, `rm`,

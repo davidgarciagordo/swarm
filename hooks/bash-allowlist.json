@@ -2,89 +2,160 @@
   "default": [
     "git status", "git log", "git diff", "git show", "git rev-parse",
     "ls", "cat", "head", "tail", "wc", "grep", "find",
+    "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l",
     "scripts/mem-", "scripts/mem-lock.sh"
   ],
+  "file_writers": [
+    "swarm:doc-writer",
+    "swarm:feasibility-spiker",
+    "swarm:handoff-writer",
+    "swarm:implementer",
+    "swarm:memory-builder",
+    "swarm:memory-curator",
+    "swarm:migration-engineer",
+    "swarm:planner",
+    "swarm:quality-fixer",
+    "swarm:release-manager",
+    "swarm:test-writer"
+  ],
   "agents": {
-    "swarm:memory-orchestrator": [
+    "swarm:review-orchestrator": [
+      "scripts/model-resolve.sh", "scripts/review-dedup.sh",
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep", "claude plugin",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:completeness-critic": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:fact-checker": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:simplicity-critic": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:refuter": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:blind-judge": [
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
+      "scripts/mem-", "scripts/mem-lock.sh"
+    ],
+    "swarm:memory-orchestrator": [
+      "scripts/model-resolve.sh",
+      "git status", "git log", "git diff", "git show", "git rev-parse",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:memory-builder": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:memory-curator": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep", "find",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:orchestrator": [
+      "scripts/model-resolve.sh",
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "cd", "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh", "scripts/swarm-init.sh"
     ],
     "swarm:requirements-orchestrator": [
+      "scripts/model-resolve.sh",
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/req-check.sh", "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:env-checker": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/req-check.sh"
     ],
     "swarm:discovery-orchestrator": [
+      "scripts/model-resolve.sh",
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "git worktree", "git branch",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:value-critic": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:verifier": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:options-generator": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:research-analyst": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:feasibility-spiker": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep", "find",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "mkdir",
       "python3", "python", "node", "php", "npm", "npx", "composer", "pytest", "go", "cargo", "make"
     ],
     "swarm:opportunity-analyst": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:architecture-auditor": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:security-auditor": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:vulnerability-scanner": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh",
       "composer audit", "composer outdated", "composer licenses",
       "npm audit",
@@ -93,47 +164,58 @@
     "swarm:performance-analyst": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:data-model-auditor": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:solid-auditor": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:analysis-orchestrator": [
+      "scripts/model-resolve.sh",
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:planner": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:pattern-advisor": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:domain-modeler": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:design-orchestrator": [
+      "scripts/model-resolve.sh",
       "git status", "git log", "git diff", "git show", "git rev-parse",
-      "ls", "cat", "head", "tail", "wc", "grep", "claude plugin",
+      "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:test-writer": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "git add", "git commit",
       "ls", "cat", "head", "tail", "wc", "grep", "find",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh",
       "php", "composer", "npm", "npx", "pytest", "go", "cargo", "make"
     ],
@@ -141,6 +223,7 @@
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "git add", "git commit",
       "ls", "cat", "head", "tail", "wc", "grep", "find", "mkdir",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh",
       "php", "composer", "npm", "npx", "pytest", "go", "cargo", "make", "python3", "node"
     ],
@@ -149,18 +232,22 @@
       "git add", "git commit",
       "cd",
       "ls", "cat", "head", "tail", "wc", "grep", "find",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh",
       "php", "composer", "npm", "npx", "pytest", "go", "cargo", "make"
     ],
     "swarm:reviewer": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:implementation-orchestrator": [
+      "scripts/model-resolve.sh",
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "git merge", "git worktree", "git branch",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:migration-engineer": [
@@ -168,6 +255,7 @@
       "git add", "git commit",
       "cd",
       "ls", "cat", "head", "tail", "wc", "grep", "find",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh",
       "php", "composer", "make"
     ],
@@ -176,11 +264,13 @@
       "git add", "git commit",
       "cd",
       "ls", "cat", "head", "tail", "wc", "grep", "find",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:dependency-auditor": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep", "find",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh", "scripts/req-check.sh",
       "composer audit", "composer outdated", "composer show", "composer licenses",
       "npm audit", "npm outdated", "npm ls"
@@ -188,13 +278,16 @@
     "swarm:dependency-installer": [
       "git status", "git diff", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh",
       "composer install", "composer require", "composer update",
       "npm install", "npm ci"
     ],
     "swarm:delivery-orchestrator": [
+      "scripts/model-resolve.sh",
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ],
     "swarm:release-manager": [
@@ -202,6 +295,7 @@
       "git push",
       "gh auth", "gh pr", "gh repo",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh",
       "php vendor/bin/phpunit", "php vendor/bin/paratest",
       "composer test", "npm test", "make test", "go test", "cargo test", "pytest"
@@ -209,6 +303,7 @@
     "swarm:handoff-writer": [
       "git status", "git log", "git diff", "git show", "git rev-parse",
       "ls", "cat", "head", "tail", "wc", "grep",
+      "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l", "docker exec",
       "scripts/mem-", "scripts/mem-lock.sh"
     ]
   }

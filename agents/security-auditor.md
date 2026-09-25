@@ -1,7 +1,8 @@
 ---
 name: security-auditor
 description: Use when analysis-orchestrator audits a codebase for authN/authZ gaps, tenant/user data isolation, OWASP-class issues, secrets, and crypto misuse — read-only, never asks the owner.
-model: opus
+model: inherit
+tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage
 maxTurns: 15
 memory: project
@@ -28,6 +29,17 @@ owner** — you don't have `AskUserQuestion`; your findings go to `analysis-orch
 3. Read with `Read` (counts toward `files=`): `.swarm/context-pack.md` — look for references there
    to auth middleware, the multi-tenant model, and files already flagged sensitive in
    `SHARED-FOUND`. Don't re-report what's already there or in `findings/<other-agent>.md`.
+
+## Optional header lines (from `analysis-orchestrator`)
+
+After `objective:`, your header may carry, in this order:
+- `scope: infra` — the objective is about CI/build/deploy/tooling. Audit those files FIRST
+  (`.github/`, `Makefile`, `Dockerfile*`, `docker-compose*`, `scripts/`, codegen config) through
+  your own lens, and cite them by `file:line` like any other code. Absent ⇒ application code.
+- `review-findings: <lines>` — present only on a round-2 relaunch after a review-panel `KO`
+  (`agents/orchestrator.md` §13.6). Re-check EACH listed point against the repo first: fix the
+  claim in your output if it was wrong, or keep it with fresh `file:line` evidence if it holds.
+- `veracity: …` — protocol §4.6, always present; follow it.
 
 ## How to audit
 

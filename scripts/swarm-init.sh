@@ -31,18 +31,14 @@ if [ ! -f "$SWARM_ROOT/decisions.md" ]; then
   printf '# Decisiones\n' > "$SWARM_ROOT/decisions.md"
 fi
 
-if [ -f "$GITIGNORE" ] && grep -qF "$MARKER" "$GITIGNORE" 2>/dev/null; then
-  :
-else
-  {
-    echo "$MARKER"
-    echo ".swarm/context-pack.md"
-    echo ".swarm/index.md"
-    echo ".swarm/findings/"
-    echo ".swarm/run/"
-    echo ".swarm/.lock.d"
-  } >> "$GITIGNORE"
+# Per-line idempotent: a repo initialised by an older version gets only the entries it lacks.
+if ! { [ -f "$GITIGNORE" ] && grep -qxF "$MARKER" "$GITIGNORE" 2>/dev/null; }; then
+  echo "$MARKER" >> "$GITIGNORE"
 fi
+for entry in .swarm/context-pack.md .swarm/index.md .swarm/findings/ .swarm/run/ .swarm/.lock.d \
+  .swarm/models.unavailable .swarm/judgements.jsonl; do
+  grep -qxF "$entry" "$GITIGNORE" 2>/dev/null || echo "$entry" >> "$GITIGNORE"
+done
 
 if ! "$SCRIPT_DIR/mem-files.sh" health >/dev/null 2>&1; then
   echo "swarm: init — backend 'files' health check falló, abortando" >&2

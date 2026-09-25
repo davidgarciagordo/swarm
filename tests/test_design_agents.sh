@@ -16,13 +16,14 @@ guard() {
   if echo "$out" | grep -q '"permissionDecision": "deny"'; then echo deny; else echo allow; fi
 }
 
-check_readonly_leaf() { # check_readonly_leaf <name> <model> <maxTurns> <tag>
+check_readonly_leaf() { # check_readonly_leaf <name> <tier> <maxTurns> <tag>
   local f="$PLUGIN_ROOT/agents/$1.md" name="$1" tag="$4"
   assert_eq "0" "$([ -f "$f" ] && echo 0 || echo 1)" "agents/$name.md exists"
   [ -f "$f" ] || return
   local front tools b
   front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"; b="$(body "$f")"
-  assert_eq "0" "$(echo "$front" | grep -q "^model: $2\$" && echo 0 || echo 1)" "$name model is $2 (spec §7)"
+  assert_eq "0" "$(echo "$front" | grep -q '^model: inherit$' && echo 0 || echo 1)" "$name model is inherit (MODEL TIERS contract)"
+  assert_eq "0" "$(echo "$front" | grep -q "^tier: $2\$" && echo 0 || echo 1)" "$name tier is $2 (MODEL TIERS contract)"
   assert_eq "0" "$(echo "$front" | grep -q "^maxTurns: $3\$" && echo 0 || echo 1)" "$name maxTurns is $3 (spec §7)"
   assert_eq "1" "$(has "$tools" 'AskUserQuestion')" "$name NEVER has AskUserQuestion"
   assert_eq "1" "$(has "$tools" 'Write')" "$name is read-only: no Write"
@@ -35,21 +36,21 @@ check_readonly_leaf() { # check_readonly_leaf <name> <model> <maxTurns> <tag>
   assert_eq "1" "$(echo "$front" | grep -q '^isolation:' && echo 0 || echo 1)" "$name has no worktree"
   assert_eq "0" "$(echo "$front" | grep -q '^skills: \[swarm-protocol\]$' && echo 0 || echo 1)" "$name preloads swarm-protocol"
   assert_eq "0" "$(has "$b" "$tag ·")" "$name documents its own tag ($tag) in an output example"
-  assert_eq "0" "$(has "$b" 'saneado')" "$name documents the sanitization rule for repo code it quotes"
+  assert_eq "0" "$(has "$b" 'sanitiz')" "$name documents the sanitization rule for repo code it quotes"
   assert_eq "allow" "$(guard "swarm:$name" '${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh write finding --agent '"$name"' --tag '"$tag"' --file src/App/Foo.php --line 1 --run adhoc --text t --fix f')" "$name can write findings"
   assert_eq "deny" "$(guard "swarm:$name" 'python3 x.py')" "$name cannot run python3"
 }
 
 # ---------- T2: pattern-advisor + domain-modeler ----------
-check_readonly_leaf pattern-advisor opus 10 PATTERN
+check_readonly_leaf pattern-advisor judgement 10 PATTERN
 f="$PLUGIN_ROOT/agents/pattern-advisor.md"
 [ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'reuse')" "pattern-advisor documents the reuse|introduce verdict (spec §7)"
 [ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'introduce')" "pattern-advisor documents the introduce verdict (spec §7)"
 
-check_readonly_leaf domain-modeler opus 15 MODEL
+check_readonly_leaf domain-modeler judgement 15 MODEL
 f="$PLUGIN_ROOT/agents/domain-modeler.md"
-[ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'invariante')" "domain-modeler documents invariants (spec §7)"
-[ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'agregado')" "domain-modeler documents aggregates (spec §7)"
+[ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'invariant')" "domain-modeler documents invariants (spec §7)"
+[ -f "$f" ] && assert_eq "0" "$(has "$(body "$f")" 'aggregate')" "domain-modeler documents aggregates (spec §7)"
 
 
 # ---------- T3: planner (único leaf del dominio con Write/Edit) ----------
@@ -57,7 +58,8 @@ f="$PLUGIN_ROOT/agents/planner.md"
 assert_eq "0" "$([ -f "$f" ] && echo 0 || echo 1)" "agents/planner.md exists"
 if [ -f "$f" ]; then
   front="$(fm "$f")"; tools="$(echo "$front" | grep '^tools:')"; b="$(body "$f")"
-  assert_eq "0" "$(echo "$front" | grep -q '^model: opus$' && echo 0 || echo 1)" "planner model is opus (spec §7)"
+  assert_eq "0" "$(echo "$front" | grep -q '^model: inherit$' && echo 0 || echo 1)" "planner model is inherit (MODEL TIERS contract)"
+  assert_eq "0" "$(echo "$front" | grep -q '^tier: judgement$' && echo 0 || echo 1)" "planner tier is judgement (MODEL TIERS contract)"
   assert_eq "0" "$(echo "$front" | grep -q '^maxTurns: 20$' && echo 0 || echo 1)" "planner maxTurns is 20 (spec §7)"
   assert_eq "1" "$(has "$tools" 'AskUserQuestion')" "planner NEVER has AskUserQuestion"
   assert_eq "0" "$(has "$tools" 'Write')" "planner HAS Write (the one exception in this domain)"
@@ -66,9 +68,9 @@ if [ -f "$f" ]; then
   assert_eq "0" "$(has "$tools" 'SendMessage')" "planner has SendMessage"
   assert_eq "0" "$(has "$b" 'docs/superpowers/plans/')" "planner documents writing to docs/superpowers/plans/"
   assert_eq "0" "$(has "$b" '**Objective:**')" "planner documents the Objective: header line for idempotency"
-  assert_eq "0" "$(has "$b" '**Grill:** pendiente')" "planner's template writes the Grill: pendiente marker"
-  assert_eq "0" "$(has "$b" 'arbitrado')" "planner documents flipping the Grill marker to arbitrado on close"
-  assert_eq "0" "$(has "$b" 'saneado')" "planner documents the sanitization rule for anything it DOES put in a shell arg"
+  assert_eq "0" "$(has "$b" '**Grill:** pending')" "planner's template writes the Grill: pendiente marker"
+  assert_eq "0" "$(has "$b" 'arbitrated')" "planner documents flipping the Grill marker to arbitrado on close"
+  assert_eq "0" "$(has "$b" 'sanitiz')" "planner documents the sanitization rule for anything it DOES put in a shell arg"
   assert_eq "allow" "$(guard "swarm:planner" '${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh write finding --agent planner --tag PLAN --file src/App/Foo.php --line 1 --run adhoc --text t --fix f')" "planner can write findings"
   assert_eq "deny" "$(guard "swarm:planner" 'python3 x.py')" "planner cannot run python3"
 fi

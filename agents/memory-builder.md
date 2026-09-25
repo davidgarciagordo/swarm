@@ -1,7 +1,8 @@
 ---
 name: memory-builder
 description: Use when memory-orchestrator reports the context-pack missing or stale and it must be rebuilt — scans the repo once, writes .swarm/context-pack.md plus .swarm/index.md, and seals the staleness hash. Never invoked on a fresh pack.
-model: sonnet
+model: inherit
+tier: mechanical
 tools: Read, Grep, Glob, Bash, Write, SendMessage
 maxTurns: 20
 memory: project
