@@ -60,95 +60,9 @@ separate setup step to run or know about. See `docs/USAGE.md` for the full guide
 
 ### Architecture
 
-```mermaid
-flowchart TD
-    O["orchestrator (root · judgement)"]
-    MO["memory-orchestrator (mechanical)"]
-    MB["memory-builder (mechanical)"]
-    MC["memory-curator (mechanical)"]
-    RO["requirements-orchestrator (judgement)"]
-    EC["env-checker (mechanical)"]
-    DA["dependency-auditor (mechanical)"]
-    DI["dependency-installer (mechanical)"]
-    DO["discovery-orchestrator (judgement)"]
-    VC["value-critic (judgement)"]
-    RA["research-analyst (judgement)"]
-    OG["options-generator (judgement)"]
-    FS["feasibility-spiker (standard)"]
-    AO["analysis-orchestrator (judgement)"]
-    OA["opportunity-analyst (judgement)"]
-    AA["architecture-auditor (judgement)"]
-    SA["security-auditor (judgement)"]
-    VS["vulnerability-scanner (mechanical)"]
-    PA["performance-analyst (judgement)"]
-    DMA["data-model-auditor (judgement)"]
-    SOA["solid-auditor (judgement)"]
-    DGO["design-orchestrator (judgement)"]
-    PADV["pattern-advisor (judgement)"]
-    DM["domain-modeler (judgement)"]
-    PL["planner (judgement)"]
-    IO["implementation-orchestrator (judgement)"]
-    TW["test-writer (standard)"]
-    IM["implementer (standard)"]
-    ME["migration-engineer (standard)"]
-    DW["doc-writer (standard)"]
-    QF["quality-fixer (standard)"]
-    VER["verifier (judgement)"]
-    DLO["delivery-orchestrator (judgement)"]
-    RM["release-manager (standard)"]
-    HW["handoff-writer (standard)"]
-    REVO["review-orchestrator (judgement)"]
-    CC["completeness-critic (judgement)"]
-    FC["fact-checker (judgement)"]
-    SC["simplicity-critic (judgement)"]
-    GR["grill-architect / grill-operator / grill-engineer (judgement)"]
-    RF["refuter (judgement)"]
-    BJ["blind-judge (judgement)"]
+[![swarm agent architecture](docs/diagrams/architecture.png)](docs/diagrams/architecture.html)
 
-    O --> MO
-    MO --> MB
-    MO --> MC
-    O --> DO
-    DO --> VC
-    DO --> RA
-    DO --> OG
-    DO --> FS
-    O -. audit-deps / install .-> RO
-    RO --> EC
-    RO --> DA
-    RO --> DI
-    O --> AO
-    AO --> OA
-    AO --> AA
-    AO --> SA
-    AO --> VS
-    AO --> PA
-    AO --> DMA
-    AO --> SOA
-    O --> DGO
-    DGO --> PADV
-    DGO --> DM
-    DGO --> PL
-    O -. explicit invocation only .-> IO
-    IO --> TW
-    IO --> IM
-    IO --> ME
-    IO --> DW
-    IO --> QF
-    O -. verify gate, before every green close .-> VER
-    O -. explicit invocation only, never auto-chained .-> DLO
-    DLO --> RM
-    DLO --> HW
-    DGO -. plan .-> REVO
-    IO -. diff, before merge .-> REVO
-    O -. analysis report .-> REVO
-    REVO --> CC
-    REVO --> FC
-    REVO --> SC
-    REVO --> GR
-    REVO --> RF
-    REVO --> BJ
-```
+*Interactive version: open `docs/diagrams/architecture.html` locally in a browser.*
 
 The root `orchestrator` (tier `judgement`) classifies the run tier and talks to seven domains today:
 
@@ -164,70 +78,9 @@ Before any green close of a run — normal close, analysis, design, implementati
 
 ### `/swarm:run` flow
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant O as orchestrator
-    participant MO as memory-orchestrator
-    participant MB as memory-builder
-    participant DO as discovery-orchestrator
+[![The /swarm:run flow](docs/diagrams/run-flow.png)](docs/diagrams/run-flow.html)
 
-    User->>O: /swarm:run "<goal>" [--tier]
-    alt --tier=direct (explicit flag)
-        O->>O: tier forced to direct (flag used as-is, no reclassification)
-        O-->>User: OK (no run opened)
-    else --tier unset, light, or full
-        alt objective ambiguous (root's own judgment)
-            O->>User: AskUserQuestion (ONE call: interpretation + alternatives + free rewrite)
-            alt owner confirms / picks an alternative / rewrites
-                User-->>O: resolved objective (used from here on)
-                Note over O: nothing is written yet:<br/>memory-orchestrator is not alive until the run opens
-            else owner cancels the dialog
-                User-->>O: (closed without choosing)
-                O-->>User: BLOCKED interpretación de objetivo sin confirmar
-                Note over O: run never opens: no run-id, so no summary/curate<br/>and no decision line to write
-            end
-        end
-        O->>O: classify tier (direct / light / full)
-        alt tier = direct
-            O-->>User: OK (no run opened)
-        else tier = light or full
-            O->>O: open run (run-id, .swarm/run/<id>/)
-            O->>MO: spawn (run-id, swarm-root, operation: build)
-            MO->>MO: check staleness (tree-hash)
-            alt pack stale or missing
-                MO->>MB: build/refresh context-pack.md + index.md
-                MB-->>MO: DONE
-            else pack fresh
-                MO-->>MO: OK (skip build)
-            end
-            MO-->>O: OK / DONE
-            opt the gate resolved the objective above
-                O->>MO: write decision (raw: + objective:, marked "interpretación resuelta")
-                MO-->>O: written
-            end
-            Note over O: idempotency matches the raw: field, never the interpretation,<br/>and only on a line that closed discovery
-            alt product goal, not already closed in decisions.md
-                O->>DO: spawn (run-id, swarm-root, operation: discover, tier, objective)
-                DO->>DO: 4 leaves in ONE batch (value, research, options, feasibility)
-                DO-->>O: DONE + up to 4 "- Q" lines (one batch)
-                O->>O: pre-flight each "- Q" (2-4 options, header <= 12 chars)
-                O->>User: AskUserQuestion (ONE call, all questions)
-                alt owner answers
-                    User-->>O: chosen options / free text
-                    O->>MO: write decision (ONE call: raw: + objective: + all answers)
-                else owner cancels the dialog
-                    O->>MO: write decision (raw: + objective: + [pendiente] batch unanswered)
-                end
-            else bugfix / docs / tests / infra, refactor/migration objective, or already closed
-                O->>O: skip discovery (reported as "- discovery omitido: ...")
-                Note over O: a refactor/migration objective still chains straight<br/>into design afterward in tier full (not shown here)
-            end
-            O->>MO: curate (close the run)
-            O-->>User: DONE\nevidence: files=N cmds=M turns=k/max
-        end
-    end
-```
+*Interactive version: open `docs/diagrams/run-flow.html` locally in a browser.*
 
 `direct` never opens a run and never touches memory — the root answers itself. `light`/`full` open a run and always check the pack before doing anything else; the pack is only rebuilt when stale (tree-state hash), never unconditionally.
 
@@ -235,22 +88,9 @@ Once the pack is ready, a **product** goal (new feature, new product, user-visib
 
 ### Memory write / mailbox
 
-```mermaid
-sequenceDiagram
-    participant L as leaf agent (e.g. memory-builder)
-    participant MO as memory-orchestrator
-    participant FS as mem-files.sh (.swarm/, lock)
-    participant B as another agent's mailbox
+[![Memory write / mailbox](docs/diagrams/memory-mailbox.png)](docs/diagrams/memory-mailbox.html)
 
-    L->>MO: SendMessage(write finding: file:line, tag, fix)
-    MO->>FS: write finding (acquire lock)
-    FS-->>FS: dedup by agent+tag+file:line
-    FS-->>MO: written / dup
-    MO->>FS: write mailbox mirror (--to <agent>)
-    FS-->>B: run/<id>/mailbox/<agent>.md
-    MO-->>L: OK (ack)
-    Note over B: a late-started agent reads its mailbox<br/>on startup, before acting
-```
+*Interactive version: open `docs/diagrams/memory-mailbox.html` locally in a browser.*
 
 No agent scans the repo or `.swarm/` twice, and no agent writes `.swarm/` directly — every write (finding, decision, mailbox) goes through the single `memory-orchestrator` instance for the run, which serializes writes with a lock. Every `SendMessage` between leaves is also mirrored to the recipient's mailbox, so a sibling launched later in the run — or one addressed before it existed — still reads what it missed.
 

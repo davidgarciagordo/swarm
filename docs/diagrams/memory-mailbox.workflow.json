@@ -1,0 +1,113 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Memory write / mailbox",
+    "output": "memory-mailbox.html",
+    "animation": "none",
+    "visual_preset": "classic",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "top",
+      "label": "Write path"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "L",
+      "lane": "top",
+      "col": 0,
+      "type": "backend",
+      "label": "Leaf agent",
+      "sublabel": "e.g. memory-builder",
+      "width": 250
+    },
+    {
+      "id": "MO1",
+      "lane": "top",
+      "col": 1,
+      "type": "database",
+      "label": "memory-orchestrator",
+      "sublabel": "writes finding, acquires lock",
+      "width": 300
+    },
+    {
+      "id": "FS1",
+      "lane": "top",
+      "col": 2,
+      "type": "database",
+      "label": "mem-files.sh",
+      "sublabel": "dedup by agent+tag+file:line",
+      "width": 300
+    },
+    {
+      "id": "MO2",
+      "lane": "top",
+      "col": 3,
+      "type": "database",
+      "label": "memory-orchestrator",
+      "sublabel": "writes mailbox mirror (--to <agent>)",
+      "width": 360
+    },
+    {
+      "id": "B",
+      "lane": "top",
+      "col": 4,
+      "type": "messagebus",
+      "label": "another agent's mailbox",
+      "sublabel": "run/<id>/mailbox/<agent>.md",
+      "width": 300
+    },
+    {
+      "id": "ACK",
+      "lane": "top",
+      "col": 5,
+      "type": "backend",
+      "label": "Ack to leaf",
+      "sublabel": "OK",
+      "width": 170
+    }
+  ],
+  "edges": [
+    {
+      "from": "L",
+      "to": "MO1",
+      "role": "main",
+      "label": "SendMessage(write finding)"
+    },
+    {
+      "from": "MO1",
+      "to": "FS1",
+      "role": "main"
+    },
+    {
+      "from": "FS1",
+      "to": "MO2",
+      "role": "main",
+      "label": "written / dup"
+    },
+    {
+      "from": "MO2",
+      "to": "B",
+      "role": "main"
+    },
+    {
+      "from": "B",
+      "to": "ACK",
+      "role": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Late-started agent",
+      "items": [
+        "Reads its mailbox on startup, before acting",
+        "No agent scans .swarm/ twice or writes it directly",
+        "Every write is serialized by the single run instance"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Writing a stack pack — the flow",
+    "output": "extending-packs-flow.html",
+    "animation": "none",
+    "visual_preset": "classic",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "detection",
+      "label": "1. Detection · once/run"
+    },
+    {
+      "id": "generic",
+      "label": "Fallback: generic"
+    },
+    {
+      "id": "resolution",
+      "label": "2. Path resolution · once/run"
+    },
+    {
+      "id": "leaves",
+      "label": "3. Consumption: leaves"
+    },
+    {
+      "id": "env",
+      "label": "3. Consumption: env-checker"
+    },
+    {
+      "id": "pattern",
+      "label": "3. Consumption: advisor/modeler"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "R",
+      "lane": "detection",
+      "col": 0,
+      "type": "external",
+      "label": "Target repo",
+      "width": 170
+    },
+    {
+      "id": "S",
+      "lane": "detection",
+      "col": 1,
+      "type": "database",
+      "label": "scripts/mem-scan.sh",
+      "width": 250
+    },
+    {
+      "id": "CP",
+      "lane": "detection",
+      "col": 2,
+      "type": "backend",
+      "label": ".swarm/context-pack.md",
+      "sublabel": "stack: your-pack-name",
+      "width": 250
+    },
+    {
+      "id": "GEN",
+      "lane": "generic",
+      "col": 2,
+      "type": "backend",
+      "label": "stack: generic",
+      "width": 210
+    },
+    {
+      "id": "ABS",
+      "lane": "resolution",
+      "col": 3,
+      "type": "backend",
+      "label": "ls -d skills/pack-<name>",
+      "sublabel": "→ <absolute path>",
+      "width": 250
+    },
+    {
+      "id": "L1",
+      "lane": "leaves",
+      "col": 4,
+      "type": "backend",
+      "label": "8 pack-aware leaves",
+      "sublabel": "Read commands/conventions/boundaries/precedents → own judgment",
+      "width": 380
+    },
+    {
+      "id": "L2",
+      "lane": "env",
+      "col": 4,
+      "type": "backend",
+      "label": "env-checker",
+      "sublabel": "via requirements-orchestrator",
+      "width": 300
+    },
+    {
+      "id": "L3",
+      "lane": "pattern",
+      "col": 2,
+      "type": "backend",
+      "label": "pattern-advisor / domain-modeler",
+      "sublabel": "honor stack:, read nothing",
+      "width": 280
+    }
+  ],
+  "edges": [
+    {
+      "from": "R",
+      "to": "S",
+      "role": "main"
+    },
+    {
+      "from": "S",
+      "to": "CP",
+      "role": "main",
+      "label": "marker(s) found"
+    },
+    {
+      "from": "S",
+      "to": "GEN",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "no marker matches"
+    },
+    {
+      "from": "CP",
+      "to": "ABS",
+      "role": "main"
+    },
+    {
+      "from": "ABS",
+      "to": "L1",
+      "role": "main",
+      "label": "pack: <path> header"
+    },
+    {
+      "from": "ABS",
+      "to": "L2",
+      "role": "main",
+      "label": "--pack <path>/requirements.json"
+    },
+    {
+      "from": "CP",
+      "to": "L3",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "stack: line only"
+    }
+  ]
+}

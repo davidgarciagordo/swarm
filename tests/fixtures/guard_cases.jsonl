@@ -695,3 +695,14 @@
 {"agent": "swarm:orchestrator", "command": "cd /Users/x/.ssh", "expect": "deny"}
 {"agent": "swarm:orchestrator", "command": "cd ..", "expect": "deny"}
 {"agent": "swarm:orchestrator", "command": "cd", "expect": "deny"}
+{"agent": "swarm:fact-checker", "command": "jq -nf filter.jq", "expect": "deny"}
+{"agent": "swarm:fact-checker", "command": "jq -n --from-file=filter.jq", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "jq -nf filter.jq", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "jq -n --from-file=filter.jq", "expect": "deny"}
+{"agent": "swarm:orchestrator", "command": "jq -nf filter.jq", "expect": "deny"}
+{"agent": "swarm:orchestrator", "command": "jq -n --from-file=filter.jq", "expect": "deny"}
+{"agent": "swarm:architecture-auditor", "command": "cat /proc/self/environ", "expect": "deny"}
+{"agent": "swarm:architecture-auditor", "command": "cat /proc/1/environ", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat /proc/self/environ", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "head -c 100 /proc/self/environ", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a > /proc/self/environ", "expect": "deny"}

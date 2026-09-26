@@ -46,7 +46,11 @@ _resolve_one_file() {
     case "$line" in
       '- [key:'*'[status:open]'*)
         local file_line cited_file cited_line old_sha new_sha
-        file_line="$(echo "$line" | sed -n 's/.*\] \[sha:[0-9a-f]*\] \[status:open\] \[run:[^]]*\] .* · \([^ ]*\) ·.*/\1/p')"
+        # file:line comes from the `[key:agent|tag|file:line]` header, never from the free-text body —
+        # the body (`--text`) is untrusted and may itself contain a `word:word` token after a ` · `.
+        file_line="${line#*\[key:}"
+        file_line="${file_line%%\]*}"
+        file_line="${file_line##*|}"
         cited_file="${file_line%%:*}"
         cited_line="${file_line##*:}"
         old_sha="$(echo "$line" | sed -n 's/.*\[sha:\([0-9a-f]*\)\].*/\1/p')"

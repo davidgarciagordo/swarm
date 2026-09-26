@@ -35,6 +35,7 @@ INFO = {'-v', '-V', '--version', '-h', '--help'}
 PHP_INI_DENY = ('auto_prepend_file', 'auto_append_file', 'extension', 'zend_extension')  # `php -d` that loads code
 PIPE_OK = {'cat', 'head', 'tail', 'wc', 'grep', 'rg', 'jq', 'sort', 'uniq', 'cut', 'tr', 'cmp', 'diff'}
 UNIQ_VAL = ('-f', '-s', '-w', '--skip-fields', '--skip-chars', '--check-chars')
+PROC_ENVIRON = X(r'/proc/[^/]+/environ$')  # `/proc/self/environ` (or any pid) dumps the process environment
 SWARM_ROOT_RE = X(r'SWARM_ROOT=(' + SAFE + ')')
 DOCKER_INNER = (PIPE_OK - {'rg'}) | {'ls', 'php -l', 'git status', 'git log', 'git diff', 'git show', 'git rev-parse'}
 MUTATIONS = {('git', 'push'), ('git', 'remote'), ('gh', 'repo'), ('gh', 'pr')}
@@ -81,8 +82,10 @@ ARG_DENY = {  # options that write a file, run a program or leak the environment
     'make': lambda a: any(w == '-' or '/dev/' in w or w.endswith('=-') or re.fullmatch(r'-[A-Za-z]*f-', w) for w in a),
     'npx': lambda a: npm_exec_bad('npx', a),
     'npm': lambda a: npm_exec_bad('npm', a),
-    'jq': lambda a: any(w in ('-i', '--in-place', '-f', '--from-file') or re.search(r'(?<![\w.$"])env(?![\w"])', w)
-                        for w in a),  # `env`/`$ENV` dump the process environment
+    'jq': lambda a: any(w.split('=')[0] in ('-i', '--in-place', '--from-file')
+                        or re.fullmatch(r'-[A-Za-z]*f[A-Za-z]*(=.*)?', w)  # any short cluster with `f`: `-nf`, `-fn`...
+                        or re.search(r'(?<![\w.$"])env(?![\w"])', w)
+                        for w in a),  # `env`/`$ENV` dump the process environment; `-f`/`--from-file` reads a filter file
     'rg': lambda a: any(w.split('=')[0] in ('--pre', '--pre-glob', '--hostname-bin') for w in a),
     'git': lambda a: any(w.split('=')[0] == '--output' for w in a),
 }
@@ -167,7 +170,8 @@ def shape_ok(argv, ro, sh):
     """Per-command rules an exact allowlist prefix cannot express."""
     cmd, args, ro_fit = argv[0], argv[1:], table_ok(argv, sh['read_only'], sh) if ro else True
     return not ((cmd in ARG_DENY and ARG_DENY[cmd](args)) or table_ok(argv, sh['every'], sh) is False or ro_fit is False
-                or (ro_fit is None and cmd in sh['read_only_strict']) or (cmd in INTERP_REPL and interp_bad(cmd, args)))
+                or (ro_fit is None and cmd in sh['read_only_strict']) or (cmd in INTERP_REPL and interp_bad(cmd, args))
+                or any(PROC_ENVIRON.search(w) for w in args))  # `/proc/<pid>/environ` denied for every command
 
 
 def containers(cwd):

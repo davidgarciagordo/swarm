@@ -1,0 +1,251 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "El flujo de /swarm:run",
+    "output": "run-flow.es.html",
+    "animation": "none",
+    "visual_preset": "classic",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "top",
+      "label": "Trigger & interpretation"
+    },
+    {
+      "id": "shortcut",
+      "label": "Direct tier (no run)"
+    },
+    {
+      "id": "exception",
+      "label": "Objetivo sin confirmar",
+      "variant": "exception"
+    },
+    {
+      "id": "bottom",
+      "label": "Run abierto: memoria y discovery"
+    },
+    {
+      "id": "close",
+      "label": "Cierre"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "A",
+      "lane": "top",
+      "col": 0,
+      "type": "external",
+      "label": "Usuario: /swarm:run \"<objetivo>\"",
+      "sublabel": "[--tier]",
+      "width": 300
+    },
+    {
+      "id": "B",
+      "lane": "top",
+      "col": 1,
+      "type": "security",
+      "label": "¿Objetivo ambiguo?",
+      "sublabel": "juicio propio de la raíz",
+      "width": 250
+    },
+    {
+      "id": "C",
+      "lane": "top",
+      "col": 2,
+      "type": "security",
+      "label": "AskUserQuestion",
+      "sublabel": "interpretación + alternativas + reescritura libre",
+      "width": 420
+    },
+    {
+      "id": "D",
+      "lane": "top",
+      "col": 3,
+      "type": "backend",
+      "label": "Clasifica tier",
+      "sublabel": "direct / light / full",
+      "width": 250
+    },
+    {
+      "id": "S1",
+      "lane": "shortcut",
+      "col": 3,
+      "type": "backend",
+      "label": "OK",
+      "sublabel": "sin abrir run",
+      "width": 170
+    },
+    {
+      "id": "X1",
+      "lane": "exception",
+      "col": 2,
+      "type": "security",
+      "label": "BLOCKED",
+      "sublabel": "interpretación sin confirmar",
+      "width": 300
+    },
+    {
+      "id": "E",
+      "lane": "bottom",
+      "col": 0,
+      "type": "database",
+      "label": "Abre run",
+      "sublabel": "run-id, .swarm/run/<id>/",
+      "width": 250
+    },
+    {
+      "id": "F",
+      "lane": "bottom",
+      "col": 1,
+      "type": "database",
+      "label": "memory-orchestrator",
+      "sublabel": "comprueba staleness (tree-hash)",
+      "width": 300
+    },
+    {
+      "id": "G",
+      "lane": "bottom",
+      "col": 2,
+      "type": "database",
+      "label": "memory-builder",
+      "sublabel": "reconstruye pack si stale",
+      "width": 300
+    },
+    {
+      "id": "H",
+      "lane": "bottom",
+      "col": 3,
+      "type": "backend",
+      "label": "discovery-orchestrator",
+      "sublabel": "4 hojas, una tanda",
+      "width": 250
+    },
+    {
+      "id": "I",
+      "lane": "bottom",
+      "col": 4,
+      "type": "security",
+      "label": "AskUserQuestion",
+      "sublabel": "UNA llamada, todas las preguntas",
+      "width": 300
+    },
+    {
+      "id": "J",
+      "lane": "bottom",
+      "col": 5,
+      "type": "database",
+      "label": "Escribe decisión",
+      "sublabel": "raw: + objective: + respuestas",
+      "width": 300
+    },
+    {
+      "id": "K",
+      "lane": "close",
+      "col": 0,
+      "type": "database",
+      "label": "Curate",
+      "sublabel": "cierra el run",
+      "width": 170
+    },
+    {
+      "id": "L",
+      "lane": "close",
+      "col": 1,
+      "type": "backend",
+      "label": "DONE",
+      "sublabel": "evidence: files=N cmds=M turns=k/max",
+      "width": 360
+    }
+  ],
+  "edges": [
+    {
+      "from": "A",
+      "to": "B",
+      "role": "main"
+    },
+    {
+      "from": "B",
+      "to": "D",
+      "role": "main",
+      "label": "no ambiguo"
+    },
+    {
+      "from": "B",
+      "to": "C",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "ambiguo"
+    },
+    {
+      "from": "C",
+      "to": "D",
+      "role": "main",
+      "label": "el owner resuelve"
+    },
+    {
+      "from": "C",
+      "to": "X1",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "el owner cancela"
+    },
+    {
+      "from": "D",
+      "to": "S1",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "tier = direct"
+    },
+    {
+      "from": "D",
+      "to": "E",
+      "role": "main",
+      "label": "tier = light / full"
+    },
+    {
+      "from": "E",
+      "to": "F",
+      "role": "main"
+    },
+    {
+      "from": "F",
+      "to": "G",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "pack stale"
+    },
+    {
+      "from": "F",
+      "to": "H",
+      "role": "main",
+      "label": "objetivo de producto"
+    },
+    {
+      "from": "G",
+      "to": "H",
+      "role": "main"
+    },
+    {
+      "from": "H",
+      "to": "I",
+      "role": "main"
+    },
+    {
+      "from": "I",
+      "to": "J",
+      "role": "main"
+    },
+    {
+      "from": "J",
+      "to": "K",
+      "role": "main"
+    },
+    {
+      "from": "K",
+      "to": "L",
+      "role": "main"
+    }
+  ]
+}

@@ -11,27 +11,9 @@ a pack is and what happens without one. This guide is the "how to build one" com
 
 ## The flow, in one picture
 
-```mermaid
-flowchart LR
-    subgraph "1. Detection (once per run, by memory-builder)"
-        R["target repo"] --> S["scripts/mem-scan.sh"]
-        S -->|"marker file(s) found"| CP[".swarm/context-pack.md<br/>stack: your-pack-name"]
-        S -->|"no marker matches"| GEN["stack: generic"]
-    end
+[![Writing a stack pack — the flow](diagrams/extending-packs-flow.png)](diagrams/extending-packs-flow.html)
 
-    subgraph "2. Path resolution (once per run, by the domain orchestrator)"
-        CP --> LS["ls -d skills/pack-your-pack-name"]
-        LS --> ABS["&lt;absolute path&gt;"]
-    end
-
-    subgraph "3. Consumption (per leaf, per launch)"
-        ABS -->|"pack: &lt;path&gt; header"| L1["implementer / test-writer /<br/>quality-fixer / migration-engineer /<br/>doc-writer / data-model-auditor /<br/>vulnerability-scanner / dependency-auditor"]
-        ABS -->|"--pack &lt;path&gt;/requirements.json"| L2["env-checker<br/>(via requirements-orchestrator)"]
-        CP -->|"stack: line only, no path"| L3["pattern-advisor / domain-modeler<br/>(honor the declared stack, read nothing)"]
-    end
-
-    L1 -->|"Read commands.md / conventions.md /<br/>boundaries.md / precedents.md"| Files["the leaf's own judgment,<br/>grounded in your pack's files"]
-```
+*Interactive version: open `docs/diagrams/extending-packs-flow.html` locally in a browser.*
 
 Nothing in this flow is pluggable auto-discovery — step 1's detection is a short, hand-written
 `if`/`elif` chain in `scripts/mem-scan.sh`. Adding a pack means adding a branch there, not dropping

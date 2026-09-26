@@ -27,6 +27,17 @@ line7_status="$(grep 'Foo.php:7' "$findings_file")"
 assert_eq "0" "$(echo "$line6_status" | grep -q '\[status:resolved\]' && echo 0 || echo 1)" "changed cited line becomes resolved"
 assert_eq "0" "$(echo "$line7_status" | grep -q '\[status:open\]' && echo 0 || echo 1)" "unchanged cited line stays open"
 
+# --- resolve: a fake "word:word" token inside the free-text body must never be read as the cited
+# file:line (blind-judge finding); the real file:line comes only from the [key:...] header ---
+"$MEM_FILES" write finding --agent architecture-auditor --tag ARCH --file src/App/Foo.php --line 8 \
+  --run adhoc --text "x · b:1w/tmp/v · y" --fix "sin cambios" >/dev/null
+
+"$MEM_CURATE" resolve >/dev/null
+
+line8_status="$(grep 'key:architecture-auditor|ARCH|src/App/Foo.php:8' "$findings_file")"
+assert_eq "0" "$(echo "$line8_status" | grep -q '\[status:open\]' && echo 0 || echo 1)" \
+  "hostile body text shaped like file:line never triggers a false auto-resolve"
+
 # --- prune: drops resolved findings older than N days, keeps recent resolved and open ---
 old_date="$(date -u -v-40d +"%Y-%m-%d" 2>/dev/null || date -u -d '40 days ago' +"%Y-%m-%d")"
 recent_date="$(date -u -v-1d +"%Y-%m-%d" 2>/dev/null || date -u -d '1 day ago' +"%Y-%m-%d")"

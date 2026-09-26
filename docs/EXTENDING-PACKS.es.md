@@ -11,27 +11,9 @@ un pack y qué pasa sin él. Esta guía es el "cómo se construye uno" complemen
 
 ## El flujo, en una imagen
 
-```mermaid
-flowchart LR
-    subgraph "1. Detección (una vez por run, memory-builder)"
-        R["repo target"] --> S["scripts/mem-scan.sh"]
-        S -->|"marcador(es) encontrado(s)"| CP[".swarm/context-pack.md<br/>stack: tu-pack"]
-        S -->|"ningún marcador casa"| GEN["stack: generic"]
-    end
+[![Crear un stack pack — el flujo](diagrams/extending-packs-flow.es.png)](diagrams/extending-packs-flow.es.html)
 
-    subgraph "2. Resolución de ruta (una vez por run, el orquestador de dominio)"
-        CP --> LS["ls -d skills/pack-tu-pack"]
-        LS --> ABS["&lt;ruta absoluta&gt;"]
-    end
-
-    subgraph "3. Consumo (por hoja, por lanzamiento)"
-        ABS -->|"cabecera pack: &lt;ruta&gt;"| L1["implementer / test-writer /<br/>quality-fixer / migration-engineer /<br/>doc-writer / data-model-auditor /<br/>vulnerability-scanner / dependency-auditor"]
-        ABS -->|"--pack &lt;ruta&gt;/requirements.json"| L2["env-checker<br/>(vía requirements-orchestrator)"]
-        CP -->|"solo la línea stack:, sin ruta"| L3["pattern-advisor / domain-modeler<br/>(respetan el stack declarado, no leen nada)"]
-    end
-
-    L1 -->|"Read de commands.md / conventions.md /<br/>boundaries.md / precedents.md"| Files["el juicio propio de la hoja,<br/>anclado en los ficheros de tu pack"]
-```
+*Versión interactiva: abre `docs/diagrams/extending-packs-flow.es.html` localmente en un navegador.*
 
 Nada de este flujo es auto-descubrimiento conectable — la detección del paso 1 es una cadena
 `if`/`elif` corta y escrita a mano en `scripts/mem-scan.sh`. Añadir un pack significa añadir una

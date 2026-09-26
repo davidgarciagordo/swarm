@@ -1,0 +1,132 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Stack packs",
+    "output": "stack-packs.es.html",
+    "animation": "none",
+    "visual_preset": "classic",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "top",
+      "label": "Pack detectado"
+    },
+    {
+      "id": "fallback",
+      "label": "Sin pack (generic)"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "A",
+      "lane": "top",
+      "col": 0,
+      "type": "external",
+      "label": "Repo target",
+      "width": 170
+    },
+    {
+      "id": "B",
+      "lane": "top",
+      "col": 1,
+      "type": "database",
+      "label": "memory-builder escanea una vez",
+      "width": 300
+    },
+    {
+      "id": "C",
+      "lane": "top",
+      "col": 2,
+      "type": "backend",
+      "label": "stack: php-ddd-symfony8",
+      "sublabel": "en context-pack.md",
+      "width": 210
+    },
+    {
+      "id": "D",
+      "lane": "top",
+      "col": 3,
+      "type": "backend",
+      "label": "cabecera pack: <ruta>",
+      "sublabel": "enviada a 8 hojas",
+      "width": 190
+    },
+    {
+      "id": "E",
+      "lane": "top",
+      "col": 4,
+      "type": "backend",
+      "label": "8 hojas pack-aware",
+      "sublabel": "implementer, test-writer, quality-fixer + 5 más",
+      "width": 380
+    },
+    {
+      "id": "F",
+      "lane": "fallback",
+      "col": 2,
+      "type": "backend",
+      "label": "stack: generic",
+      "sublabel": "en context-pack.md",
+      "width": 210
+    },
+    {
+      "id": "G",
+      "lane": "fallback",
+      "col": 3,
+      "type": "backend",
+      "label": "no se envía cabecera pack:",
+      "width": 300
+    },
+    {
+      "id": "H",
+      "lane": "fallback",
+      "col": 4,
+      "type": "backend",
+      "label": "cada hoja",
+      "sublabel": "cae en su juicio genérico",
+      "width": 300
+    }
+  ],
+  "edges": [
+    {
+      "from": "A",
+      "to": "B",
+      "role": "main"
+    },
+    {
+      "from": "B",
+      "to": "C",
+      "role": "main",
+      "label": "marcador encontrado"
+    },
+    {
+      "from": "B",
+      "to": "F",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "ningún marcador casa"
+    },
+    {
+      "from": "C",
+      "to": "D",
+      "role": "main"
+    },
+    {
+      "from": "D",
+      "to": "E",
+      "role": "main"
+    },
+    {
+      "from": "F",
+      "to": "G",
+      "role": "main"
+    },
+    {
+      "from": "G",
+      "to": "H",
+      "role": "main"
+    }
+  ]
+}

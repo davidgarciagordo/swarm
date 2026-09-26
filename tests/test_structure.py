@@ -166,6 +166,20 @@ def paragraph(lines, i):
     return '\n'.join(lines[lo:hi + 1])
 
 
+# a `(§x.y…)` parenthetical right after a cited path names sections OF THAT TARGET; each must be a
+# real `#{1,4} x.y` heading there (a moved/renamed/deleted § would otherwise dangle silently)
+SECTION_PAREN_RE = re.compile(r'^`?\s*\(([^()]*)\)')
+SECTION_ID_RE = re.compile(r'§(\d+(?:\.\d+)*(?:bis)?)')
+SECTION_ID_BOUNDARY = r'(?=\s|[:)-]|\.(?!\d)|$)'  # heading may spell the id as `§2`, `2.` (enum) or `2 ` (dotted)
+heading_cache = {}
+
+
+def headings_of(path):
+    if path not in heading_cache:
+        heading_cache[path] = [ln for ln in read(path).split('\n') if re.match(r'#{1,4}\s', ln)]
+    return heading_cache[path]
+
+
 referenced = {}
 for src in CORE + ON_DEMAND:
     lines = read(src).split('\n')
@@ -178,6 +192,10 @@ for src in CORE + ON_DEMAND:
             if src in CORE and target in ON_DEMAND and '/commands/' not in src:
                 S.check(bool(TRIGGER_RE.search(paragraph(lines, i))),
                         '%s:%d points at %s without a trigger (WHEN/BEFORE/AFTER/ONLY/policy:)' % (rel(src), i + 1, m.group(1)))
+                pm = SECTION_PAREN_RE.match(line[m.end():])
+                for sid in (SECTION_ID_RE.findall(pm.group(1)) if pm else []):
+                    S.check(any(re.match(r'#{1,4}\s+§?' + re.escape(sid) + SECTION_ID_BOUNDARY, h) for h in headings_of(target)),
+                            '%s:%d cites %s §%s, which is not a heading there' % (rel(src), i + 1, m.group(1), sid))
 
 # stack packs: siblings are read through the pack's own SKILL.md table (bare file names)
 for pack_skill in glob.glob(os.path.join(ROOT, 'skills', 'pack-*', 'SKILL.md')):

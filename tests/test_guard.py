@@ -276,6 +276,26 @@ for _ in range(N):
                                 'php vendor/bin/deptrac analyse --%s=x' % R.choice(['config-file', 'cache-file', 'con', 'cache', word()]),
                                 'php vendor/bin/deptrac analyse -c %s.php' % word()]), 'deny', 'P13 scanner config/cache outside the list'))
 
+# ---------- P14: jq `-f`/`--from-file` bypasses + `/proc/*/environ` for every command (blind-judge round-2 findings) ----------
+JQ_AGENTS = [a for a in AGENTS if 'jq' in allow_of(a)]
+for _ in range(N):
+    if JQ_AGENTS:
+        agent = R.choice(JQ_AGENTS)
+        letters = ''.join(R.sample('abcdehklmnopqrstuvwxyz', R.randint(0, 3)))  # no `i`: `-i` alone is its own deny rule
+        pos = R.randint(0, len(letters))
+        cluster = '-' + letters[:pos] + 'f' + letters[pos:]  # any short-option cluster containing `f`
+        cases.append((agent, 'jq %s %s.jq' % (cluster, word()), 'deny', 'P14 jq short-option cluster containing f'))
+        cases.append((agent, 'jq -n --from-file=%s.jq' % word(), 'deny', 'P14 jq --from-file= (equals form)'))
+        cases.append((agent, 'jq -n --from-file %s.jq' % word(), 'deny', 'P14 jq --from-file (separate form)'))
+        no_f = ''.join(c for c in letters if c != 'f') or 'n'
+        cases.append((agent, 'jq -%s %s.jq' % (no_f, word()), 'allow', 'P14 jq cluster without f stays allowed'))
+for _ in range(N):
+    agent = R.choice(AGENTS)
+    cmd = R.choice(['cat', 'head', 'tail', 'wc', 'grep'])
+    if cmd in allow_of(agent):
+        target = R.choice(['/proc/self/environ', '/proc/%d/environ' % R.randint(1, 99999)])
+        cases.append((agent, '%s %s' % (cmd, target), 'deny', 'P14 /proc/<pid>/environ denied for every command'))
+
 cwd_cases += sr_cwd
 results = parallel(lambda c: guard(c[0], c[1], c[2]), cwd_cases)
 for (agent, cmd, cwd, want, why), got in zip(cwd_cases, results):

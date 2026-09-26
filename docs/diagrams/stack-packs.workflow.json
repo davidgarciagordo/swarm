@@ -1,0 +1,132 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Stack packs",
+    "output": "stack-packs.html",
+    "animation": "none",
+    "visual_preset": "classic",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "top",
+      "label": "Detected pack"
+    },
+    {
+      "id": "fallback",
+      "label": "No pack (generic)"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "A",
+      "lane": "top",
+      "col": 0,
+      "type": "external",
+      "label": "Target repo",
+      "width": 170
+    },
+    {
+      "id": "B",
+      "lane": "top",
+      "col": 1,
+      "type": "database",
+      "label": "memory-builder scans once",
+      "width": 300
+    },
+    {
+      "id": "C",
+      "lane": "top",
+      "col": 2,
+      "type": "backend",
+      "label": "stack: php-ddd-symfony8",
+      "sublabel": "in context-pack.md",
+      "width": 210
+    },
+    {
+      "id": "D",
+      "lane": "top",
+      "col": 3,
+      "type": "backend",
+      "label": "pack: <path> header",
+      "sublabel": "sent to 8 leaves",
+      "width": 190
+    },
+    {
+      "id": "E",
+      "lane": "top",
+      "col": 4,
+      "type": "backend",
+      "label": "8 pack-aware leaves",
+      "sublabel": "implementer, test-writer, quality-fixer + 5 more",
+      "width": 380
+    },
+    {
+      "id": "F",
+      "lane": "fallback",
+      "col": 2,
+      "type": "backend",
+      "label": "stack: generic",
+      "sublabel": "in context-pack.md",
+      "width": 210
+    },
+    {
+      "id": "G",
+      "lane": "fallback",
+      "col": 3,
+      "type": "backend",
+      "label": "no pack: header sent",
+      "width": 250
+    },
+    {
+      "id": "H",
+      "lane": "fallback",
+      "col": 4,
+      "type": "backend",
+      "label": "each leaf",
+      "sublabel": "falls back to generic judgment",
+      "width": 300
+    }
+  ],
+  "edges": [
+    {
+      "from": "A",
+      "to": "B",
+      "role": "main"
+    },
+    {
+      "from": "B",
+      "to": "C",
+      "role": "main",
+      "label": "marker found"
+    },
+    {
+      "from": "B",
+      "to": "F",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "no marker matches"
+    },
+    {
+      "from": "C",
+      "to": "D",
+      "role": "main"
+    },
+    {
+      "from": "D",
+      "to": "E",
+      "role": "main"
+    },
+    {
+      "from": "F",
+      "to": "G",
+      "role": "main"
+    },
+    {
+      "from": "G",
+      "to": "H",
+      "role": "main"
+    }
+  ]
+}

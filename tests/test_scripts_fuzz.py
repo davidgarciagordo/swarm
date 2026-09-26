@@ -152,11 +152,17 @@ for agent in agents_pool:
     for (a, tag, f, line), text in mine.items():
         S.check(any(('%s · %s:%d · %s → fix-it' % (tag, f, line, text)) in ln for ln in lines), '%s: text kept verbatim: %r' % (a, text))
 FIND = os.path.join(SCRIPTS, 'swarm-findings.sh')
+FIND_CAP = 50  # scripts/swarm-findings.sh: CAP = 50 — output is capped even when more findings match
 for flt in agents_pool + tags_pool:
     rc, out, _ = sh(['bash', FIND, flt], env=ENV)
     want = [k for k in keys if flt in (k[0], k[1])]
     got = [ln for ln in out.splitlines() if ' · src/' in ln]
-    S.check(rc == 0 and len(got) == len(want), 'swarm-findings %s lists exactly its %d open findings (got %d)' % (flt, len(want), len(got)))
+    expect_n = min(len(want), FIND_CAP)
+    S.check(rc == 0 and len(got) == expect_n, 'swarm-findings %s lists exactly its %d open findings, capped at %d (got %d)'
+            % (flt, len(want), FIND_CAP, len(got)))
+    if len(want) > FIND_CAP:
+        S.check(any('… y %d más' % (len(want) - FIND_CAP) in ln for ln in out.splitlines()),
+                'swarm-findings %s: truncation marker names the remaining count' % flt)
 for _ in range(N // 3):
     bad = word(1, 3) + R.choice([' ', ';', '$', '`', '|', '/', '.', '*', '(', "'", '"', '\\', '\n', '..']) + word(0, 3)
     rc, out, _ = sh(['bash', FIND, bad], env=ENV)

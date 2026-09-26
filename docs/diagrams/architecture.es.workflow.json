@@ -1,0 +1,672 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "swarm — arquitectura de agentes",
+    "output": "architecture.es.html",
+    "animation": "none",
+    "visual_preset": "classic",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "root",
+      "label": "Raíz"
+    },
+    {
+      "id": "memory",
+      "label": "Memoria (mechanical)"
+    },
+    {
+      "id": "requirements",
+      "label": "Requisitos"
+    },
+    {
+      "id": "discovery",
+      "label": "Discovery"
+    },
+    {
+      "id": "analysis",
+      "label": "Lentes de análisis"
+    },
+    {
+      "id": "analysis2",
+      "label": "Análisis (cont.)"
+    },
+    {
+      "id": "design",
+      "label": "Diseño"
+    },
+    {
+      "id": "implementation",
+      "label": "Implementación"
+    },
+    {
+      "id": "delivery",
+      "label": "Entrega"
+    },
+    {
+      "id": "verify",
+      "label": "Gate de verificación"
+    },
+    {
+      "id": "review",
+      "label": "Panel de revisión"
+    },
+    {
+      "id": "review2",
+      "label": "Panel de revisión (cont.)"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "O",
+      "lane": "root",
+      "col": 0,
+      "type": "backend",
+      "label": "orchestrator",
+      "sublabel": "(raíz · judgement)",
+      "width": 200
+    },
+    {
+      "id": "MO",
+      "lane": "memory",
+      "col": 0,
+      "type": "database",
+      "label": "memory-orchestrator",
+      "sublabel": "(mechanical)",
+      "width": 230
+    },
+    {
+      "id": "MB",
+      "lane": "memory",
+      "col": 1,
+      "type": "database",
+      "label": "memory-builder",
+      "sublabel": "(mechanical)",
+      "width": 200
+    },
+    {
+      "id": "MC",
+      "lane": "memory",
+      "col": 2,
+      "type": "database",
+      "label": "memory-curator",
+      "sublabel": "(mechanical)",
+      "width": 200
+    },
+    {
+      "id": "RO",
+      "lane": "requirements",
+      "col": 0,
+      "type": "backend",
+      "label": "requirements-orchestrator",
+      "sublabel": "(judgement)",
+      "width": 260
+    },
+    {
+      "id": "EC",
+      "lane": "requirements",
+      "col": 1,
+      "type": "backend",
+      "label": "env-checker",
+      "sublabel": "(mechanical)",
+      "width": 160
+    },
+    {
+      "id": "DA",
+      "lane": "requirements",
+      "col": 2,
+      "type": "backend",
+      "label": "dependency-auditor",
+      "sublabel": "(mechanical)",
+      "width": 200
+    },
+    {
+      "id": "DI",
+      "lane": "requirements",
+      "col": 3,
+      "type": "backend",
+      "label": "dependency-installer",
+      "sublabel": "(mechanical)",
+      "width": 230
+    },
+    {
+      "id": "DO",
+      "lane": "discovery",
+      "col": 0,
+      "type": "backend",
+      "label": "discovery-orchestrator",
+      "sublabel": "(judgement)",
+      "width": 230
+    },
+    {
+      "id": "VC",
+      "lane": "discovery",
+      "col": 1,
+      "type": "backend",
+      "label": "value-critic",
+      "sublabel": "(judgement)",
+      "width": 160
+    },
+    {
+      "id": "RA",
+      "lane": "discovery",
+      "col": 2,
+      "type": "backend",
+      "label": "research-analyst",
+      "sublabel": "(judgement)",
+      "width": 200
+    },
+    {
+      "id": "OG",
+      "lane": "discovery",
+      "col": 3,
+      "type": "backend",
+      "label": "options-generator",
+      "sublabel": "(judgement)",
+      "width": 200
+    },
+    {
+      "id": "FS",
+      "lane": "discovery",
+      "col": 4,
+      "type": "backend",
+      "label": "feasibility-spiker",
+      "sublabel": "(standard)",
+      "width": 200
+    },
+    {
+      "id": "AO",
+      "lane": "analysis",
+      "col": 0,
+      "type": "backend",
+      "label": "analysis-orchestrator",
+      "sublabel": "(judgement)",
+      "width": 230
+    },
+    {
+      "id": "OA",
+      "lane": "analysis",
+      "col": 1,
+      "type": "backend",
+      "label": "opportunity-analyst",
+      "sublabel": "(judgement)",
+      "width": 230
+    },
+    {
+      "id": "AA",
+      "lane": "analysis",
+      "col": 2,
+      "type": "backend",
+      "label": "architecture-auditor",
+      "sublabel": "(judgement)",
+      "width": 230
+    },
+    {
+      "id": "SA",
+      "lane": "analysis",
+      "col": 3,
+      "type": "security",
+      "label": "security-auditor",
+      "sublabel": "(judgement)",
+      "width": 200
+    },
+    {
+      "id": "VS",
+      "lane": "analysis",
+      "col": 4,
+      "type": "security",
+      "label": "vulnerability-scanner",
+      "sublabel": "(mechanical)",
+      "width": 230
+    },
+    {
+      "id": "PA",
+      "lane": "analysis",
+      "col": 5,
+      "type": "backend",
+      "label": "performance-analyst",
+      "sublabel": "(judgement)",
+      "width": 230
+    },
+    {
+      "id": "DMA",
+      "lane": "analysis2",
+      "col": 0,
+      "type": "backend",
+      "label": "data-model-auditor",
+      "sublabel": "(judgement)",
+      "width": 200
+    },
+    {
+      "id": "SOA",
+      "lane": "analysis2",
+      "col": 1,
+      "type": "backend",
+      "label": "solid-auditor",
+      "sublabel": "(judgement)",
+      "width": 160
+    },
+    {
+      "id": "DGO",
+      "lane": "design",
+      "col": 0,
+      "type": "backend",
+      "label": "design-orchestrator",
+      "sublabel": "(judgement)",
+      "width": 230
+    },
+    {
+      "id": "PADV",
+      "lane": "design",
+      "col": 1,
+      "type": "backend",
+      "label": "pattern-advisor",
+      "sublabel": "(judgement)",
+      "width": 200
+    },
+    {
+      "id": "DM",
+      "lane": "design",
+      "col": 2,
+      "type": "backend",
+      "label": "domain-modeler",
+      "sublabel": "(judgement)",
+      "width": 200
+    },
+    {
+      "id": "PL",
+      "lane": "design",
+      "col": 3,
+      "type": "backend",
+      "label": "planner",
+      "sublabel": "(judgement)",
+      "width": 160
+    },
+    {
+      "id": "IO",
+      "lane": "implementation",
+      "col": 0,
+      "type": "backend",
+      "label": "implementation-orchestrator",
+      "sublabel": "(judgement)",
+      "width": 260
+    },
+    {
+      "id": "TW",
+      "lane": "implementation",
+      "col": 1,
+      "type": "backend",
+      "label": "test-writer",
+      "sublabel": "(standard)",
+      "width": 160
+    },
+    {
+      "id": "IM",
+      "lane": "implementation",
+      "col": 2,
+      "type": "backend",
+      "label": "implementer",
+      "sublabel": "(standard)",
+      "width": 160
+    },
+    {
+      "id": "ME",
+      "lane": "implementation",
+      "col": 3,
+      "type": "backend",
+      "label": "migration-engineer",
+      "sublabel": "(standard)",
+      "width": 200
+    },
+    {
+      "id": "DW",
+      "lane": "implementation",
+      "col": 4,
+      "type": "backend",
+      "label": "doc-writer",
+      "sublabel": "(standard)",
+      "width": 160
+    },
+    {
+      "id": "QF",
+      "lane": "implementation",
+      "col": 5,
+      "type": "backend",
+      "label": "quality-fixer",
+      "sublabel": "(standard)",
+      "width": 160
+    },
+    {
+      "id": "DLO",
+      "lane": "delivery",
+      "col": 0,
+      "type": "backend",
+      "label": "delivery-orchestrator",
+      "sublabel": "(judgement)",
+      "width": 230
+    },
+    {
+      "id": "RM",
+      "lane": "delivery",
+      "col": 1,
+      "type": "external",
+      "label": "release-manager",
+      "sublabel": "(standard)",
+      "width": 200
+    },
+    {
+      "id": "HW",
+      "lane": "delivery",
+      "col": 2,
+      "type": "backend",
+      "label": "handoff-writer",
+      "sublabel": "(standard)",
+      "width": 200
+    },
+    {
+      "id": "VER",
+      "lane": "verify",
+      "col": 0,
+      "type": "security",
+      "label": "verifier",
+      "sublabel": "(judgement)",
+      "width": 160
+    },
+    {
+      "id": "REVO",
+      "lane": "review",
+      "col": 0,
+      "type": "security",
+      "label": "review-orchestrator",
+      "sublabel": "(judgement)",
+      "width": 230
+    },
+    {
+      "id": "CC",
+      "lane": "review",
+      "col": 1,
+      "type": "security",
+      "label": "completeness-critic",
+      "sublabel": "(judgement)",
+      "width": 230
+    },
+    {
+      "id": "FC",
+      "lane": "review",
+      "col": 2,
+      "type": "security",
+      "label": "fact-checker",
+      "sublabel": "(judgement)",
+      "width": 160
+    },
+    {
+      "id": "SC",
+      "lane": "review",
+      "col": 3,
+      "type": "security",
+      "label": "simplicity-critic",
+      "sublabel": "(judgement)",
+      "width": 200
+    },
+    {
+      "id": "GR",
+      "lane": "review",
+      "col": 4,
+      "type": "security",
+      "label": "grill lenses",
+      "sublabel": "(architect / operator / engineer)",
+      "width": 290
+    },
+    {
+      "id": "RF",
+      "lane": "review",
+      "col": 5,
+      "type": "security",
+      "label": "refuter",
+      "sublabel": "(judgement)",
+      "width": 160
+    },
+    {
+      "id": "BJ",
+      "lane": "review2",
+      "col": 0,
+      "type": "security",
+      "label": "blind-judge",
+      "sublabel": "(judgement)",
+      "width": 160
+    }
+  ],
+  "edges": [
+    {
+      "from": "O",
+      "to": "MO",
+      "role": "main"
+    },
+    {
+      "from": "MO",
+      "to": "MB",
+      "role": "main"
+    },
+    {
+      "from": "MO",
+      "to": "MC",
+      "role": "main"
+    },
+    {
+      "from": "O",
+      "to": "DO",
+      "role": "main"
+    },
+    {
+      "from": "DO",
+      "to": "VC",
+      "role": "main"
+    },
+    {
+      "from": "DO",
+      "to": "RA",
+      "role": "main"
+    },
+    {
+      "from": "DO",
+      "to": "OG",
+      "role": "main"
+    },
+    {
+      "from": "DO",
+      "to": "FS",
+      "role": "main"
+    },
+    {
+      "from": "O",
+      "to": "RO",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "audit-deps / install"
+    },
+    {
+      "from": "RO",
+      "to": "EC",
+      "role": "main"
+    },
+    {
+      "from": "RO",
+      "to": "DA",
+      "role": "main"
+    },
+    {
+      "from": "RO",
+      "to": "DI",
+      "role": "main"
+    },
+    {
+      "from": "O",
+      "to": "AO",
+      "role": "main"
+    },
+    {
+      "from": "AO",
+      "to": "OA",
+      "role": "main"
+    },
+    {
+      "from": "AO",
+      "to": "AA",
+      "role": "main"
+    },
+    {
+      "from": "AO",
+      "to": "SA",
+      "role": "main"
+    },
+    {
+      "from": "AO",
+      "to": "VS",
+      "role": "main"
+    },
+    {
+      "from": "AO",
+      "to": "PA",
+      "role": "main"
+    },
+    {
+      "from": "AO",
+      "to": "DMA",
+      "role": "main"
+    },
+    {
+      "from": "AO",
+      "to": "SOA",
+      "role": "main"
+    },
+    {
+      "from": "O",
+      "to": "DGO",
+      "role": "main"
+    },
+    {
+      "from": "DGO",
+      "to": "PADV",
+      "role": "main"
+    },
+    {
+      "from": "DGO",
+      "to": "DM",
+      "role": "main"
+    },
+    {
+      "from": "DGO",
+      "to": "PL",
+      "role": "main"
+    },
+    {
+      "from": "O",
+      "to": "IO",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "solo invocación explícita"
+    },
+    {
+      "from": "IO",
+      "to": "TW",
+      "role": "main"
+    },
+    {
+      "from": "IO",
+      "to": "IM",
+      "role": "main"
+    },
+    {
+      "from": "IO",
+      "to": "ME",
+      "role": "main"
+    },
+    {
+      "from": "IO",
+      "to": "DW",
+      "role": "main"
+    },
+    {
+      "from": "IO",
+      "to": "QF",
+      "role": "main"
+    },
+    {
+      "from": "O",
+      "to": "VER",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "gate de verificación, antes de todo cierre en verde"
+    },
+    {
+      "from": "O",
+      "to": "DLO",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "solo invocación explícita, nunca encadenada"
+    },
+    {
+      "from": "DLO",
+      "to": "RM",
+      "role": "main"
+    },
+    {
+      "from": "DLO",
+      "to": "HW",
+      "role": "main"
+    },
+    {
+      "from": "DGO",
+      "to": "REVO",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "plan"
+    },
+    {
+      "from": "IO",
+      "to": "REVO",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "diff, antes del merge"
+    },
+    {
+      "from": "O",
+      "to": "REVO",
+      "role": "branch",
+      "variant": "dashed",
+      "label": "informe de análisis"
+    },
+    {
+      "from": "REVO",
+      "to": "CC",
+      "role": "main"
+    },
+    {
+      "from": "REVO",
+      "to": "FC",
+      "role": "main"
+    },
+    {
+      "from": "REVO",
+      "to": "SC",
+      "role": "main"
+    },
+    {
+      "from": "REVO",
+      "to": "GR",
+      "role": "main"
+    },
+    {
+      "from": "REVO",
+      "to": "RF",
+      "role": "main"
+    },
+    {
+      "from": "REVO",
+      "to": "BJ",
+      "role": "main"
+    }
+  ]
+}

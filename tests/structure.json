@@ -2,9 +2,10 @@
   "_doc": "Facts the structural test cannot derive from frontmatter. Roles: root = `root`; domain orchestrator = any other agent whose tools declare Agent(...); leaf = the rest.",
   "root": "orchestrator",
   "budgets": {
+    "_doc": "root raised 250->370 (blind-judge round-2): orchestrator.md's 40 lines >200 chars were rewrapped to ~120 cols (same bytes, more physical lines, currently 367); byte_budgets.root (30000) stays the real cap — orchestrator.md is 28406 bytes.",
     "leaf": 80,
     "domain-orchestrator": 150,
-    "root": 250,
+    "root": 370,
     "always-loaded-skill": 120
   },
   "byte_budgets": {

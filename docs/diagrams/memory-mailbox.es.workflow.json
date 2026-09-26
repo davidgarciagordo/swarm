@@ -1,0 +1,113 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Escritura de memoria / buzón",
+    "output": "memory-mailbox.es.html",
+    "animation": "none",
+    "visual_preset": "classic",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "top",
+      "label": "Ruta de escritura"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "L",
+      "lane": "top",
+      "col": 0,
+      "type": "backend",
+      "label": "Hoja (agente)",
+      "sublabel": "p. ej. memory-builder",
+      "width": 250
+    },
+    {
+      "id": "MO1",
+      "lane": "top",
+      "col": 1,
+      "type": "database",
+      "label": "memory-orchestrator",
+      "sublabel": "escribe hallazgo, adquiere lock",
+      "width": 300
+    },
+    {
+      "id": "FS1",
+      "lane": "top",
+      "col": 2,
+      "type": "database",
+      "label": "mem-files.sh",
+      "sublabel": "dedup por agente+tag+fichero:línea",
+      "width": 360
+    },
+    {
+      "id": "MO2",
+      "lane": "top",
+      "col": 3,
+      "type": "database",
+      "label": "memory-orchestrator",
+      "sublabel": "escribe espejo de buzón (--to <agente>)",
+      "width": 360
+    },
+    {
+      "id": "B",
+      "lane": "top",
+      "col": 4,
+      "type": "messagebus",
+      "label": "buzón de otro agente",
+      "sublabel": "run/<id>/mailbox/<agente>.md",
+      "width": 300
+    },
+    {
+      "id": "ACK",
+      "lane": "top",
+      "col": 5,
+      "type": "backend",
+      "label": "Ack a la hoja",
+      "sublabel": "OK",
+      "width": 170
+    }
+  ],
+  "edges": [
+    {
+      "from": "L",
+      "to": "MO1",
+      "role": "main",
+      "label": "SendMessage(write finding)"
+    },
+    {
+      "from": "MO1",
+      "to": "FS1",
+      "role": "main"
+    },
+    {
+      "from": "FS1",
+      "to": "MO2",
+      "role": "main",
+      "label": "written / dup"
+    },
+    {
+      "from": "MO2",
+      "to": "B",
+      "role": "main"
+    },
+    {
+      "from": "B",
+      "to": "ACK",
+      "role": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Hoja lanzada tarde",
+      "items": [
+        "Lee su buzón al arrancar, antes de actuar",
+        "Ningún agente escanea .swarm/ dos veces ni lo escribe directamente",
+        "Toda escritura se serializa por la única instancia del run"
+      ]
+    }
+  ]
+}

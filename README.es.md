@@ -62,95 +62,9 @@ guía completa.
 
 ### Arquitectura
 
-```mermaid
-flowchart TD
-    O["orchestrator (raíz · judgement)"]
-    MO["memory-orchestrator (mechanical)"]
-    MB["memory-builder (mechanical)"]
-    MC["memory-curator (mechanical)"]
-    RO["requirements-orchestrator (judgement)"]
-    EC["env-checker (mechanical)"]
-    DA["dependency-auditor (mechanical)"]
-    DI["dependency-installer (mechanical)"]
-    DO["discovery-orchestrator (judgement)"]
-    VC["value-critic (judgement)"]
-    RA["research-analyst (judgement)"]
-    OG["options-generator (judgement)"]
-    FS["feasibility-spiker (standard)"]
-    AO["analysis-orchestrator (judgement)"]
-    OA["opportunity-analyst (judgement)"]
-    AA["architecture-auditor (judgement)"]
-    SA["security-auditor (judgement)"]
-    VS["vulnerability-scanner (mechanical)"]
-    PA["performance-analyst (judgement)"]
-    DMA["data-model-auditor (judgement)"]
-    SOA["solid-auditor (judgement)"]
-    DGO["design-orchestrator (judgement)"]
-    PADV["pattern-advisor (judgement)"]
-    DM["domain-modeler (judgement)"]
-    PL["planner (judgement)"]
-    IO["implementation-orchestrator (judgement)"]
-    TW["test-writer (standard)"]
-    IM["implementer (standard)"]
-    ME["migration-engineer (standard)"]
-    DW["doc-writer (standard)"]
-    QF["quality-fixer (standard)"]
-    VER["verifier (judgement)"]
-    DLO["delivery-orchestrator (judgement)"]
-    RM["release-manager (standard)"]
-    HW["handoff-writer (standard)"]
-    REVO["review-orchestrator (judgement)"]
-    CC["completeness-critic (judgement)"]
-    FC["fact-checker (judgement)"]
-    SC["simplicity-critic (judgement)"]
-    GR["grill-architect / grill-operator / grill-engineer (judgement)"]
-    RF["refuter (judgement)"]
-    BJ["blind-judge (judgement)"]
+[![Arquitectura de agentes de swarm](docs/diagrams/architecture.es.png)](docs/diagrams/architecture.es.html)
 
-    O --> MO
-    MO --> MB
-    MO --> MC
-    O --> DO
-    DO --> VC
-    DO --> RA
-    DO --> OG
-    DO --> FS
-    O -. audit-deps / install .-> RO
-    RO --> EC
-    RO --> DA
-    RO --> DI
-    O --> AO
-    AO --> OA
-    AO --> AA
-    AO --> SA
-    AO --> VS
-    AO --> PA
-    AO --> DMA
-    AO --> SOA
-    O --> DGO
-    DGO --> PADV
-    DGO --> DM
-    DGO --> PL
-    O -. solo invocación explícita .-> IO
-    IO --> TW
-    IO --> IM
-    IO --> ME
-    IO --> DW
-    IO --> QF
-    O -. gate de verificación, antes de todo cierre en verde .-> VER
-    O -. solo invocación explícita, nunca encadenada .-> DLO
-    DLO --> RM
-    DLO --> HW
-    DGO -. plan .-> REVO
-    IO -. diff, before merge .-> REVO
-    O -. analysis report .-> REVO
-    REVO --> CC
-    REVO --> FC
-    REVO --> SC
-    REVO --> GR
-    REVO --> RF
-    REVO --> BJ
-```
+*Versión interactiva: abre `docs/diagrams/architecture.es.html` localmente en un navegador.*
 
 El `orchestrator` raíz (tier `judgement`) clasifica el tier del run y habla con siete dominios hoy:
 
@@ -166,70 +80,9 @@ Antes de cualquier cierre en verde de un run — cierre normal, análisis, dise�
 
 ### Flujo de `/swarm:run`
 
-```mermaid
-sequenceDiagram
-    actor User as Usuario
-    participant O as orchestrator
-    participant MO as memory-orchestrator
-    participant MB as memory-builder
-    participant DO as discovery-orchestrator
+[![El flujo de /swarm:run](docs/diagrams/run-flow.es.png)](docs/diagrams/run-flow.es.html)
 
-    User->>O: /swarm:run "<objetivo>" [--tier]
-    alt --tier=direct (flag explícito)
-        O->>O: tier forzado a direct (el flag se usa tal cual, no reclasifica)
-        O-->>User: OK (sin abrir run)
-    else --tier sin especificar, light, o full
-        alt objetivo ambiguo (juicio propio de la raíz)
-            O->>User: AskUserQuestion (UNA llamada: interpretación + alternativas + reescritura libre)
-            alt el owner confirma / elige alternativa / reescribe
-                User-->>O: objetivo resuelto (el que se usa de aquí en adelante)
-                Note over O: todavía no se escribe nada:<br/>memory-orchestrator no existe hasta que se abre el run
-            else el owner cancela el diálogo
-                User-->>O: (cerrado sin elegir)
-                O-->>User: BLOCKED interpretación de objetivo sin confirmar
-                Note over O: el run nunca se abre: sin run-id no hay summary/curate<br/>ni línea de decisión que escribir
-            end
-        end
-        O->>O: clasifica tier (direct / light / full)
-        alt tier = direct
-            O-->>User: OK (sin abrir run)
-        else tier = light o full
-            O->>O: abre run (run-id, .swarm/run/<id>/)
-            O->>MO: spawn (run-id, swarm-root, operation: build)
-            MO->>MO: comprueba staleness (tree-hash)
-            alt pack stale o ausente
-                MO->>MB: construye/refresca context-pack.md + index.md
-                MB-->>MO: DONE
-            else pack fresco
-                MO-->>MO: OK (salta build)
-            end
-            MO-->>O: OK / DONE
-            opt el gate resolvió el objetivo arriba
-                O->>MO: write decision (raw: + objective:, marcada "interpretación resuelta")
-                MO-->>O: written
-            end
-            Note over O: la idempotencia compara contra el campo raw:, nunca contra la interpretación,<br/>y solo sobre una línea que cerró discovery
-            alt objetivo de producto, no cerrado ya en decisions.md
-                O->>DO: spawn (run-id, swarm-root, operation: discover, tier, objective)
-                DO->>DO: 4 hojas en UNA tanda (valor, research, opciones, viabilidad)
-                DO-->>O: DONE + hasta 4 líneas "- Q" (un solo batch)
-                O->>O: pre-flight de cada "- Q" (2-4 opciones, cabecera <= 12 chars)
-                O->>User: AskUserQuestion (UNA llamada, todas las preguntas)
-                alt el owner responde
-                    User-->>O: opciones elegidas / texto libre
-                    O->>MO: write decision (UNA llamada: raw: + objective: + todas las respuestas)
-                else el owner cancela el diálogo
-                    O->>MO: write decision (raw: + objective: + [pendiente] batch sin responder)
-                end
-            else bugfix / docs / tests / infra, objetivo de refactor/migración, u objetivo ya cerrado
-                O->>O: salta discovery (se reporta como "- discovery omitido: ...")
-                Note over O: un objetivo de refactor/migración encadena igualmente<br/>a design en tier full (no se muestra aquí)
-            end
-            O->>MO: curate (cierre del run)
-            O-->>User: DONE\nevidence: files=N cmds=M turns=k/max
-        end
-    end
-```
+*Versión interactiva: abre `docs/diagrams/run-flow.es.html` localmente en un navegador.*
 
 `direct` nunca abre run ni toca memoria — la raíz responde ella misma. `light`/`full` abren un run y siempre comprueban el pack antes de hacer nada más; el pack solo se reconstruye si está stale (tree-state hash), nunca incondicionalmente.
 
@@ -237,22 +90,9 @@ Con el pack listo, un objetivo **de producto** (nueva funcionalidad, nuevo produ
 
 ### Escritura de memoria / buzón
 
-```mermaid
-sequenceDiagram
-    participant L as hoja (p. ej. memory-builder)
-    participant MO as memory-orchestrator
-    participant FS as mem-files.sh (.swarm/, lock)
-    participant B as buzón de otro agente
+[![Escritura de memoria / buzón](docs/diagrams/memory-mailbox.es.png)](docs/diagrams/memory-mailbox.es.html)
 
-    L->>MO: SendMessage(write finding: fichero:línea, tag, fix)
-    MO->>FS: write finding (adquiere lock)
-    FS-->>FS: dedup por agente+tag+fichero:línea
-    FS-->>MO: written / dup
-    MO->>FS: write mailbox mirror (--to <agente>)
-    FS-->>B: run/<id>/mailbox/<agente>.md
-    MO-->>L: OK (ack)
-    Note over B: una hoja lanzada tarde lee su buzón<br/>al arrancar, antes de actuar
-```
+*Versión interactiva: abre `docs/diagrams/memory-mailbox.es.html` localmente en un navegador.*
 
 Ningún agente escanea el repo o `.swarm/` dos veces, y ningún agente escribe `.swarm/` directamente — toda escritura (hallazgo, decisión, buzón) pasa por la única instancia de `memory-orchestrator` del run, que serializa escrituras con un lock. Todo `SendMessage` entre hojas también se espeja al buzón del destinatario, así que un hermano lanzado más tarde en el run — o uno al que se dirige antes de existir — igualmente lee lo que se perdió.
 
