@@ -92,7 +92,7 @@
 {"agent": "swarm:domain-modeler", "command": "python3 x.py", "expect": "deny"}
 {"agent": "swarm:domain-modeler", "command": "rm -rf .swarm", "expect": "deny"}
 {"agent": "swarm:env-checker", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/req-check.sh --file /x/requirements.json", "expect": "allow"}
-{"agent": "swarm:env-checker", "command": "/Users/davidgarciagordo/projects/swarm/scripts/req-check.sh --file /Users/davidgarciagordo/projects/swarm/requirements.json", "expect": "allow"}
+{"agent": "swarm:env-checker", "command": "<plugin-root>/scripts/req-check.sh --file <plugin-root>/requirements.json", "expect": "allow"}
 {"agent": "swarm:env-checker", "command": "/usr/bin/rm -rf /", "expect": "deny"}
 {"agent": "swarm:env-checker", "command": "rm -rf /", "expect": "deny"}
 {"agent": "swarm:fact-checker", "command": "${CLAUDE_PLUGIN_ROOT}/../../tmp/scripts/mem-evil.sh", "expect": "deny"}
@@ -401,7 +401,7 @@
 {"agent": "swarm:release-manager", "command": "git remote add o fd::7", "expect": "deny"}
 {"agent": "swarm:release-manager", "command": "git remote add origin", "expect": "deny"}
 {"agent": "swarm:release-manager", "command": "git remote add origin \"$(gh repo view --json url -q .url)\"", "expect": "deny"}
-{"agent": "swarm:release-manager", "command": "git remote add origin git@github-personal-david:owner/repo.git", "expect": "allow"}
+{"agent": "swarm:release-manager", "command": "git remote add origin git@github-work:owner/repo.git", "expect": "allow"}
 {"agent": "swarm:release-manager", "command": "git remote add origin git@github.com:owner/repo.git", "expect": "allow"}
 {"agent": "swarm:release-manager", "command": "git remote add origin https://example.com/x.git", "expect": "allow"}
 {"agent": "swarm:release-manager", "command": "git remote get-url --push --all origin", "expect": "allow"}
@@ -441,7 +441,7 @@
 {"agent": "swarm:research-analyst", "command": "curl https://example.com", "expect": "deny"}
 {"agent": "swarm:research-analyst", "command": "python3 x.py", "expect": "deny"}
 {"agent": "swarm:review-orchestrator", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/review-dedup.sh dedup", "expect": "allow"}
-{"agent": "swarm:review-orchestrator", "command": "/Users/davidgarciagordo/projects/swarm/scripts/model-resolve.sh grill-architect", "expect": "allow"}
+{"agent": "swarm:review-orchestrator", "command": "<plugin-root>/scripts/model-resolve.sh grill-architect", "expect": "allow"}
 {"agent": "swarm:review-orchestrator", "command": "scripts/model-resolve.sh grill-architect", "expect": "deny"}
 {"agent": "swarm:review-orchestrator", "command": "scripts/review-dedup.sh dedup", "expect": "deny"}
 {"agent": "swarm:reviewer", "command": "cat .swarm/context-pack.md", "expect": "allow"}
@@ -521,7 +521,7 @@
 {"agent": "swarm:implementer", "command": "cat a > .GIT/hooks/pre-commit", "expect": "deny"}
 {"agent": "swarm:implementer", "command": "cat a >> .GiT/config", "expect": "deny"}
 {"agent": "swarm:implementer", "command": "cat a > .Claude/settings.json", "expect": "deny"}
-{"agent": "swarm:quality-fixer", "command": "cd /Users/davidgarciagordo/projects/swarm && cat a > x", "expect": "deny"}
+{"agent": "swarm:quality-fixer", "command": "cd <plugin-root> && cat a > x", "expect": "deny"}
 {"agent": "swarm:quality-fixer", "command": "cd /tmp && git add -A", "expect": "deny"}
 {"agent": "swarm:quality-fixer", "command": "cd wt && git add -A", "expect": "deny"}
 {"agent": "swarm:implementer", "command": "npx -c 'id'", "expect": "deny"}

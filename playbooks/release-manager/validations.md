@@ -35,10 +35,9 @@ evidence: files=1 cmds=5 turns=4/15
 - proposed remote: gh repo create <login>/<basename of repo-root> --private --source=. --remote=origin --push
 ```
 
-<!-- OWNER DECISION PENDING (B4): personal identity hardcoded in a public generic plugin — delete, or move to project memory. Moved verbatim: -->
-**Expected pairing in this repo** (ruling 14, project memory "Personal git identity"): personal
-`gh` account (`davidgarciagordo`) with personal git email
-(`garcia.gordo.david@gmail.com`), never Classlife's account or email.
+**Expected pairing** (ruling 14): the active `gh` account and the git email of the last commit must
+belong to the identity the remote expects (the remote's owner). The plugin never knows who that is:
+it only shows both values. A mismatch is never fixed or hidden here — the owner decides.
 
 `- proposed remote:` is a **literal preview, never executed** in this operation (same pattern as `- preview push:`: the owner sees the resolved command and decides). If `- gh account:` shows an account and an email that don't match, don't fix or hide it: the line makes it visible; the owner decides (ruling 14).
 

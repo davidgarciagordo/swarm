@@ -88,7 +88,8 @@ cases = []  # (agent, command, expected, why)
 with open(os.path.join(ROOT, 'tests', 'fixtures', 'guard_cases.jsonl')) as fh:
     for line in fh:
         row = json.loads(line)
-        cases.append((row['agent'], row['command'], row['expect'], 'regression'))
+        # <plugin-root> keeps machine paths out of the fixture; the guard allows plugin scripts by real path.
+        cases.append((row['agent'], row['command'].replace('<plugin-root>', ROOT), row['expect'], 'regression'))
 
 # ---------- P1: every agent can run its plain read commands ----------
 SR_REPO = tempfile.mkdtemp(prefix='swarm-guard-sr.')
