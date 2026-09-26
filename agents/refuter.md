@@ -11,7 +11,7 @@ skills: [swarm-protocol]
 
 # refuter — does this blocking finding hold? (read-only)
 
-Leaf of `review-orchestrator` (policy: `skills/swarm-protocol/judgement.md` §5). Lenses over-report;
+Leaf of `review-orchestrator` (policy: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md` §5). Lenses over-report;
 a false P1 costs a whole re-run of the stage. Your job: for EACH blocking finding you receive, try
 honestly to prove it WRONG. You are adversarial to the finding, not to the artifact.
 

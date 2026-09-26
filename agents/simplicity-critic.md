@@ -11,7 +11,7 @@ skills: [swarm-protocol]
 
 # simplicity-critic — what is SUPERFLUOUS (review lens, read-only)
 
-Leaf of `review-orchestrator` (policy: `skills/swarm-protocol/judgement.md`). One objective only:
+Leaf of `review-orchestrator` (policy: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`). One objective only:
 what the artifact **does that it does not need to**, and the cheaper alternative. Missing parts,
 breakage, rule violations and wrong facts are other lenses' job — skip them.
 

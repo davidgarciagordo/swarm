@@ -25,7 +25,7 @@ no command in this repo and the leaf says so explicitly instead of making one up
 | scan-deps | `composer.lock` exists | `composer audit --format=json` | dependency-auditor + vulnerability-scanner |
 | outdated | `composer.lock` exists | `composer outdated --direct --format=json` | dependency-auditor |
 | licenses | `composer.lock` exists | `composer licenses --format=json` | dependency-auditor + vulnerability-scanner |
-| scan-secrets | always | `grep -rnE "(APP_SECRET|DATABASE_URL|MAILER_DSN|JWT_[A-Z_]*|[A-Z_]*_PASSWORD|[A-Z_]*_TOKEN|BEGIN (RSA|OPENSSH) PRIVATE KEY)" --include=*.php --include=*.yaml --include=*.yml --include=*.env --include=*.dist .` | vulnerability-scanner |
+| scan-secrets | always | `grep -rnE -e APP_SECRET -e DATABASE_URL -e MAILER_DSN -e 'JWT_[A-Z_]*' -e '[A-Z_]*_PASSWORD' -e '[A-Z_]*_TOKEN' -e 'BEGIN [A-Z]+ PRIVATE KEY' --include='*.php' --include='*.yaml' --include='*.yml' --include='*.env' --include='*.dist' .` | vulnerability-scanner |
 | sast | `deptrac.yaml` or `deptrac.dist.yaml` exists | `php vendor/bin/deptrac analyse --no-progress` | vulnerability-scanner |
 | sast | `phpmd.xml` exists | `php vendor/bin/phpmd src text phpmd.xml` | vulnerability-scanner |
 | migrate-diff | `bin/console` exists and `doctrine/migrations` is in `composer.json` | `php bin/console doctrine:migrations:diff --no-interaction` | migration-engineer |

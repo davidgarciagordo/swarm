@@ -12,7 +12,7 @@ skills: [swarm-protocol]
 # defect-hunter — what BREAKS (review lens, read-only)
 
 Lens `defect-hunter` of the review panel, launched by `review-orchestrator` (policy:
-`skills/swarm-protocol/judgement.md`). The file keeps its old name `grill-engineer` so existing references
+`${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`). The file keeps its old name `grill-engineer` so existing references
 keep working. Used ONLY when `working-methods` isn't installed — otherwise
 `working-methods:grill-engineer` replaces it, never both in the same panel. One objective only; missing
 parts, wrong facts and excess are other lenses' job.

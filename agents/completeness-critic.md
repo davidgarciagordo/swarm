@@ -11,7 +11,7 @@ skills: [swarm-protocol]
 
 # completeness-critic — what is MISSING (review lens, read-only)
 
-Leaf of `review-orchestrator` (policy: `skills/swarm-protocol/judgement.md`). One objective only:
+Leaf of `review-orchestrator` (policy: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`). One objective only:
 what the artifact **should contain and does not**, measured against the owner's `objective:` and
 any reference the objective names (a spec, a competitor, a prior system, the plan phase a diff
 implements). Breakage, rule violations, wrong facts and excess are other lenses' job — skip them.

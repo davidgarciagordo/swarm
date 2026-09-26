@@ -93,7 +93,13 @@ echo "opus 1000 old-run" > "$SRT/models.unavailable"
 assert_eq "opus" "$("$MR" judgement --swarm-root "$SRT")" "an expired stamped mark is ignored"
 assert_eq "marked: opus" "$("$MR" --mark-unavailable opus --swarm-root "$SRT")" "an expired mark can be re-marked"
 assert_eq "fable" "$("$MR" judgement --swarm-root "$SRT")" "the fresh mark applies"
-assert_eq "fable" "$(SWARM_MODEL_UNAVAILABLE_TTL=0 "$MR" judgement --swarm-root "$SRT")" "TTL=0 is clamped to 1: a fresh mark still applies"
+# a 1 s TTL expires if the clock ticks between mark and check: retry (capped) until both fall in the same second
+for _ in 1 2 3 4 5; do
+  t0="$(date +%s)"; echo "opus $t0 ttl-run" > "$SRT/models.unavailable"
+  got="$(SWARM_MODEL_UNAVAILABLE_TTL=0 "$MR" judgement --swarm-root "$SRT")"
+  [ "$t0" = "$(date +%s)" ] && break
+done
+assert_eq "fable" "$got" "TTL=0 is clamped to 1: a fresh mark still applies"
 echo "opus $(( $(date +%s) - 5 )) r" > "$SRT/models.unavailable"
 assert_eq "opus" "$(SWARM_MODEL_UNAVAILABLE_TTL=3 "$MR" judgement --swarm-root "$SRT")" "TTL is configurable"
 

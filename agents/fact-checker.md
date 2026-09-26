@@ -11,7 +11,7 @@ skills: [swarm-protocol]
 
 # fact-checker — is it TRUE? (review lens, read-only)
 
-Leaf of `review-orchestrator` (policy: `skills/swarm-protocol/judgement.md`). One objective only:
+Leaf of `review-orchestrator` (policy: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`). One objective only:
 **veracity**. Every claim the artifact's conclusions rest on is re-checked by you against the real
 repo/environment, with the cheapest read-only means. Missing parts, excess and style are other
 lenses' job.

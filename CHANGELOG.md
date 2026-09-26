@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Core vs on-demand split.** `swarm-protocol` `SKILL.md` (preloaded into every agent) shrank from 398
+  to ≤120 lines; memory-script signatures, hook details, guard quoting rationale, `WAITING`, model-tier
+  resolution and authoring rules moved to `skills/swarm-protocol/references/`, each reached by an explicit
+  `WHEN … → Read` trigger. Agent-specific rare material moved to `playbooks/<agent>/` (e.g.
+  `memory-orchestrator` claude-mem mirror, `memory-builder` pack format, `memory-curator` MEMORY.md trim).
+  No rule was dropped; generic Bash traps now live once in the protocol (§6bis).
+- `memory-builder` gains the `Edit` tool: the enrichment step now inserts into `.swarm/context-pack.md` with
+  `Edit` instead of `cat >> … <<EOF`, because the guard refuses `<` (heredocs) for every role. Its `Write`/`Edit`
+  scope is unchanged (`.swarm/context-pack.md`, `.swarm/index.md`).
+- Tests: a byte budget per role sits next to the line budget (`tests/structure.json`); documented ```bash
+  commands are checked line by line (a `\` continuation now fails, as it does in the real guard); on-demand
+  files may not contain the `CLAUDE_PLUGIN_ROOT` variable.
+
+### Security
+- `bash-guard`: `rg --hostname-bin` denied (ran any repo executable); read-only roles can no longer run
+  `npm audit fix`, switch registry/prefix/working dir (`--registry`, `--prefix`, `composer -d/--working-dir`)
+  or write reports (`phpmd --reportfile*`, `deptrac --output/-o`); `SWARM_ROOT=` must be a `.swarm` path
+  without `..` that already exists when absolute; `dev`/`development` are protected push targets; redirects
+  may not target `.git/` or `.claude/` (except `.claude/agent-memory/`); `node -r/--require/--import/--loader`,
+  `php -B/-R/-E` and `php -d auto_prepend_file|auto_append_file|extension|zend_extension` join INTERP_DENY,
+  now documented as advisory for writers (they can write a file and run it).
+
+### Fixed
+- `judgement.md` was cited by a repo-relative path that does not exist when the swarm runs in another
+  repo; agents now cite `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`.
+- `verifier` no longer claims the shell expands `${CLAUDE_PLUGIN_ROOT}` (the agent body is substituted at
+  load; the Bash environment has no such variable).
+- Memory agents' commands use the `<run>`/`<swarm-root>` placeholders instead of `$RUN` shell variables.
+- 45 documented commands used `\` line continuations the guard denies; joined to one line.
+- Stale cross-references after the split: `orchestrator` §4.4 wording, `delivery-orchestrator` §12.2bis path,
+  `abc123` literals in `git branch -D` examples, the objective-gate trigger for non-interactive runs, the
+  worktree-cleanup trigger, the root's model-tiers trigger, and `<plugin-root>` in `shell-and-guard.md`.
+
 ## 0.2.0
 
 ### Added

@@ -1,18 +1,17 @@
 # Review panel & judgement policy
+On demand from agents/review-orchestrator.md (read once at startup) and from SKILL.md §7bis — trigger: you launch, run inside, or call the review panel.
+Commands use <plugin-root>, <swarm-root>, <run> placeholders (protocol §1): substitute literally.
 
 Owned by `agents/review-orchestrator.md`. Shared contract for every caller of the panel
-(`design-orchestrator`, `implementation-orchestrator`, the root `orchestrator` for analysis
-verdicts). Model tiers and `scripts/model-resolve.sh` are defined in `SKILL.md`; this file only
+(`design-orchestrator`, `implementation-orchestrator`, the root `orchestrator` for analysis verdicts).
+Model tiers and `scripts/model-resolve.sh`: `references/model-tiers.md` (protocol §7bis); this file only
 says how the panel uses them.
 
 ## 1. Why a panel
 
-Measured on a real repo: the swarm was faster and cheaper than a plain workflow but scored 7.0 vs
-8.5 on blind quality, and its errors were veracity errors (a `jq -S` proposed over an unfiltered
-dump; a fact marked "unverified" that one command would have checked). Every stage that produces an
-artifact someone will act on (a plan, a diff, a report) is therefore reviewed by independent,
-single-objective lenses, filtered by a refuter, and scored by a blind judge. Veracity first, then
-quality, cost, speed.
+Every stage that produces an artifact someone will act on (a plan, a diff, a report) is reviewed by
+independent, single-objective lenses, filtered by a refuter, and scored by a blind judge — the swarm's
+measured errors were veracity errors. Veracity first, then quality, cost, speed.
 
 ## 2. Launch header (caller → `review-orchestrator`)
 

@@ -320,6 +320,18 @@ por instancia de agente (se reinicia con su siguiente veredicto) y lo rechaza si
 comandos internos de lectura y solo en contenedores listados, uno por línea, en el
 `.swarm/docker-containers` del repo.
 
+## 📚 Núcleo vs material bajo demanda
+
+Cada agente carga solo su fichero **núcleo** más el skill precargado `swarm-protocol` (ambos cortos:
+hoja ≤80 líneas, orquestador de dominio ≤150, raíz ≤250, `SKILL.md` ≤120). Lo que un agente solo necesita
+en ciertas situaciones vive en ficheros `.md` que lee con `Read` cuando se cumple una línea explícita
+`WHEN <condición> → Read <ruta>` de su núcleo: `skills/swarm-protocol/references/` (firmas de los scripts
+de memoria, reglas de comillas del guard, `WAITING`, resolución de tiers de modelo, reglas de autoría),
+`skills/swarm-protocol/judgement.md` (política del panel de revisión) y `playbooks/<agente>/` (playbooks
+propios de cada agente, nunca se cargan solos). Los núcleos escriben esas rutas con `${CLAUDE_PLUGIN_ROOT}`
+(se sustituye al cargar el agente); los ficheros bajo demanda usan el placeholder `<plugin-root>`, porque
+un fichero abierto con `Read` se devuelve tal cual.
+
 ## 🏷️ Convención de nombres
 
 Todo agente lanzado va **nombrado con su rol** — el basename de su tipo, sin sufijos ni variantes (`memory-orchestrator`, `analysis-orchestrator`, `pattern-advisor`, `dependency-installer`, y en el futuro `release-manager`…). Esto es lo que permite que agentes pares se manden `SendMessage` entre sí por nombre sin tener que descubrirlo antes, y que el owner se dirija a un agente concreto directamente — "avisa a `memory-builder` cuando termine" — sin que quien lo pide tenga que averiguar quién es. `memory-orchestrator` es el único caso obligatorio hoy: una única instancia nombrada por run.

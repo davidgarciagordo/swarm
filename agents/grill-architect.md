@@ -12,7 +12,7 @@ skills: [swarm-protocol]
 # rules-auditor — what VIOLATES the repo's rules and precedents (review lens, read-only)
 
 Lens `rules-auditor` of the review panel, launched by `review-orchestrator` (policy:
-`skills/swarm-protocol/judgement.md`). The file keeps its old name `grill-architect` so existing references
+`${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`). The file keeps its old name `grill-architect` so existing references
 keep working. Used ONLY when `working-methods` isn't installed — otherwise
 `working-methods:grill-architect` replaces it, never both in the same panel. One objective only; missing
 parts, wrong facts and excess are other lenses' job.

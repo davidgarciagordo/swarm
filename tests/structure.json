@@ -1,0 +1,66 @@
+{
+  "_doc": "Facts the structural test cannot derive from frontmatter. Roles: root = `root`; domain orchestrator = any other agent whose tools declare Agent(...); leaf = the rest.",
+  "root": "orchestrator",
+  "budgets": {
+    "leaf": 80,
+    "domain-orchestrator": 150,
+    "root": 250,
+    "always-loaded-skill": 120
+  },
+  "byte_budgets": {
+    "_doc": "Caps the line budget cannot see (very long lines). ~5% over the 0.2 slim sizes.",
+    "leaf": 7700,
+    "domain-orchestrator": 10200,
+    "root": 30000,
+    "always-loaded-skill": 10500
+  },
+  "always_loaded_skills": [
+    "swarm-protocol"
+  ],
+  "tiers": [
+    "judgement",
+    "standard",
+    "mechanical"
+  ],
+  "frontmatter_required": [
+    "name",
+    "description",
+    "model",
+    "tier",
+    "tools",
+    "maxTurns",
+    "memory",
+    "skills"
+  ],
+  "frontmatter_optional": [
+    "background",
+    "isolation"
+  ],
+  "unspawned_ok": {
+    "reviewer": "deprecated alias kept only so an old launch by name gets a BLOCKED redirect"
+  },
+  "external_children": [
+    "working-methods:grill-architect",
+    "working-methods:grill-operator",
+    "working-methods:grill-engineer"
+  ],
+  "allowed_cycles": [],
+  "no_sendmessage": {
+    "verifier": "called by root only, reports and stops",
+    "grill-architect": "review lens, receives its target in the prompt",
+    "grill-operator": "review lens",
+    "grill-engineer": "review lens",
+    "completeness-critic": "review lens",
+    "simplicity-critic": "review lens",
+    "blind-judge": "must not be able to ask anyone about the producer"
+  },
+  "model_names": [
+    "opus",
+    "sonnet",
+    "haiku",
+    "fable",
+    "gpt",
+    "gemini"
+  ],
+  "on_demand_trigger": "\\b(WHEN|BEFORE|AFTER|ONLY)\\b|⇒|(?i:policy:)|at startup"
+}

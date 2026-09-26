@@ -315,6 +315,17 @@ at 6 per agent instance (reset by its next verdict) and rejects it when it can't
 git's `--output`. `docker exec` is only in named allowlists, runs only read-only inner commands, and
 only into containers listed one per line in the repo's `.swarm/docker-containers`.
 
+## 📚 Core vs on-demand material
+
+Every agent loads only its **core** file plus the preloaded `swarm-protocol` skill (both kept short:
+leaf ≤80 lines, domain orchestrator ≤150, root ≤250, `SKILL.md` ≤120). Material an agent needs only in
+some situations lives in plain `.md` files it `Read`s when an explicit `WHEN <condition> → Read <path>`
+line in its core fires: `skills/swarm-protocol/references/` (memory-script signatures, the guard's
+quoting rules, `WAITING`, model-tier resolution, authoring rules), `skills/swarm-protocol/judgement.md`
+(review-panel policy) and `playbooks/<agent>/` (agent-specific playbooks, never auto-loaded). Core files
+spell those paths with `${CLAUDE_PLUGIN_ROOT}` (substituted when the agent loads); on-demand files use the
+`<plugin-root>` placeholder instead, because a file opened with `Read` is returned verbatim.
+
 ## 🏷️ Naming convention
 
 Every spawned agent is launched **named after its role** — the basename of its type, no suffixes or variants (`memory-orchestrator`, `analysis-orchestrator`, `pattern-advisor`, `dependency-installer`, and in the future `release-manager`…). This is what lets peer agents `SendMessage` each other by name without discovering it first, and lets the owner address a specific agent directly — "tell `memory-builder` when it's done" — without the caller having to look up who that is. `memory-orchestrator` is the one case that's mandatory today: a single named instance per run.
