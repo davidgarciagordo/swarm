@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/swarm-init.sh — /swarm:init: bootstrap de .swarm/ en el repo target (spec §4.6)
+# scripts/swarm-init.sh — /swarm:init: bootstraps .swarm/ in the target repo (spec §4.6)
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -41,16 +41,16 @@ for entry in .swarm/context-pack.md .swarm/index.md .swarm/findings/ .swarm/run/
 done
 
 if ! "$SCRIPT_DIR/mem-files.sh" health >/dev/null 2>&1; then
-  echo "swarm: init — backend 'files' health check falló, abortando" >&2
+  echo "swarm: init — backend 'files' health check failed, aborting" >&2
   exit 1
 fi
 
 if [ -z "${CLAUDE_MEM_AVAILABLE:-}" ]; then
-  echo "swarm: init — aviso: claude-mem no confirmado disponible (best-effort, no bloquea)" >&2
+  echo "swarm: init — warning: claude-mem not confirmed available (best-effort, non-blocking)" >&2
 fi
 
-echo "swarm: init completo"
-echo "  .swarm/memory.json      backend 'files' requerido (ok) + 'claude-mem' best-effort"
-echo "  .swarm/decisions.md     esqueleto creado"
-echo "  .gitignore              bloque swarm añadido/idempotente"
+echo "swarm: init complete"
+echo "  .swarm/memory.json      backend 'files' required (ok) + 'claude-mem' best-effort"
+echo "  .swarm/decisions.md     skeleton created"
+echo "  .gitignore              swarm block added (idempotent)"
 exit 0

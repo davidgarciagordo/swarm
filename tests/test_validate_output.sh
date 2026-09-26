@@ -188,7 +188,7 @@ assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1
 for i in 1 2 3 4 5 6; do vo swarm:waiting-staller "$(printf 'WAITING 1\npending: slow-leaf')" >/dev/null; done
 out="$(vo swarm:waiting-staller "$(printf 'WAITING 1\npending: slow-leaf')")"
 assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "WAITING past the cap is blocked (cannot stall forever)"
-assert_eq "0" "$(echo "$out" | grep -qF 'emite un veredicto' && echo 0 || echo 1)" "cap rejection tells the agent to emit a verdict"
+assert_eq "0" "$(echo "$out" | grep -qF 'emit a verdict' && echo 0 || echo 1)" "cap rejection tells the agent to emit a verdict"
 # the cap is per agent INSTANCE (agent_id): a parallel/round-2 instance has its own budget
 for i in 1 2 3 4 5 6; do vo swarm:waiting-inst "$(printf 'WAITING 1\npending: slow-leaf')" id-a >/dev/null; done
 out="$(vo swarm:waiting-inst "$(printf 'WAITING 1\npending: slow-leaf')" id-b)"

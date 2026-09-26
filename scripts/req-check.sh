@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/req-check.sh — verificación determinista de requirements.json (env-checker, spec §7)
+# scripts/req-check.sh — deterministic check of requirements.json (env-checker, spec §7)
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -160,15 +160,15 @@ def load(path):
         with open(path) as fh:
             data = json.load(fh)
     except (ValueError, OSError) as exc:
-        sys.stderr.write("req-check.sh: %s no es JSON valido: %s\n" % (path, exc))
+        sys.stderr.write("req-check.sh: %s is not valid JSON: %s\n" % (path, exc))
         sys.exit(64)
     if not isinstance(data, dict):
-        sys.stderr.write("req-check.sh: %s no es un objeto JSON\n" % path)
+        sys.stderr.write("req-check.sh: %s is not a JSON object\n" % path)
         sys.exit(64)
     for key in ("os", "project", "libs"):
         value = data.get(key, [])
         if not isinstance(value, list):
-            sys.stderr.write("req-check.sh: %s: '%s' debe ser una lista\n" % (path, key))
+            sys.stderr.write("req-check.sh: %s: '%s' must be a list\n" % (path, key))
             sys.exit(64)
         data[key] = value
     return data
@@ -178,7 +178,7 @@ IDENTITY = {"os": "tool", "project": "file", "libs": "name"}
 
 
 def merge(base, pack):
-    """Concatena os/project/libs; ante la misma clave de identidad, gana el PACK (spec §7)."""
+    """Concatenates os/project/libs; on the same identity key, the PACK wins (spec §7)."""
     out = {}
     for key, id_field in IDENTITY.items():
         merged = []
@@ -189,7 +189,7 @@ def merge(base, pack):
             merged.append(item)
         for item in base.get(key, []):
             if isinstance(item, dict) and item.get(id_field) in pack_ids:
-                continue          # la entrada del pack ya la cubre
+                continue          # the pack entry already covers it
             merged.append(item)
         out[key] = merged
     return out
@@ -219,7 +219,7 @@ def install_hint(item):
         parts.append("apt install %s" % apt)
     if parts:
         return " / ".join(parts)
-    return "sin hint de instalacion en requirements.json"
+    return "no install hint in requirements.json"
 
 
 def version_tuple(text):
@@ -238,9 +238,9 @@ def check_os_item(item):
         return required, tool, install_hint(item)
     min_version = item.get("min")
     if min_version:
-        # Best-effort: una tool sin flag de version fiable, o una salida que no
-        # podemos parsear, se trata como presente-y-version-desconocida — nunca
-        # es un fallo duro (YAGNI: no se construye un parser de versiones robusto).
+        # Best-effort: a tool without a reliable version flag, or output we cannot
+        # parse, is treated as present-with-unknown-version — never a hard failure
+        # (YAGNI: no robust version parser is built).
         try:
             out = subprocess.run(
                 [tool, "--version"], capture_output=True, text=True, timeout=5
@@ -268,17 +268,17 @@ for item in data.get("project", []):
     path = item.get("file")
     required = bool(item.get("required"))
     if not os.path.isfile(os.path.join(root, path)):
-        entry = {"tool": path, "hint": "fichero de proyecto ausente"}
+        entry = {"tool": path, "hint": "project file missing"}
         (missing_required if required else missing_optional).append(entry)
 
-# libs: la verificacion real contra un gestor de paquetes es responsabilidad de
-# `dependency-auditor` (comandos del pack: scan-deps/outdated), no de este script. Aqui cada
-# entrada se reporta como no bloqueante para que el health-gate nunca falle por una libreria.
+# libs: the real check against a package manager is `dependency-auditor`'s job (pack commands
+# scan-deps/outdated), not this script's. Here each entry is reported as non-blocking so the
+# health-gate never fails because of a library.
 for item in data.get("libs", []):
     checked += 1
     missing_optional.append({
         "tool": item.get("name"),
-        "hint": "sin verificar aqui - lo audita dependency-auditor",
+        "hint": "not checked here - audited by dependency-auditor",
     })
 
 ok = len(missing_required) == 0

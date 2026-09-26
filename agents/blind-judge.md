@@ -11,7 +11,7 @@ skills: [swarm-protocol]
 
 # blind-judge — score the artifact, blind to its producer (read-only)
 
-Leaf of `review-orchestrator` (policy reference: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md` §5-§6; your rules are below — ONLY if unclear Read its lines 67-94). You judge the
+Leaf of `review-orchestrator` (policy reference: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md` §5-§6; your rules are below — ONLY if unclear Read its lines 70-97). You judge the
 ARTIFACT against the OBJECTIVE — nothing else. You are deliberately blind: your header never names
 the producer, its model, its reasoning or its self-assessment, and you have no `SendMessage` to ask.
 If any of that appears in your prompt anyway, ignore it and add `- warn: producer info leaked into

@@ -161,7 +161,7 @@ for flt in agents_pool + tags_pool:
     S.check(rc == 0 and len(got) == expect_n, 'swarm-findings %s lists exactly its %d open findings, capped at %d (got %d)'
             % (flt, len(want), FIND_CAP, len(got)))
     if len(want) > FIND_CAP:
-        S.check(any('… y %d más' % (len(want) - FIND_CAP) in ln for ln in out.splitlines()),
+        S.check(any('… and %d more' % (len(want) - FIND_CAP) in ln for ln in out.splitlines()),
                 'swarm-findings %s: truncation marker names the remaining count' % flt)
 for _ in range(N // 3):
     bad = word(1, 3) + R.choice([' ', ';', '$', '`', '|', '/', '.', '*', '(', "'", '"', '\\', '\n', '..']) + word(0, 3)

@@ -44,7 +44,7 @@ assert_eq "0" "$(echo "$out" | grep -q '2026-09-03T10:00:00Z' && echo 0 || echo 
 assert_eq "0" "$(echo "$out" | grep -q 'release-manager' && echo 0 || echo 1)" "lists the registered agents"
 assert_eq "0" "$(echo "$out" | grep -q 'delivery' && echo 0 || echo 1)" "lists each agent's domain"
 assert_eq "0" "$(echo "$out" | grep -q 'fase implementada' && echo 0 || echo 1)" "echoes the run summary lines"
-assert_eq "0" "$(echo "$out" | grep -qE 'abiertos?: *1' && echo 0 || echo 1)" "counts ONLY open findings (1 of 2)"
+assert_eq "0" "$(echo "$out" | grep -qE 'open findings: *1' && echo 0 || echo 1)" "counts ONLY open findings (1 of 2)"
 
 # 2b. puntuaciones del panel (judgements.jsonl) → se muestran
 echo '{"run":"RUN1","stage":"design","artifact_type":"plan","score":8,"verdict":"OK","lenses":"fact-checker","model":"opus"}' > "$root/.swarm/judgements.jsonl"
@@ -62,13 +62,13 @@ mkdir -p "$root2/.swarm"
 out="$(SWARM_ROOT="$root2/.swarm" bash "$SCRIPT" 2>&1)"; rc=$?
 rm -rf "$root2"
 assert_eq "0" "$rc" "exits 0 on an initialised but never-run .swarm/"
-assert_eq "0" "$(echo "$out" | grep -q 'sin runs' && echo 0 || echo 1)" "says plainly that there are no runs yet"
+assert_eq "0" "$(echo "$out" | grep -q 'no runs' && echo 0 || echo 1)" "says plainly that there are no runs yet"
 
 # 4. run.json presente pero malformado → exit 2 (el residual del ruling 12), NUNCA un "tier: ?" mudo
 printf '%s' '{"id": "RUN1", "tier":' > "$root/.swarm/run/RUN1/run.json"
 out="$(SWARM_ROOT="$root/.swarm" bash "$SCRIPT" 2>&1)"; rc=$?
 assert_eq "2" "$rc" "exits 2 when run.json exists but cannot be parsed"
-assert_eq "0" "$(echo "$out" | grep -q 'no interpretable' && echo 0 || echo 1)" "and says which file it could not read"
+assert_eq "0" "$(echo "$out" | grep -q 'unparseable' && echo 0 || echo 1)" "and says which file it could not read"
 assert_eq "0" "$(echo "$out" | grep -q 'RUN1' && echo 0 || echo 1)" "while still printing everything it COULD read"
 
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi

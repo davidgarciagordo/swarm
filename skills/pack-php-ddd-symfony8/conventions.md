@@ -4,6 +4,9 @@ Conventions for a PHP repo with tactical DDD on Symfony 8. Examples use fictiona
 (`Billing`, `Invoice`, `Order`) — replace them with the real repo's, already available in
 `.swarm/context-pack.md`.
 
+Contents: Layout (`Domain/`, `Application/`, `Infrastructure/`) · Naming · Tests · Style ·
+PHP extensions this stack assumes
+
 ## Layout: context → aggregate → layer
 
 ```

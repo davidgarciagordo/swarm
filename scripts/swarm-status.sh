@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# scripts/swarm-status.sh — /swarm:status (spec §11): run actual, tier, agentes registrados,
-# líneas de summary, hallazgos abiertos y runs recientes. Determinista: ni un turno de modelo.
+# scripts/swarm-status.sh — /swarm:status (spec §11): current run, tier, registered agents,
+# summary lines, open findings and recent runs. Deterministic: not a single model turn.
 #
-# Contrato de salida (ruling 12): 0 = normal · 1 = no hay .swarm/ · 2 = hay datos que este script NO
-# puede interpretar de forma determinista (imprime todo lo que sí pudo, más una línea
-# "no interpretable: …" por caso). El 2 es lo que activa el fallback acotado de commands/status.md.
-# Nunca se degrada en silencio a "tier: ?": un dato ilegible se DICE.
+# Exit contract (ruling 12): 0 = normal · 1 = no .swarm/ · 2 = there is data this script CANNOT
+# parse deterministically (it prints everything it could, plus one "unparseable: …" line per
+# case). 2 is what triggers the bounded fallback in commands/status.md.
+# It never degrades silently to "tier: ?": unreadable data is SAID.
 set -u
 
 SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"
 degraded=0
 
 if [ ! -d "$SWARM_ROOT" ]; then
-  echo "swarm: no hay .swarm/ en $SWARM_ROOT — corre /swarm:init en este repo primero" >&2
+  echo "swarm: no .swarm/ in $SWARM_ROOT — run /swarm:init in this repo first" >&2
   exit 1
 fi
 
@@ -21,7 +21,7 @@ current=""
 [ -f "$RUN_ROOT/current" ] && current="$(cat "$RUN_ROOT/current" 2>/dev/null)"
 
 if [ -z "$current" ] || [ ! -d "$RUN_ROOT/$current" ]; then
-  echo "swarm: sin runs registrados todavía (.swarm/ inicializado, ningún /swarm:run cerrado)"
+  echo "swarm: no runs recorded yet (.swarm/ initialised, no /swarm:run closed)"
 else
   python3 - "$RUN_ROOT/$current" "$current" <<'PYEOF'
 import json, os, sys
@@ -38,13 +38,13 @@ if os.path.isfile(run_json):
         tier = data.get("tier", "?")
         started = data.get("started", "?")
     except (ValueError, OSError) as exc:
-        # Antes esto era un `pass` y el usuario veía "tier: ?" sin saber por qué. Un run.json
-        # truncado (run interrumpido a mitad de escritura) o de otra versión del plugin es
-        # justamente el residual que un script no puede resolver y un lector sí.
-        print("no interpretable: %s (%s)" % (run_json, exc))
+        # A truncated run.json (a run interrupted mid-write) or one from another plugin version
+        # is exactly the residual a script cannot resolve and a reader can: say it, never
+        # show a silent "tier: ?".
+        print("unparseable: %s (%s)" % (run_json, exc))
         degraded = True
 
-print("run: %s · tier: %s · iniciado: %s" % (run_id, tier, started))
+print("run: %s · tier: %s · started: %s" % (run_id, tier, started))
 
 agents_dir = os.path.join(run_dir, "agents")
 rows = []
@@ -58,19 +58,19 @@ if os.path.isdir(agents_dir):
         except (ValueError, OSError):
             continue
         rows.append((a.get("domain", "?"), a.get("agent", name[:-5]), a.get("owner", "?")))
-print("agentes registrados: %d" % len(rows))
+print("registered agents: %d" % len(rows))
 for domain, agent, owner in sorted(rows):
-    print("  - %-14s %s (lanzado por %s)" % (domain, agent, owner))
+    print("  - %-14s %s (launched by %s)" % (domain, agent, owner))
 
 summary = os.path.join(run_dir, "summary.md")
 if os.path.isfile(summary):
     with open(summary) as fh:
         lines = [l.rstrip("\n") for l in fh if l.strip()]
-    print("summary del run (%d líneas):" % len(lines))
+    print("run summary (%d lines):" % len(lines))
     for l in lines:
         print("  %s" % l)
 else:
-    print("summary del run: (todavía sin líneas)")
+    print("run summary: (no lines yet)")
 
 if degraded:
     sys.exit(2)
@@ -97,9 +97,9 @@ if os.path.isdir(findings_dir):
             for line in fh:
                 m = re.search(r"\[key:([^|\]]+)\|([^|\]]+)\|", line)
                 if not m:
-                    # una línea que EMPIEZA como una entrada pero no trae la cabecera de metadatos
-                    # (fichero editado a mano, o entrada de una versión futura): el conteo saldría
-                    # bajo y nadie se enteraría. Se dice.
+                    # a line that STARTS like an entry but has no metadata header (a hand-edited
+                    # file, or an entry from a future version): the count would come out low and
+                    # nobody would notice. Say it.
                     if line.startswith("- ["):
                         bad += 1
                     continue
@@ -111,9 +111,9 @@ if os.path.isdir(findings_dir):
         if bad:
             unparsed.append((name, bad))
 for name, bad in unparsed:
-    print("no interpretable: %d entradas de findings/%s sin cabecera [key:…]" % (bad, name))
+    print("unparseable: %d entries in findings/%s without a [key:…] header" % (bad, name))
 by_tag = ", ".join("%s: %d" % (t, n) for t, n in sorted(open_by_tag.items())) or "—"
-print("hallazgos abiertos: %d (%s)" % (total_open, by_tag))
+print("open findings: %d (%s)" % (total_open, by_tag))
 for agent, n in sorted(open_by_agent.items()):
     print("  - %-22s %d" % (agent, n))
 
@@ -133,7 +133,7 @@ if os.path.isdir(run_root):
             continue
         recents.append((data.get("started", ""), name, data.get("tier", "?")))
 recents.sort(reverse=True)
-print("runs recientes: %d" % len(recents))
+print("recent runs: %d" % len(recents))
 for started, name, tier in recents[:5]:
     print("  - %s (%s, %s)" % (name, tier, started))
 
@@ -151,9 +151,9 @@ if os.path.isfile(judgements):
             except (ValueError, KeyError, TypeError):
                 bad_j += 1
     if bad_j:
-        print("no interpretable: %d líneas de judgements.jsonl" % bad_j)
+        print("unparseable: %d lines of judgements.jsonl" % bad_j)
         unparsed.append(("judgements.jsonl", bad_j))
-    print("veredictos del panel: %d" % len(scores))
+    print("panel verdicts: %d" % len(scores))
     for run, stage, atype, score, verdict in scores[-5:]:
         print("  - %s %s/%s score=%d %s" % (run, stage, atype, score, verdict))
 

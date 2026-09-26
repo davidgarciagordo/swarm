@@ -1,6 +1,7 @@
 ---
 name: pack-php-ddd-symfony8
 description: Stack pack for PHP + DDD + Symfony 8 repositories — detection marker, canonical tool commands, layering and naming conventions, untouchable boundaries, and in-use precedents. Read by swarm leaves when .swarm/context-pack.md declares stack php-ddd-symfony8.
+user-invocable: false
 ---
 
 # pack-php-ddd-symfony8

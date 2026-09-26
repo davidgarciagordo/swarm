@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""hooks/validate-output.py — SubagentStop hook: valida el contrato de evidencia swarm (spec §6.1).
+"""hooks/validate-output.py — SubagentStop hook: validates the swarm evidence contract (spec §6.1).
 
-Contrato de stdin (JSON, campo real de la plataforma — verificado empíricamente, ver C1):
-  {"agent_type": "swarm:<name>", "last_assistant_message": "<texto completo del subagente>"}
+stdin contract (JSON, the platform's real field — verified empirically, see C1):
+  {"agent_type": "swarm:<name>", "last_assistant_message": "<the subagent's full text>"}
 
-Comportamiento:
-  - agent_type que no empieza por "swarm:" -> exit 0, sin salida (no es de nuestra incumbencia).
-  - línea 1 debe ser un veredicto: OK | KO <motivo> | DONE | BLOCKED <motivo>.
-  - línea 2 debe ser `evidence: files=N cmds=M turns=k/max` (tolerante a espacios).
-  - OK con files=0 se rechaza (verdicto verde sin evidencia real).
-  - narración (prosa larga en vez del formato de hallazgo) se rechaza.
-  - si turns >= max: NO es un bloqueo; se emite un systemMessage y se sale con 0.
-  - stop_hook_active=true (la plataforma ya está reintentando este mismo Stop) -> exit 0, no
-    volvemos a evaluar nada (evita amplificar el propio bloqueo del hook en un bucle).
-  - un rechazo se reintenta como máximo una vez (contador en
-    run/<run>/retries/<agente>-<hash(motivo)>, es decir por agente + motivo concreto de
-    fallo -- dos motivos distintos del mismo agente son cada uno una "primera falta"); al
-    SEGUNDO rechazo por el MISMO motivo del mismo agente en el mismo run, se acepta como
-    BLOCKED (con systemMessage) en vez de rechazar de nuevo -- nunca bucle infinito.
+Behaviour:
+  - agent_type not starting with "swarm:" -> exit 0, no output (not our business).
+  - line 1 must be a verdict: OK | KO <reason> | DONE | BLOCKED <reason>.
+  - line 2 must be `evidence: files=N cmds=M turns=k/max` (whitespace-tolerant).
+  - OK with files=0 is rejected (a green verdict with no real evidence).
+  - narration (long prose instead of the finding format) is rejected.
+  - if turns >= max: NOT a block; a systemMessage is emitted and the hook exits 0.
+  - stop_hook_active=true (the platform is already retrying this same Stop) -> exit 0, nothing
+    is re-evaluated (avoids amplifying the hook's own block into a loop).
+  - a rejection is retried at most once (counter in
+    run/<run>/retries/<agent>-<hash(reason)>, i.e. per agent + concrete failure reason
+    -- two different reasons from the same agent are each a "first strike"); on the
+    SECOND rejection for the SAME reason from the same agent in the same run, it is accepted as
+    BLOCKED (with a systemMessage) instead of rejecting again -- never an infinite loop.
 
 WAITING status (live async children -- the hook must NOT force a verdict):
   An agent that launched `background: true` children and ends a turn BEFORE they report is not
@@ -61,50 +61,44 @@ PENDING_RE = re.compile(r'^pending:\s*(.+)$')
 CHILD_NAME_RE = re.compile(r'^[a-z][a-z0-9-]*$')
 WAITING_CAP = 6
 
-# Formato de batch de discovery-orchestrator (spec §7, agents/discovery-orchestrator.md
-# "## Salida"): una pregunta con hasta 4 opciones (≤8 palabras cada una) más recomendación
-# supera con normalidad los 120 chars del cap de narración — confirmado en vivo con líneas
-# reales de 184-212 chars, que el cap uniforme rechazaba como "narración detectada" (C1 de la
-# review final de fase 2, 2026-09-02). Estructuralmente NO es prosa suelta: es un formato fijo
-# y parseable (cabecera + pregunta + opciones A-D + rec), así que se exime del cap por FORMA,
-# no por venir con un "- " delante — cualquier otra línea "- " sigue sujeta a los 120 (ese era
-# el bug real original: narración colándose sin ningún tope).
+# discovery-orchestrator batch format (spec §7, agents/discovery-orchestrator.md "## Output"):
+# a question with up to 4 options (<=8 words each) plus a recommendation routinely exceeds the
+# 120-char narration cap — real lines run 184-212 chars. Structurally it is NOT loose prose: it is
+# a fixed, parseable format (header + question + options A-D + rec), so it is exempt from the cap
+# by SHAPE, never merely for starting with "- " — any other "- " line stays subject to the 120
+# (that was the original bug: narration slipping through with no cap at all).
 DISCOVERY_Q_RE = re.compile(r'^- Q\d+ \[[^\]]{1,12}\] .+ · [A-D]\) .+ · rec: [A-D]$')
-# DISCOVERY_OTHER_RE también cubre el vocabulario fijo de analysis-orchestrator (spec §7
-# "Análisis", agents/analysis-orchestrator.md "## Salida"): `- lentes: <n1>, <n2>, ..., motivo:
-# <objetivo casó con "...">` enumera hasta 6 lentes con nombres largos (`vulnerability-scanner`,
-# `architecture-auditor`...) y supera con normalidad los 120 chars cuando casan varias — mismo
-# bug de fondo que C1, confirmado en vivo con líneas de hasta 174 chars. `- sin hallazgos: <hoja>
-# no encontró...` (OK con cero hallazgos) es corta por construcción, pero es el mismo vocabulario
-# fijo por FORMA, no por "- " — se incluye aquí por localidad. `- grill: N P1 incorporados (...),
-# M P2/P3 anotados como riesgo en el plan` es el vocabulario fijo de design-orchestrator (spec §7
-# "Diseño", agents/design-orchestrator.md "## Salida", sección "Arbitraje") — mismo bug de fondo
-# otra vez: una línea real con el resumen del arbitraje (qué P1 se incorporaron, entre paréntesis)
-# supera con normalidad los 120 chars (review final de fase 4, finding Important #1).
-# English vocabulary (the agents were translated) is accepted alongside the original Spanish one:
+# DISCOVERY_OTHER_RE also covers analysis-orchestrator's fixed vocabulary (spec §7 "Analysis",
+# agents/analysis-orchestrator.md "## Output"): `- lenses: <n1>, <n2>, ..., reason: <...>` lists up
+# to 6 lenses with long names (`vulnerability-scanner`, `architecture-auditor`...) and routinely
+# exceeds 120 chars when several match (real lines up to 174 chars). `- no findings: <leaf> ...`
+# (OK with zero findings) is short by construction but is the same fixed vocabulary, exempt by
+# SHAPE, not by "- " — included here for locality. `- grill: N P1 incorporated (...), M P2/P3
+# noted as risk in the plan` is design-orchestrator's fixed vocabulary (spec §7 "Design",
+# agents/design-orchestrator.md "## Output", "Arbitration") — a real arbitration summary line
+# (which P1s were incorporated, in parentheses) routinely exceeds 120 chars too.
+# The legacy Spanish vocabulary (`lentes`, `sin hallazgos`) is still accepted alongside English:
 # `- lenses:`/`- no findings:` were being rejected as narration once longer than 120 chars.
 # `- assumed:` (non-interactive runs) and `- review:` (review panel verdict) are root vocabulary.
 DISCOVERY_OTHER_RE = re.compile(
     r'^- (warn|findings|lentes|lenses|sin hallazgos|no findings|grill|assumed|review): .+$'
 )
-# Las otras dos líneas fijas de analysis-orchestrator llevan un prefijo DINÁMICO (el número de
-# hallazgos truncados, el nombre de la hoja) y no caben en el `(a|b|c):` de arriba, así que van en
-# regexes aparte, cada una anclada a su forma exacta documentada en "## Espera y fusión" puntos 3
-# y 4 de agents/analysis-orchestrator.md — siguen siendo exenciones por FORMA, no por "- ":
-# `- N hallazgos adicionales en .swarm/findings/<hoja>.md` (cap de 20 líneas fusionadas) y
-# `- <hoja> BLOCKED: <motivo>` (hoja bloqueada, propagada sin descartar).
+# analysis-orchestrator's other two fixed lines carry a DYNAMIC prefix (the number of truncated
+# findings, the leaf name) and do not fit the `(a|b|c):` above, so each gets its own regex anchored
+# to the exact shape documented in agents/analysis-orchestrator.md — still exemptions by SHAPE,
+# not by "- ": `- N additional findings in .swarm/findings/<leaf>.md` (20 merged lines cap) and
+# `- <leaf> BLOCKED: <reason>` (a blocked leaf, propagated rather than dropped).
 ANALYSIS_ADDITIONAL_RE = re.compile(
     r'^- \d+ (?:hallazgos adicionales en|additional findings in) \.swarm/findings/\S+\.md$'
 )
 ANALYSIS_LEAF_BLOCKED_RE = re.compile(r'^- [a-z][a-z0-9-]* BLOCKED: .+$')
 
-# Vocabulario fijo del dominio delivery (spec §7 "Entrega", agents/release-manager.md y
-# agents/delivery-orchestrator.md "## Salida"): las líneas de preview y de degradación de PR
-# llevan un COMANDO COMPLETO con valores ya resueltos (`gh pr create --base … --body-file
-# /abs/…/release-notes.md`) y pasan de 120 chars con total normalidad. Mismo bug de fondo que C1
-# de fase 2 y que el Important #1 de fase 4, tercera aparición. Exención por FORMA (prefijo fijo
-# del vocabulario + resto), NUNCA por venir con un "- " delante: cualquier otra línea "- " sigue
-# sujeta al cap de 120.
+# Delivery domain fixed vocabulary (spec §7 "Delivery", agents/release-manager.md and
+# agents/delivery-orchestrator.md "## Output"): the preview and PR-degradation lines carry a FULL
+# COMMAND with resolved values (`gh pr create --base … --body-file /abs/…/release-notes.md`) and
+# routinely exceed 120 chars. Exempt by SHAPE (fixed vocabulary prefix + rest), NEVER merely for
+# starting with "- ": any other "- " line stays subject to the 120 cap. Legacy Spanish prefixes
+# are still accepted.
 DELIVERY_LONG_RE = re.compile(
     r'^- (preview push|preview pr|pr|pr manual|pr comando|notas|handoff|pushed|remote'
     r'|remoto propuesto|remoto creado|cuenta gh|hint|siguiente|discrepancia'
@@ -114,13 +108,13 @@ DELIVERY_LONG_RE = re.compile(
 
 
 def _repo_root():
-    """Raíz real del repo, NO el cwd del hook.
+    """The repo's real root, NOT the hook's cwd.
 
-    El hook corre en el cwd de la SESIÓN: si el usuario abrió Claude Code desde un
-    subdirectorio (`packages/api` en un monorepo), `os.getcwd()` apunta al sitio equivocado —
-    y el `cd "$(git rev-parse --show-toplevel)"` que hace el orquestador dentro de SUS llamadas
-    a Bash no cambia el cwd de ESTE proceso. Misma técnica que el orquestador (agents/
-    orchestrator.md §2.0). Si no es un repo git, se cae al cwd como antes.
+    The hook runs in the SESSION's cwd: if the user opened Claude Code from a subdirectory
+    (`packages/api` in a monorepo), `os.getcwd()` points to the wrong place — and the
+    `cd "$(git rev-parse --show-toplevel)"` the orchestrator does inside ITS Bash calls does not
+    change THIS process's cwd. Same technique as the orchestrator (agents/orchestrator.md §2.0).
+    Outside a git repo it falls back to the cwd.
     """
     try:
         out = subprocess.check_output(
@@ -172,14 +166,14 @@ def _retry_count(swarm_root, run_id, retry_key):
 
 
 def _bump_retry(swarm_root, path, retries_dir, count):
-    # Un hook NUNCA origina un `.swarm/`: solo `/swarm:init` crea ese árbol. Si la raíz
-    # resuelta no existe, el contador de reintentos se pierde (el rechazo se emite igual)
-    # antes que sembrar un `.swarm/` fantasma en un directorio equivocado.
+    # A hook NEVER creates a `.swarm/`: only `/swarm:init` creates that tree. If the resolved
+    # root does not exist, the retry counter is lost (the rejection is still emitted) rather
+    # than seeding a phantom `.swarm/` in the wrong directory.
     if not os.path.isdir(swarm_root):
         return
-    # El contador es best-effort: si el directorio de retries no es escribible (permisos,
-    # carrera con otro proceso), el rechazo se emite igual — un fallo aquí no debe tumbar
-    # el hook entero (que la plataforma trataría como fail-open, dejando pasar cualquier cosa).
+    # The counter is best-effort: if the retries directory is not writable (permissions, a race
+    # with another process), the rejection is still emitted — a failure here must not crash the
+    # whole hook (the platform would treat that as fail-open and let anything through).
     try:
         os.makedirs(retries_dir, exist_ok=True)
         with open(path, 'w') as f:
@@ -192,10 +186,10 @@ def _waiting_reason(lines):
     """None if `lines` is a well-formed WAITING status, else the rejection reason."""
     n = int(WAITING_RE.match(lines[0].strip()).group(1))
     if n < 1:
-        return 'WAITING <n> exige n >= 1 (sin hijos vivos, emite un veredicto)'
+        return 'WAITING <n> requires n >= 1 (no live children: emit a verdict)'
     pending = PENDING_RE.match(lines[1].strip()) if len(lines) >= 2 else None
     if not pending:
-        return 'WAITING <n> exige la línea 2 `pending: <hijo>, ...` con los n hijos vivos'
+        return 'WAITING <n> requires line 2 `pending: <child>, ...` naming the n live children'
     names = [x.strip() for x in pending.group(1).split(',') if x.strip()]
     if len(set(names)) != n or len(names) != n or not all(CHILD_NAME_RE.match(x) for x in names):
         return 'WAITING %d exige exactamente %d nombres de hijo distintos en `pending:`' % (n, n)
@@ -254,10 +248,9 @@ def main():
     except (json.JSONDecodeError, ValueError):
         sys.exit(0)
 
-    # La plataforma reinvoca este hook cuando SU PROPIO bloqueo anterior ya disparó un
-    # reintento (campo estándar de los hooks Stop/SubagentStop) — si no lo respetamos podemos
-    # amplificar el propio bloqueo del hook en un bucle, por encima del contador de reintentos
-    # que llevamos nosotros mismos más abajo.
+    # The platform re-invokes this hook when ITS OWN previous block already triggered a retry
+    # (standard field of Stop/SubagentStop hooks) — ignoring it could amplify the hook's own block
+    # into a loop, on top of the retry counter kept further down.
     if data.get('stop_hook_active') is True:
         sys.exit(0)
 
@@ -288,19 +281,19 @@ def main():
         reason = _waiting_reason(lines)
         if reason is None:
             if waited >= WAITING_CAP:
-                reason = ('WAITING repetido %d veces: emite un veredicto con lo que tengas' % WAITING_CAP)
+                reason = ('WAITING repeated %d times: emit a verdict with what you have' % WAITING_CAP)
             elif _bump_waiting(swarm_root, waiting_path, waited):
                 sys.exit(0)
             else:
-                reason = 'WAITING sin contador posible (no hay .swarm/ escribible): emite un veredicto'
+                reason = 'WAITING cannot be counted (no writable .swarm/): emit a verdict'
     elif not VERDICT_RE.match(verdict_line):
-        reason = 'línea 1 debe ser un veredicto: OK | KO <motivo> | DONE | BLOCKED <motivo>'
+        reason = 'line 1 must be a verdict: OK | KO <reason> | DONE | BLOCKED <reason>'
 
     evidence_match = None
     if reason is None:
         evidence_match = EVIDENCE_RE.match(evidence_line)
         if not evidence_match:
-            reason = 'línea 2 obligatoria: evidence: files=N cmds=M turns=k/max'
+            reason = 'line 2 is required: evidence: files=N cmds=M turns=k/max'
 
     turns_k = turns_max = None
     if reason is None:
@@ -309,7 +302,7 @@ def main():
         turns_max = int(evidence_match.group(4))
 
         if verdict_line == 'OK' and files_n == 0:
-            reason = 'OK con files=0 — verdict verde sin evidencia real'
+            reason = 'OK with files=0 — a green verdict with no real evidence'
 
         if reason is None:
             for line in lines[2:]:
@@ -318,10 +311,9 @@ def main():
                     continue
                 if FINDING_RE.match(stripped):
                     continue
-                # Formato de batch de discovery-orchestrator y de analysis-orchestrator: exentos
-                # del cap de longitud por FORMA (regex estructural), nunca solo por empezar con
-                # "- " — ver comentarios junto a DISCOVERY_Q_RE / DISCOVERY_OTHER_RE /
-                # ANALYSIS_ADDITIONAL_RE / ANALYSIS_LEAF_BLOCKED_RE arriba.
+                # discovery/analysis/delivery fixed formats: exempt from the length cap by SHAPE
+                # (structural regex), never merely for starting with "- " — see the comments on
+                # DISCOVERY_Q_RE / DISCOVERY_OTHER_RE / ANALYSIS_*_RE / DELIVERY_LONG_RE above.
                 if (
                     DISCOVERY_Q_RE.match(stripped)
                     or DISCOVERY_OTHER_RE.match(stripped)
@@ -330,20 +322,20 @@ def main():
                     or DELIVERY_LONG_RE.match(stripped)
                 ):
                     continue
-                # Cualquier OTRA línea "- " (no reconocida por el formato de batch) sigue
-                # sujeta al tope: sin esto, prosa cualquiera se cuela con solo anteponerle
-                # "- " (bug real, sin tope alguno, ya arreglado antes — no reabrirlo).
+                # Any OTHER "- " line (not a recognised fixed format) stays subject to the cap:
+                # without this, any prose slips through just by prefixing "- " (a real bug,
+                # fixed before — do not reopen it).
                 if stripped.startswith('- ') and len(stripped) <= MAX_FINDING_LINE_LEN:
                     continue
                 if len(stripped) > MAX_FINDING_LINE_LEN:
-                    reason = 'narración detectada fuera del formato TAG · file:línea · problema → fix'
+                    reason = 'narration detected outside the format TAG · file:line · problem → fix'
                     break
 
     if reason is None:
         _reset_waiting(waiting_path)
         if turns_k is not None and turns_max and turns_k >= turns_max:
             _system_message(
-                'swarm: %s alcanzó maxTurns → tratar como BLOCKED maxTurns' % agent_type
+                'swarm: %s reached maxTurns → treat as BLOCKED maxTurns' % agent_type
             )
         sys.exit(0)
 
@@ -352,7 +344,7 @@ def main():
 
     if retry_count >= 1:
         _system_message(
-            'swarm: %s falló la validación dos veces (%s) → aceptado como BLOCKED' % (agent_type, reason)
+            'swarm: %s failed validation twice (%s) → accepted as BLOCKED' % (agent_type, reason)
         )
 
     _bump_retry(swarm_root, retry_path, retries_dir, retry_count)

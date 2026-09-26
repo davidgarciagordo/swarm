@@ -131,7 +131,7 @@ uses `isolation: worktree`). Generic rules: protocol.
 ```
 DONE
 evidence: files=5 cmds=8 turns=17/20
-PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan listo, 4 fases → revisar antes de fase 5
+PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan ready, 4 phases → review before phase 5
 - grill: panel OK score=8 round 2, 1 P1 incorporated (export idempotency), 2 P2 noted as risk
 ```
 
@@ -139,7 +139,7 @@ Idempotency (plan already existed):
 ```
 DONE
 evidence: files=1 cmds=1 turns=2/20
-PLAN · docs/superpowers/plans/2026-09-02-export-csv-facturas.md:1 · plan ya existe → revisar directamente
+PLAN · docs/superpowers/plans/2026-09-02-export-csv-facturas.md:1 · plan already exists → review directly
 ```
 
 `BLOCKED <specific question>` if the panel stayed `KO` after 2 rounds or raised a genuinely

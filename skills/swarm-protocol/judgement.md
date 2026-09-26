@@ -7,6 +7,9 @@ Owned by `agents/review-orchestrator.md`. Shared contract for every caller of th
 Model tiers and `scripts/model-resolve.sh`: `<plugin-root>/skills/swarm-protocol/references/model-tiers.md` (protocol §7bis); this file only
 says how the panel uses them.
 
+Contents: §1 Why a panel · §2 Launch header · §3 Lens selection · §4 Finding format and severity ·
+§5 Flow · §6 Scoring · §7 Loop until dry · §8 Judge independence · §9 Callers · §10 No overlap with `verifier`
+
 ## 1. Why a panel
 
 Every stage that produces an artifact someone will act on (a plan, a diff, a report) is reviewed by

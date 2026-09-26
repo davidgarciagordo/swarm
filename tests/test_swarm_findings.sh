@@ -58,7 +58,7 @@ assert_eq "0" "$(echo "$out" | grep -q 'swarm:init' && echo 0 || echo 1)" "and p
 echo '- [algo escrito a mano] REVIEW · src/D.php:1 · nota suelta' >> "$root/.swarm/findings/reviewer.md"
 out="$(SWARM_ROOT="$root/.swarm" bash "$SCRIPT" 2>&1)"; rc=$?
 assert_eq "2" "$rc" "exits 2 when a '- [' entry has no [key:…] header"
-assert_eq "0" "$(echo "$out" | grep -q 'no interpretable' && echo 0 || echo 1)" "and names how many entries it could not read"
+assert_eq "0" "$(echo "$out" | grep -q 'unparseable' && echo 0 || echo 1)" "and names how many entries it could not read"
 assert_eq "0" "$(echo "$out" | grep -q 'src/A.php:10' && echo 0 || echo 1)" "while still listing the findings it COULD read"
 
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi

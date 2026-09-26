@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# scripts/swarm-findings.sh — /swarm:findings [agente|tag] [--all] (spec §11): consulta filtrada
-# sobre .swarm/findings/. Determinista, sin modelo.
+# scripts/swarm-findings.sh — /swarm:findings [agent|tag] [--all] (spec §11): filtered query over
+# .swarm/findings/. Deterministic, no model.
 #
-# El filtro se valida AQUÍ (no en la prosa del comando): un comando de slash no pasa por
-# hooks/bash-guard.py, así que el argumento del usuario tiene que fallar cerrado en el propio script.
+# The filter is validated HERE (not in the command's prose): a slash command does not go through
+# hooks/bash-guard.py, so the user's argument has to fail closed in the script itself.
 #
-# Contrato de salida (ruling 12): 0 = normal · 1 = no hay .swarm/ · 64 = filtro inválido (error del
-# usuario, lo resuelve el propio script) · 2 = hay entradas que no se pueden interpretar de forma
-# determinista. Solo el 2 activa el fallback acotado de commands/findings.md.
+# Exit contract (ruling 12): 0 = normal · 1 = no .swarm/ · 64 = invalid filter (user error, handled
+# by the script) · 2 = there are entries that cannot be parsed deterministically. Only 2 triggers
+# the bounded fallback in commands/findings.md.
 set -u
 
 SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"
@@ -17,10 +17,10 @@ show_all=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --all) show_all=1; shift ;;
-    -*) echo "usage: swarm-findings.sh [agente|TAG] [--all]" >&2; exit 64 ;;
+    -*) echo "usage: swarm-findings.sh [agent|TAG] [--all]" >&2; exit 64 ;;
     *)
       if [ -n "$filter" ]; then
-        echo "swarm: un solo filtro (agente o TAG)" >&2
+        echo "swarm: one filter only (agent or TAG)" >&2
         exit 64
       fi
       filter="$1"; shift ;;
@@ -30,14 +30,14 @@ done
 if [ -n "$filter" ]; then
   case "$filter" in
     *[!A-Za-z0-9_-]*|"")
-      echo "swarm: filtro inválido '$filter' — solo [A-Za-z0-9_-]" >&2
+      echo "swarm: invalid filter '$filter' — only [A-Za-z0-9_-]" >&2
       exit 64
       ;;
   esac
 fi
 
 if [ ! -d "$SWARM_ROOT" ]; then
-  echo "swarm: no hay .swarm/ en $SWARM_ROOT — corre /swarm:init en este repo primero" >&2
+  echo "swarm: no .swarm/ in $SWARM_ROOT — run /swarm:init in this repo first" >&2
   exit 1
 fi
 
@@ -60,9 +60,9 @@ if os.path.isdir(findings_dir):
             for line in fh:
                 m = KEY_RE.search(line)
                 if not m:
-                    # línea con forma de entrada pero sin cabecera de metadatos: no se puede filtrar
-                    # ni clasificar de forma determinista. Se cuenta y se dice (ruling 12), en vez de
-                    # desaparecer del listado sin dejar rastro.
+                    # a line shaped like an entry but without the metadata header cannot be
+                    # filtered or classified deterministically. It is counted and reported
+                    # (ruling 12) instead of silently vanishing from the listing.
                     if line.startswith("- ["):
                         unparsed += 1
                     continue
@@ -73,22 +73,22 @@ if os.path.isdir(findings_dir):
                     continue
                 if flt and flt != agent and flt != tag:
                     continue
-                # el cuerpo legible empieza tras el último "] " de la cabecera de metadatos
+                # the readable body starts after the metadata header's last "] "
                 body = line.rstrip("\n")
                 idx = body.rfind("] ")
                 body = body[idx + 2:] if idx != -1 else body
                 rows.append((agent, tag, status, body))
 
-scope = "todos" if show_all else "abiertos"
-label = ("filtro %s · " % flt) if flt else ""
-print("hallazgos (%s%s): %d" % (label, scope, len(rows)))
+scope = "all" if show_all else "open"
+label = ("filter %s · " % flt) if flt else ""
+print("findings (%s%s): %d" % (label, scope, len(rows)))
 for agent, tag, status, body in rows[:CAP]:
     mark = "" if status == "open" else " [%s]" % status
     print("  - %-22s %s%s" % (agent, body, mark))
 if len(rows) > CAP:
-    print("  … y %d más (afina con /swarm:findings <agente|TAG>)" % (len(rows) - CAP))
+    print("  … and %d more (narrow with /swarm:findings <agent|TAG>)" % (len(rows) - CAP))
 if unparsed:
-    print("no interpretable: %d entradas sin cabecera [key:…] (no se pueden filtrar)" % unparsed)
+    print("unparseable: %d entries without a [key:…] header (cannot be filtered)" % unparsed)
     sys.exit(2)
 PYEOF
 rc=$?

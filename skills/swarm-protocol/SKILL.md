@@ -1,6 +1,7 @@
 ---
 name: swarm-protocol
-description: Universal contract for every agent in the swarm plugin — memory, evidence, mailbox, adhoc/worktree modes.
+description: Universal contract for every agent in the swarm plugin — memory, evidence, mailbox, adhoc/worktree modes. Use when running as a swarm agent (preloaded through the agent's skills field); not a user command.
+user-invocable: false
 ---
 
 # Swarm protocol
@@ -109,6 +110,6 @@ judgement never goes down to a weaker tier's model.
   (and your own file does not write that command) → Read `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/model-tiers.md`
   BEFORE retrying. Resolve-then-spawn itself is inline in every orchestrator.
 - WHEN you launch the review panel (a caller) → Read ONLY §2, §7, §9 of `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`
-  (lines 16-31, 95-116, 125-138) BEFORE launching. `review-orchestrator` Reads it whole at startup. A panel leaf needs
-  NO Read (its file carries its rules); one citing §5/§6 may Read `judgement.md` lines 67-94 only.
+  (lines 19-34, 98-119, 128-141) BEFORE launching. `review-orchestrator` Reads it whole at startup. A panel leaf needs
+  NO Read (its file carries its rules); one citing §5/§6 may Read `judgement.md` lines 70-97 only.
 
