@@ -8,7 +8,7 @@ Commands use <plugin-root>, <swarm-root>, <run> placeholders (protocol §1): sub
 
 **Explicit exception to the ≤60-character trim**: that trim is only for a test suite's summary (`KO tests in red: …`). Credential/permission/network errors: the value is in the full text.
 
-**Failure mode to recognize without fixing it** (ruling 14): with SEVERAL GitHub identities, the remote may use the default host `git@github.com:…` while the active account's SSH key lives under another alias in `~/.ssh/config` (e.g. `github-work`); the push fails with `Permission ... denied to <OTHER-ACCOUNT>` though `gh auth status` shows the right account. When stderr contains `denied to` or `Permission denied`, add besides the literal text:
+**Failure mode to recognize without fixing it**: with SEVERAL GitHub identities, the remote may use the default host `git@github.com:…` while the active account's SSH key lives under another alias in `~/.ssh/config` (e.g. `github-work`); the push fails with `Permission ... denied to <OTHER-ACCOUNT>` though `gh auth status` shows the right account. When stderr contains `denied to` or `Permission denied`, add besides the literal text:
 ```
 - hint: the remote uses the default SSH host and your key for <active account> may be under another alias in ~/.ssh/config — git remote set-url origin git@<alias>:<owner>/<repo>.git
 ```

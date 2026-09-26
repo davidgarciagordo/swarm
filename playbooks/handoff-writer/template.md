@@ -30,6 +30,6 @@ With `Write` (never via shell — long, structured content), these sections in t
 
 Content rules:
 - **Only facts you've verified in this run.** No invented backlog, priorities or lessons that don't come from `context:`, `summary.md` or your commands. A handoff with invented information is worse than none.
-- Commit subjects and `context:` go verbatim. A literal `git`/`gh` stderr is copied **in full** (ruling 14): trimming it destroys its only value.
+- Commit subjects and `context:` go verbatim. A literal `git`/`gh` stderr is copied **in full**: trimming it destroys its only value.
 - `context:` carries a `BLOCKED` → "Next step" is exactly that `BLOCKED`'s hint.
 - `context:` carries a `- next: …` line (`operation: configure-remote`: remote configured, delivery pending) → "Next step" is that line, verbatim.

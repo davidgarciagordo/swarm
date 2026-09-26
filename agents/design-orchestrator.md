@@ -73,7 +73,7 @@ Register each first:
 ```
 Header per spawn:
 ```
-run-id: <RUN>
+run-id: <run>
 swarm-root: <absolute path to .swarm>
 operation: <advise|model>
 objective: <the owner's literal objective>
@@ -83,7 +83,7 @@ objective: <the owner's literal objective>
 
 Register `planner` the same way. Header:
 ```
-run-id: <RUN>
+run-id: <run>
 swarm-root: <absolute path to .swarm>
 operation: plan
 objective: <the owner's literal objective>
@@ -99,7 +99,7 @@ completeness-critic, fact-checker, simplicity-critic, then refuter + blind judge
 `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`. Register `review-orchestrator` like a leaf,
 launch it (tier judgement):
 ```
-run-id: <RUN>
+run-id: <run>
 swarm-root: <absolute path to .swarm>
 operation: review
 artifact-type: plan

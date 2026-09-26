@@ -190,8 +190,8 @@ paths):
   1. **pure bugfix/docs/tests/infra:** all three skipped for the same reason (no product, no analysis, so no design).
   2. **substantial refactor/migration in `tier: light`:** discovery/analysis skipped for that reason, design is skipped
 for a DIFFERENT reason (the §9.1 tier gate) — name both: `- run closed: DONE · discovery, analysis and design omitted:
-refactor/migration with no product decision (discovery), light tier (design)`. (in `tier: full` refactor/migration NO
-LONGER falls here: design runs and closes `design completed`).
+refactor/migration with no product decision (discovery), light tier (design)`. (In `tier: full` a refactor/migration
+runs design and closes `design completed` instead.)
 - Individual `discovery omitted`/`analysis omitted` lines only when the three do NOT all end omitted. Design never has
 its own `design omitted` line; when analysis runs instead of discovery, analysis's verdict covers design's omission. ONE
 `summary` call per close.
@@ -239,10 +239,10 @@ domain says so in its `- discovery omitted:`/`- analysis omitted:` line.
 
 ## 6. Bash discipline (`hooks/bash-guard.py`)
 Your allowlist (`hooks/bash-allowlist.json`, `swarm:orchestrator`): `scripts/mem-*.sh`, `scripts/swarm-init.sh`,
-`scripts/model-resolve.sh`, `git status|log|diff|show|rev-parse`, `cd`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`, and
-the read-only set `jq`, `cmp`, `diff`, `sort`, `uniq`, `cut`, `tr`, `php -l`, `docker exec <container> <read-only cmd>`
-(container listed in `.swarm/docker-containers`; `sort -o`, a `uniq` output file, git `--output`, any `docker exec` flag
-and output redirection are denied). Everything else is DENIED, per segment (`&&`, `||`, `;`, `|`): no `echo`, `mkdir`,
+`scripts/model-resolve.sh`, `git status|log|diff|show|blame|rev-parse`, `cd`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`,
+`rg`, and the read-only set `jq`, `cmp`, `diff`, `sort`, `uniq`, `cut`, `tr`, `php -l` (`sort -o`, a `uniq` output file,
+git `--output` and output redirection are denied; `docker exec` is for file-writing leaves only, never yours).
+Everything else is DENIED, per segment (`&&`, `||`, `;`, `|`): no `echo`, `mkdir`,
 `mv`, `cp`, `rm`, `export`, `python3`, `uuidgen`, `find`, bare assignments, `; echo $?` (the Bash result already has the
 exit code). `${CLAUDE_PLUGIN_ROOT}/scripts/...` passes only for the listed scripts; a `SWARM_ROOT=<path>` prefix is
 tolerated but unneeded (§2.0).
@@ -269,7 +269,7 @@ Guard `BLOCKED`s (§1.0, §2.1) carry the evidence line too (`files=0 cmds=0` is
 ## 8. Analysis (phase 3 — read-only audit on demand)
 ### 8.1 When
 Only `light`/`full`, only an explicitly analysis-related objective: audit, security/performance/debt/architecture
-review, "review X", "audit X", "look for vulnerabilities in X". It's **mutually exclusive with discovery in v1**: never
+review, "review X", "audit X", "look for vulnerabilities in X". It's **mutually exclusive with discovery**: never
 both in one run. Product match ⇒ discovery, even if an analysis word appears in passing; analysis and not product ⇒
 analysis; neither (pure bugfix, docs, tests, infra) ⇒ skip both. **Infra/CI/tooling objective type (routes to analysis —
 never "skip both").** "Pure infra" is a concrete, already-decided edit ("bump Node to 22 in the CI image"). An objective
@@ -283,7 +283,7 @@ two runs. A green analysis also passes the review panel (§13.6, in route-analys
 
 ## 9. Design (phase 4 — only `tier: full`; chained after discovery OR after a substantial refactor/migration objective)
 ### 9.1 When
-**Only `tier: full`** (`light` never chains). In `full`, design runs via three independent paths — they're no longer the same chained condition:
+**Only `tier: full`** (`light` never chains). In `full`, design runs via three independent paths:
 1. **Product-decisions path.** After §5.4 or after "already closed" (§5.1), with those decisions as context — never in the same turn as discovery (its decisions must be closed first).
 2. **Substantial refactor/migration path.** Discovery skipped; literal objective, no decision context (`design-orchestrator` tolerates an empty or non-matching `.swarm/decisions.md`).
 3. **Infra-change path.** After `analysis-orchestrator` closed `DONE`/`OK` on an infra objective that asks for a change,

@@ -28,9 +28,8 @@ of the five `tools:`). Never do leaf work (critique, research, options, spikes).
    everything into memory?"). No real technical doubt ⇒ don't launch the spiker (three leaves) and
    write `- warn: no feasibility question, spiker not launched`.
 
-Sanitize every `--line` (protocol §4.4): replace every backtick with `'`, delete every `$`,
-replace every double quote with `'` (never `\"`), delete every backslash, line breaks → space.
-Output `- Q…` lines go as-is.
+Sanitize every `--line` with protocol §4.4 steps 1-3 (you have no `Write`/`Edit`, so step 2 also
+deletes `|` `&` `>` `(` `)`). Output `- Q…` lines go as-is.
 
 ## Launching the leaves (ONE single batch)
 
@@ -51,7 +50,7 @@ The four leaves **do NOT pre-exist**: LAUNCH them with `Agent`, never `SendMessa
 
 Prompt, literal lines in this order (omit `run-id:` in adhoc):
 ```
-run-id: <RUN>
+run-id: <run>
 swarm-root: <absolute path to .swarm, from your header>
 operation: <from the table>
 objective: <the owner's literal objective>

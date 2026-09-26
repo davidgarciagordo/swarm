@@ -8,7 +8,7 @@ user-invocable: false
 Preloaded in every `swarm` agent (root, domain orchestrators, leaves). Rare material lives in
 `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/`: read a file there only when its WHEN-trigger fires.
 ## 1. Before acting
-**`<swarm-root>`, `<run>`, `<plugin-root>` (older: `<swarm-path>`, `<RUN>`, `<run-id-or-adhoc>`) are PLACEHOLDERS, never
+**`<swarm-root>`, `<run>`, `<plugin-root>` are PLACEHOLDERS, never
 shell variables**: each `Bash` call is a new process, nothing is injected. Substitute literally, as text: `<swarm-root>` =
 absolute `.swarm/` from your header (§2), `<run>` = its `run-id` or `adhoc`, `<plugin-root>` = `${CLAUDE_PLUGIN_ROOT}`.
 Never `"$SWARM_ROOT/..."` nor `"${RUN:-adhoc}"`: they expand to empty or `$PWD/.swarm` and fail silently (exit 64).

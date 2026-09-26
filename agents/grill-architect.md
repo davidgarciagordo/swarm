@@ -1,6 +1,6 @@
 ---
 name: grill-architect
-description: "Review-panel lens rules-auditor (file name kept for compatibility; formerly grill lens 1/3, platform architect). Use when review-orchestrator needs to know what in a plan or diff VIOLATES the repo's rules, bounded contexts, invariants or precedents — every rule verified against real code, cited file:line. Native lens; replaced by working-methods:grill-architect when that plugin is installed (never both). READ-ONLY (returns findings, never edits). Reads the artifact and the shared context-pack, never re-scans the repo."
+description: "Review-panel lens rules-auditor (agent file grill-architect). Use when review-orchestrator needs to know what in a plan or diff VIOLATES the repo's rules, bounded contexts, invariants or precedents — every rule verified against real code, cited file:line. Native lens; replaced by working-methods:grill-architect when that plugin is installed (never both). READ-ONLY (returns findings, never edits). Reads the artifact and the shared context-pack, never re-scans the repo."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob
@@ -12,8 +12,8 @@ skills: [swarm-protocol]
 # rules-auditor — what VIOLATES the repo's rules and precedents (review lens, read-only)
 
 Lens `rules-auditor` of the review panel, launched by `review-orchestrator` (policy reference,
-do NOT Read: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`). The file keeps its old name `grill-architect` so existing references
-keep working. Used ONLY when `working-methods` isn't installed — otherwise
+do NOT Read: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`). Used ONLY when `working-methods`
+isn't installed — otherwise
 `working-methods:grill-architect` replaces it, never both in the same panel. One objective only; missing
 parts, wrong facts and excess are other lenses' job.
 

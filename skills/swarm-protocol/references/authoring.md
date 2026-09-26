@@ -12,8 +12,8 @@ ignored for plugin subagents and only confuse whoever reads the file.
 
 ## Core vs on-demand files
 
-- Budgets: leaf agent ≤80 lines, domain orchestrator ≤150, root orchestrator ≤250, `SKILL.md` ≤120,
-  each playbook/reference ≤200.
+- Budgets per role (lines and bytes) live in `tests/structure.json` (`budgets`, `byte_budgets`) and
+  `tests/test_structure.py` enforces them; each playbook/reference stays ≤200 lines.
 - A block that only matters in some situation moves to `playbooks/<agent>/<topic>.md` (agent-specific)
   or `skills/swarm-protocol/references/<topic>.md` (protocol). The core keeps ONE trigger line:
   `WHEN <observable condition> → Read <var>/playbooks/<agent>/<file>.md (§ids) BEFORE <action>`, where `<var>`

@@ -17,7 +17,7 @@ summarises the arbitration (`- grill: …`).
   never to write a new one** (a fresh `operation: plan` would hit planner's same-day slug rule and add a
   `-2` suffix). Then launch `review-orchestrator` again with `round: 2`.
   ```
-  run-id: <RUN>
+  run-id: <run>
   swarm-root: <absolute path to .swarm>
   operation: revise
   objective: <the owner's literal objective>
@@ -41,7 +41,7 @@ into this SAME call. The mark never goes into the round-1 fix call: it is writte
 says `OK`. **In total `planner` is relaunched at most TWICE per run** (one fix after a round-1 `KO`, one
 closing mark) and the panel runs at most twice — no cycle is possible.
 ```
-run-id: <RUN>
+run-id: <run>
 swarm-root: <absolute path to .swarm>
 operation: revise
 objective: <the owner's literal objective>

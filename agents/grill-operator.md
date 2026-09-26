@@ -1,6 +1,6 @@
 ---
 name: grill-operator
-description: "Review-panel lens operator (file name kept for compatibility; formerly grill lens 2/3, real operator/user). Use when review-orchestrator needs a plan attacked from the day-to-day counter — the user in a hurry, with bad intent, doing it WRONG: broken flows, friction, edge cases of USE. Native lens; replaced by working-methods:grill-operator when that plugin is installed (never both). READ-ONLY (returns findings, never edits). Reads the artifact and the shared context-pack, never re-scans the repo."
+description: "Review-panel lens operator (agent file grill-operator). Use when review-orchestrator needs a plan attacked from the day-to-day counter — the user in a hurry, with bad intent, doing it WRONG: broken flows, friction, edge cases of USE. Native lens; replaced by working-methods:grill-operator when that plugin is installed (never both). READ-ONLY (returns findings, never edits). Reads the artifact and the shared context-pack, never re-scans the repo."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob
@@ -12,8 +12,8 @@ skills: [swarm-protocol]
 # operator — misuse and friction at the point of use (review lens, read-only)
 
 Lens `operator` of the review panel, launched by `review-orchestrator` (policy reference,
-do NOT Read: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`). The file keeps its old name `grill-operator` so existing references
-keep working. Used ONLY when `working-methods` isn't installed — otherwise
+do NOT Read: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`). Used ONLY when `working-methods`
+isn't installed — otherwise
 `working-methods:grill-operator` replaces it, never both in the same panel. One objective only; missing
 parts, wrong facts and excess are other lenses' job.
 

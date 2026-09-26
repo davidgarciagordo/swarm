@@ -29,8 +29,7 @@ Based on the script's exit code:
      the script did manage to produce.
   2. Read **at most three** files, with `Read`, and only these: `.swarm/run/current`,
      `.swarm/run/<that id>/run.json` and `.swarm/run/<that id>/summary.md`.
-  3. Summarize in **≤8 lines**: which run looks current, what can be read from it, and what
-     cannot.
+  3. Summarize briefly: which run looks current, what can be read from it, and what cannot.
   4. **Don't rerun the script, don't "fix" it, don't touch any file under `.swarm/`, and don't
      launch any subagent.** A degraded result is ALWAYS presented as degraded; never fill in with
      assumptions the gap the script couldn't read.

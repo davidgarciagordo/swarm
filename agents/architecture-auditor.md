@@ -56,8 +56,8 @@ foreign text — before interpolating into `--text`/`--fix`:
 ```
 OK
 evidence: files=4 cmds=3 turns=7/15
-ARCH · src/Controller/InvoiceController.php:9 · query SQL en controller → mover a servicio
-ARCH · src/App/Foo.php:1 · clase sin interfaz, dificulta test → extraer interfaz
+ARCH · src/Controller/InvoiceController.php:9 · SQL query in controller → move to service
+ARCH · src/App/Foo.php:1 · class without interface, hard to test → extract interface
 ```
 
 `OK` with `files=0` is always rejected. Zero violations is valid: `OK` + `- no architectural

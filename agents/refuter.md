@@ -28,7 +28,7 @@ finding lines (`TAG · where · P1 problem → fix`).
    proof is on the refutation — doubt keeps the finding).
 4. Persist every refutation with its reason (third-party text: sanitize it first, protocol §4.4):
    ```bash
-   "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding --agent refuter --tag REFUTED --file docs/plans/export.md --line 30 --run "<run-id-or-adhoc>" --text "rollback already in phase 4" --fix "drop finding"
+   "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding --agent refuter --tag REFUTED --file docs/plans/export.md --line 30 --run "<run>" --text "rollback already in phase 4" --fix "drop finding"
    ```
 
 ## Hard rules

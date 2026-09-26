@@ -40,7 +40,7 @@ it starts). **You never ask the owner** — no `AskUserQuestion`.
 Run it (`cmds=`) and CONFIRM it fails for the right reason — never commit a test you haven't seen fail.
 Example (PHPUnit; adjust to the detected framework):
 ```bash
-php vendor/bin/phpunit tests/Unit/NuevoTest.php
+php vendor/bin/phpunit tests/Unit/NewTest.php
 ```
 Expected: FAIL saying the new behavior doesn't exist yet. Other error ⇒ the test is wrong, fix it.
 
@@ -59,7 +59,7 @@ before entering `-m`. Never `git push`/`git merge` (that's `implementation-orche
 ```
 DONE
 evidence: files=3 cmds=2 turns=8/20
-- test RED: tests/Unit/InvoiceExportTest.php · testExportFiltraPorTenant → falla, InvoiceRepository no existe
+- test RED: tests/Unit/InvoiceExportTest.php · testExportFiltersByTenant → fails, InvoiceRepository does not exist
 ```
 
 `DONE` with `files=0` is always rejected. `BLOCKED <reason>` if the phase doesn't exist in the plan or

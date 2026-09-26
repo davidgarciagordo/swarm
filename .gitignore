@@ -12,3 +12,6 @@ __pycache__/
 .swarm/.lock.d
 .swarm/decisions.md
 .swarm/memory.json
+
+# prompt-audit output (local, never committed)
+.prompt-audit/

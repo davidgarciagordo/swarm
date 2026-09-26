@@ -22,7 +22,7 @@ Each command counts toward `cmds=`.
    ```bash
    gh auth status
    ```
-   Non-zero → `BLOCKED no gh authenticated` + `- hint: gh auth login (I can't run it myself: it's denied by the guard)`. If `name=`'s `<owner>/` isn't the active login, **don't fix it**: add `- warn: name=<owner> doesn't match the active account <login>` and continue (ruling 14).
+   Non-zero → `BLOCKED no gh authenticated` + `- hint: gh auth login (I can't run it myself: it's denied by the guard)`. If `name=`'s `<owner>/` isn't the active login, **don't fix it**: add `- warn: name=<owner> doesn't match the active account <login>` and continue.
 
 **No clean tree required** (configuring a remote doesn't publish the tree; `--push` only sends commits). If `git status --porcelain` prints anything, add `- warn: <n> uncommitted files are left out of the initial push`.
 

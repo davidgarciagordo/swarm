@@ -52,7 +52,7 @@ gh auth status
 - **Remote NOT GitHub** → `gh` can't work against that host by design; one generic line naming no tool:
   ```
   - manual pr: origin git@gitlab.com:owner/repo.git · feature/export-csv → master
-  - open your PR/MR by hand on that remote's host — this domain doesn't know how to automate it outside GitHub (v1.1: GitHub only)
+  - open your PR/MR by hand on that remote's host — this domain doesn't know how to automate it outside GitHub
   ```
   In both degradations **don't fabricate a "compare" URL** (`ssh://`, `git@host:owner/repo`, `https://`, `file://` parse differently; a dead invented URL is worse than a pasteable command).
 

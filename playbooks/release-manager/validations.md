@@ -18,7 +18,7 @@ Any output → `BLOCKED dirty tree: <n> uncommitted files` (you can't commit the
 ```bash
 git remote -v
 ```
-Prints NOTHING → no remote; nothing mutated. **Don't return it bare**: it's the only `BLOCKED` the root turns into an owner question (ruling 3), so gather what the root can't (it has no `gh`):
+Prints NOTHING → no remote; nothing mutated. **Don't return it bare**: it's the only `BLOCKED` the root turns into an owner question, so gather what the root can't (it has no `gh`):
 ```bash
 gh auth status
 ```
@@ -35,11 +35,11 @@ evidence: files=1 cmds=5 turns=4/15
 - proposed remote: gh repo create <login>/<basename of repo-root> --private --source=. --remote=origin --push
 ```
 
-**Expected pairing** (ruling 14): the active `gh` account and the git email of the last commit must
+**Expected pairing**: the active `gh` account and the git email of the last commit must
 belong to the identity the remote expects (the remote's owner). The plugin never knows who that is:
 it only shows both values. A mismatch is never fixed or hidden here — the owner decides.
 
-`- proposed remote:` is a **literal preview, never executed** in this operation (same pattern as `- preview push:`: the owner sees the resolved command and decides). If `- gh account:` shows an account and an email that don't match, don't fix or hide it: the line makes it visible; the owner decides (ruling 14).
+`- proposed remote:` is a **literal preview, never executed** in this operation (same pattern as `- preview push:`: the owner sees the resolved command and decides). If `- gh account:` shows an account and an email that don't match, don't fix or hide it: the line makes it visible; the owner decides.
 
 Several remotes: phase B uses the one from `approved-push:`; phase A uses `origin` if it exists, else the FIRST one `git remote -v` lists.
 
@@ -51,7 +51,7 @@ git remote get-url --push --all origin
 1. Without `--push` (and every `(fetch)` line of `git remote -v`) you get the FETCH URL; `remote.<remote>.pushurl`, when set, is where `git push` really goes. Approving the fetch URL approves the wrong destination.
 2. **`remote.<remote>.pushurl` AND `remote.<remote>.url` are MULTI-VALUED in git**: several lines in `.git/config`, and `git push` pushes to ALL. `--push` without `--all` prints only the FIRST; `--all` is the only way to see the whole set.
 
-More than one line → unsupported in v1 (`url=` names ONE destination); do NOT keep the first line. Verdict `BLOCKED remote with multiple push destinations` + `- push destinations: <url1>, <url2>, …` listing ALL as printed; the owner fixes it (`git config --unset-all remote.<remote>.pushurl` or equivalent, outside your allowlist) and relaunches.
+More than one line → unsupported (`url=` names ONE destination); do NOT keep the first line. Verdict `BLOCKED remote with multiple push destinations` + `- push destinations: <url1>, <url2>, …` listing ALL as printed; the owner fixes it (`git config --unset-all remote.<remote>.pushurl` or equivalent, outside your allowlist) and relaunches.
 
 Exactly one line → that's the push URL. `- remote:` carries the name and that URL exactly as returned —no `(push)`/`(fetch)` marker, no reformatting, no abbreviating—: `- remote: origin → git@github.com:owner/repo.git`. The root copies it unchanged into `url=` of `approved-push:`; it's also the URL that decides whether the host is GitHub for `gh pr create`.
 

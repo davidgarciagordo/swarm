@@ -43,7 +43,7 @@ ls -d docs/superpowers/handoffs docs/handoffs 2>/dev/null
 ## What you write
 
 - BEFORE writing the handoff → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/handoff-writer/template.md` (sections `Copy-paste prompt for the new session` / `Where everything is` / `Next step` + content rules). Write it with `Write`, never via shell.
-- **Only facts verified in this run** (from `context:`, `summary.md`, your commands); `context:` and git/gh stderr go verbatim and **in full** (ruling 14).
+- **Only facts verified in this run** (from `context:`, `summary.md`, your commands); `context:` and git/gh stderr go verbatim and **in full** (trimmed stderr loses the diagnosis).
 
 ## You don't commit
 

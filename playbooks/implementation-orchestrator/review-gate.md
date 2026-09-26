@@ -9,7 +9,7 @@ The pre-merge review is the review panel (`<plugin-root>/skills/swarm-protocol/j
 `review-orchestrator` in the manifest (same `register` command as the other children), resolve tier
 `judgement`, then launch it with this literal header:
 ```
-run-id: <RUN>
+run-id: <run>
 swarm-root: <absolute path to .swarm>
 operation: review
 artifact-type: diff

@@ -55,7 +55,7 @@ Fresh re-spawn after failed verification ⇒ `--escalate <tier>` first
 
 ## Sequence (in order, never in parallel)
 
-Header of steps 1-5: `run-id: <RUN>` / `swarm-root: <absolute path to .swarm>` / the `operation:` line /
+Header of steps 1-5: `run-id: <run>` / `swarm-root: <absolute path to .swarm>` / the `operation:` line /
 the step's extra lines, in table order / `pack: <pack>` last (omit this whole line if there is no pack).
 
 | step | `operation:` line | extra lines |

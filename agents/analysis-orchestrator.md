@@ -72,7 +72,7 @@ Register each selected leaf first (adhoc too, `--run adhoc`; never register one 
 Each `Agent(...)`: `subagent_type: "swarm:<leaf>"`, `name: "<leaf>"` exactly its role (protocol §2bis),
 with this literal header (`run-id:` omitted if adhoc):
 ```
-run-id: <RUN>
+run-id: <run>
 swarm-root: <absolute path to .swarm, from your header>
 operation: audit
 objective: <the owner's literal objective>
@@ -96,8 +96,8 @@ grep -r -m1 -H '^tier:' "${CLAUDE_PLUGIN_ROOT}/agents"
 ```
 Printed id → `Agent` `model` (omit on `inherit`). Missing model: `model-resolve.sh --mark-unavailable <id>
 --swarm-root <swarm-root>`, resolve again, retry that spawn once. `tier: light` narrows the lens SET only;
-it never passes a weaker model to a judgement leaf — the old light-tier model downgrade is gone (a
-missing judgement model falls to `inherit`, never to another tier's list). WHEN a leaf failed verification and
+it never passes a weaker model to a judgement leaf (a missing judgement model falls to `inherit`, never
+to another tier's list). WHEN a leaf failed verification and
 needs its ONE escalated retry → Read `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/model-tiers.md` first.
 
 **Only these seven, all in ONE message.** Never `Explore`, `general-purpose` or any non-swarm agent. An

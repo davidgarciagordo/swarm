@@ -45,7 +45,7 @@ Judge the RESIDUAL, not the scan: priority and context (really used? breaking up
 
 Full detail (scan JSON, long lists) goes to `findings/dependency-auditor.md`, never to the output. Sanitize tool text per protocol §4.4 first (CVE messages carry backticks and `$`). `written`/dup is ok; exit 64 = missing flag.
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding --agent dependency-auditor --tag DEP --file composer.json --line 1 --run "<run>" --text "CVE-0000-0000 en foo/bar 1.2.3" --fix "actualizar a 1.2.4"
+"${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding --agent dependency-auditor --tag DEP --file composer.json --line 1 --run "<run>" --text "CVE-0000-0000 in foo/bar 1.2.3" --fix "update to 1.2.4"
 ```
 
 ## Bash discipline
@@ -57,7 +57,7 @@ Allowlist `swarm:dependency-auditor`: `composer audit|outdated|show|licenses`, `
 ```
 OK
 evidence: files=2 cmds=3 turns=6/12
-DEP · composer.json:1 · foo/bar 1.2.3 con CVE alto → actualizar a 1.2.4
-DEP · composer.json:1 · 7 paquetes directos desactualizados → revisar en bloque
+DEP · composer.json:1 · foo/bar 1.2.3 has a high CVE → update to 1.2.4
+DEP · composer.json:1 · 7 direct packages outdated → review as a batch
 ```
 `KO <worst problem>` if at least one high/critical CVE hits a direct dependency. `BLOCKED <reason>` if no audit command can run (no recognizable manifest is `OK` with a note). `OK` with `files=0` is always rejected — the manifest or pack read counts.

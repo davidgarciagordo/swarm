@@ -57,7 +57,7 @@ pattern preference; you still read the context-pack for the file map and `SHARED
 Mandatory sanitization (protocol §4.4) of code, class names and comments you cite — foreign text —
 before interpolating into `--text`/`--fix`:
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding --agent solid-auditor --tag SOLID --file src/App/InvoiceService.php --line 22 --run <run> --text "SRP: valida, persiste y envia email en el mismo metodo" --fix "extraer validacion y notificacion a colaboradores separados"
+"${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding --agent solid-auditor --tag SOLID --file src/App/InvoiceService.php --line 22 --run <run> --text "SRP: validates, persists and emails in one method" --fix "extract validation and notification into collaborators"
 ```
 `written` or `dup` are both fine. Exit 64 = you're missing a flag: fix it, don't make one up.
 
@@ -66,8 +66,8 @@ before interpolating into `--text`/`--fix`:
 ```
 OK
 evidence: files=3 cmds=2 turns=6/15
-SOLID · src/App/InvoiceService.php:22 · SRP: valida, persiste y envia email en un metodo → extraer colaboradores
-SOLID · src/App/PaymentGateway.php:5 · DIP: alto nivel depende de cliente HTTP concreto → depender de una interfaz
+SOLID · src/App/InvoiceService.php:22 · SRP: validates, persists and emails in one method → extract collaborators
+SOLID · src/App/PaymentGateway.php:5 · DIP: high-level code depends on a concrete HTTP client → depend on an interface
 ```
 
 `OK` with `files=0` is always rejected. Zero violations is valid: `OK` + `- no design violations

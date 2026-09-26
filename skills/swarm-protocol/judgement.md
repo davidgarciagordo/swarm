@@ -127,8 +127,8 @@ stderr note ⇒ the orchestrator adds `- warn: judge independence not guaranteed
 
 ## 9. Callers
 
-- `design-orchestrator`: after `planner` writes the plan (artifact-type `plan`, tier full). Replaces
-  the old ad-hoc grill×3: the grill lenses now run inside the panel.
+- `design-orchestrator`: after `planner` writes the plan (artifact-type `plan`, tier full); the grill
+  lenses run inside the panel.
 - `implementation-orchestrator`: before the local merge (artifact-type `diff`). `reviewer` is kept
   only as a thin alias: its checks (plan compliance, invariants, quality, tests) are fully covered
   by completeness-critic + rules-auditor + defect-hunter on a diff, so a separate reviewer would

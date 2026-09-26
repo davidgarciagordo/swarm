@@ -55,7 +55,7 @@ Children (`release-manager`, `handoff-writer`) are tier `standard`. Resolve once
 ```
 Header, EXACTLY these lines (approval lines copied literally from your own header — never rewritten, never reconstructed from the preview):
 ```
-run-id: <RUN>
+run-id: <run>
 swarm-root: <absolute path to .swarm>
 operation: <prepare-release | publish-release | configure-remote, the same one you were given>
 base: <the base from your header>          ← omit this whole line if you weren't given one
@@ -86,7 +86,7 @@ On **all** paths: `DONE` with the push done, `DONE` with a preview awaiting appr
 ```
 Launch with `Agent`, NAMED `handoff-writer` (it doesn't preexist either):
 ```
-run-id: <RUN>
+run-id: <run>
 swarm-root: <absolute path to .swarm>
 operation: handoff
 context: <release-manager's literal verdict + its lines, collapsed to ONE line>
@@ -131,4 +131,4 @@ evidence: files=1 cmds=3 turns=5/10
 - handoff: /abs/docs/superpowers/handoffs/2026-09-03-next-session.md (not committed)
 ```
 
-`BLOCKED <literal reason from release-manager>` when the leaf blocks (no remote, no push or remote approval, malformed or mismatched approval, HEAD on a protected branch, undetermined base, remote already configured, `gh` not authenticated, remote created but push rejected) — propagated LITERALLY, never rephrased, **never trimming the `<literal stderr>` of a `git`/`gh` error** (ruling 14). `KO <literal reason from release-manager>` when the leaf returns `KO` (dirty tree, red tests, push rejected). `KO release-manager: no response, turn limit exhausted` when your cut-off fired. In all of them the handoff was launched BEFORE returning (see "## Handoff — ALWAYS"). `DONE`/`OK` with `files=0` is always rejected.
+`BLOCKED <literal reason from release-manager>` when the leaf blocks (no remote, no push or remote approval, malformed or mismatched approval, HEAD on a protected branch, undetermined base, remote already configured, `gh` not authenticated, remote created but push rejected) — propagated LITERALLY, never rephrased, **never trimming the `<literal stderr>` of a `git`/`gh` error** (it is the owner's only diagnostic). `KO <literal reason from release-manager>` when the leaf returns `KO` (dirty tree, red tests, push rejected). `KO release-manager: no response, turn limit exhausted` when your cut-off fired. In all of them the handoff was launched BEFORE returning (see "## Handoff — ALWAYS"). `DONE`/`OK` with `files=0` is always rejected.

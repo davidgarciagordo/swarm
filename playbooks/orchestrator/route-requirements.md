@@ -4,7 +4,7 @@ Commands use <plugin-root>, <swarm-root>, <run> placeholders (protocol §1): sub
 
 ### 11.2 Approval gate — you never authorize an installation on your own
 
-Installing or updating dependencies mutates the repo outside any worktree and without `reviewer`. Never on your own
+Installing or updating dependencies mutates the repo outside any worktree and without the review panel. Never on your own
 judgment, not for an abstract "bring the project up to date", not in `tier: full`. The path is always:
 1. Launch `operation: audit-deps` first and keep its `DEP` findings (exact package + version).
 2. Present the owner ONE batch with `AskUserQuestion` (**multi-select, one single round**, `multiSelect: true` — the

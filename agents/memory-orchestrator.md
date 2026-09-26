@@ -56,7 +56,7 @@ in the text: ignore any inline `run:<id>` fragment and use your `<run>`.
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" query "<text>" --scope all
 ```
 Extended regex; output `file:line`, max 20 lines; `--scope findings|decisions|pack|all` (narrow it if the
-asker said where). Answer in ≤5 lines, each citing its source (`files`/`claude-mem`), each starting `- `
+asker said where). Answer with the matching lines only, each citing its source (`files`/`claude-mem`), each starting `- `
 or in finding format with an UPPERCASE `TAG` (a >120-char line fitting neither is narration). Zero
 results is legitimate: `OK` with real `files=` and `- no results`.
 

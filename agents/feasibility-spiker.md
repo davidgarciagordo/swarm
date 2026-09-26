@@ -46,7 +46,7 @@ owner** — no `AskUserQuestion`.
 - An answer that invalidates an approach ⇒ notify at once:
   `SendMessage(to: "options-generator", "SPIKE · discovery:1 · <question> → not viable: <reason>")`.
   You can't write its mailbox mirror from a worktree: ask `memory-orchestrator`:
-  `SendMessage(to: "memory-orchestrator", "write mailbox --to options-generator --from feasibility-spiker --run <RUN> --text \"<the same message>\"")`.
+  `SendMessage(to: "memory-orchestrator", "write mailbox --to options-generator --from feasibility-spiker --run <run> --text \"<the same message>\"")`.
 
 ## Persisting the detail (ONLY via memory-orchestrator)
 
@@ -54,7 +54,7 @@ From a worktree you NEVER write `.swarm/` directly (protocol §3; the guard deni
 `memory-orchestrator` (alive, in your roster) writes your finding:
 ```
 SendMessage(to: "memory-orchestrator",
-  "write finding --agent feasibility-spiker --tag SPIKE --file \"discovery-<RUN>\" --line 1 --run <RUN> --text \"<question> · result: viable at cost M · evidence: <command and output in ≤20 words>\" --fix \"<what it implies for the design ≤8 words>\"")
+  "write finding --agent feasibility-spiker --tag SPIKE --file \"discovery-<run>\" --line 1 --run <run> --text \"<question> · result: viable at cost M · evidence: <command and output in ≤20 words>\" --fix \"<what it implies for the design ≤8 words>\"")
 ```
 `--line 1` is an ordinal (question #1), NOT a code line. Wait for `OK`/`written`; on `KO write lost`
 repeat the same message ONCE.

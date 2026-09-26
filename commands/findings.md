@@ -28,7 +28,7 @@ before model. Based on the exit code:
      script did manage to print.
   2. Read with `Read` **at most three** files from `.swarm/findings/` — if the user passed a
      filter, the one matching its name first.
-  3. List the entries **literally, without reinterpreting them** (≤8 lines), and say which ones
+  3. List the entries **literally, without reinterpreting them**, and say which ones
      lack metadata and therefore can't be filtered by agent or tag.
   4. **Don't edit any findings file, don't "normalize" any entry, don't rerun the script, and
      don't launch any subagent.**

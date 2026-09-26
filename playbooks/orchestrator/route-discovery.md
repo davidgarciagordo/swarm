@@ -20,8 +20,8 @@ as the text carries a backtick, `$`, `"` or `\` ("let's migrate the old `parseCS
 Condition 2: `decisions.md` is one flat file, and §2.3 may have written a `resolved interpretation` line with the same
 `raw:` in THIS run; without condition 2 the run would skip discovery by its own side effect. Explicitly ignore any line
 marked `resolved interpretation`. Several discovery-close lines ⇒ keep the LAST one (append-only, chronological).
-- An old line with no `raw:` field simply doesn't match — never force it by comparing its `objective:` (the objective
-  gets asked once more; the new §5.4 line carries both fields).
+- A line with no `raw:` field doesn't match — never force it by comparing its `objective:` (the objective gets asked
+  once more; the §5.4 line written then carries both fields).
 - The match is also **never** against the question text: `value-critic` regenerates questions every run.
 - A matched line marked `[pending]` (§5.3: owner cancelled) or `ASSUMED` (§13.4) is NOT closed — present the batch
   again (non-interactive: §13.4 applies again).
