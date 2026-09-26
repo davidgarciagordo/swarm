@@ -3,7 +3,7 @@
 
 Checks: agent frontmatter schema · Agent(...) spawn graph · line budgets per role · no model ids in
 agent material · every on-demand path a core file names exists and carries its trigger · no orphan
-on-demand file · allowlist <-> agents consistency · commands <-> plugin.json · requirements.json
+on-demand file · allowlist <-> agents consistency · command skills <-> plugin.json · requirements.json
 schema · frontmatter is strict YAML · every documented verdict passes hooks/validate-output.py · every documented ```bash line
 and stack-pack command passes hooks/bash-guard.py for the agent that runs it.
 Role facts that frontmatter cannot express live in tests/structure.json.
@@ -72,8 +72,9 @@ for name, a in AGENTS.items():
             spawned_by[child].add(name)
         S.check(child != ROOT_AGENT, '%s: never spawns the root' % name)
 
+COMMAND_SKILLS = [os.path.join(ROOT, 'skills', n, 'SKILL.md') for n in M['command_skills']['names']]
 command_spawns = {}
-for path in sorted(glob.glob(os.path.join(ROOT, 'commands', '*.md'))):
+for path in COMMAND_SKILLS:
     for target in re.findall(r'subagent_type:\s*`?swarm:([a-z0-9-]+)', read(path)):
         command_spawns.setdefault(target, []).append(rel(path))
         S.check(target in AGENTS, '%s: launches swarm:%s, which does not exist' % (rel(path), target))
@@ -139,8 +140,7 @@ for path in material:
 
 
 # ---------- 5. on-demand material: exists, triggered, not orphaned ----------
-CORE = sorted(glob.glob(os.path.join(ROOT, 'agents', '*.md')) + glob.glob(os.path.join(ROOT, 'skills', '*', 'SKILL.md'))
-              + glob.glob(os.path.join(ROOT, 'commands', '*.md')))
+CORE = sorted(glob.glob(os.path.join(ROOT, 'agents', '*.md')) + glob.glob(os.path.join(ROOT, 'skills', '*', 'SKILL.md')))
 ON_DEMAND = sorted(set(glob.glob(os.path.join(ROOT, 'playbooks', '**', '*.md'), recursive=True))
                    | {p for p in glob.glob(os.path.join(ROOT, 'skills', '**', '*.md'), recursive=True) if os.path.basename(p) != 'SKILL.md'})
 PATH_RE = re.compile(r'(?<![\w./<>-])(?:\$\{CLAUDE_PLUGIN_ROOT\}/|<plugin-root>/)?'
@@ -189,7 +189,7 @@ for src in CORE + ON_DEMAND:
             S.check(os.path.exists(target), '%s:%d names %s, which does not exist' % (rel(src), i + 1, m.group(1)))
             if src in CORE and target in ON_DEMAND:
                 referenced.setdefault(target, []).append(src)
-            if src in CORE and target in ON_DEMAND and '/commands/' not in src:
+            if src in CORE and target in ON_DEMAND and src not in COMMAND_SKILLS:
                 S.check(bool(TRIGGER_RE.search(paragraph(lines, i))),
                         '%s:%d points at %s without a trigger (WHEN/BEFORE/AFTER/ONLY/policy:)' % (rel(src), i + 1, m.group(1)))
                 pm = SECTION_PAREN_RE.match(line[m.end():])
@@ -230,16 +230,22 @@ S.check(sorted(allow.get('file_writers', [])) == writers,
         'file_writers == agents whose tools include Write/Edit (diff: %s)' % sorted(set(writers) ^ set(allow.get('file_writers', []))))
 
 
-# ---------- 7. commands <-> plugin.json ----------
+# ---------- 7. command skills <-> plugin.json ----------
 manifest = json.load(open(os.path.join(ROOT, '.claude-plugin', 'plugin.json')))
-declared = {c.lstrip('./') for c in manifest.get('commands', [])}
-on_disk = {rel(p) for p in glob.glob(os.path.join(ROOT, 'commands', '*.md'))}
-S.check(declared == on_disk, 'plugin.json commands == commands/*.md (diff: %s)' % sorted(declared ^ on_disk))
-for path in sorted(on_disk):
-    front, _ = split_frontmatter(read(os.path.join(ROOT, path)))
-    S.check(bool(front and front.get('description') and front.get('allowed-tools')), '%s: description + allowed-tools' % path)
-run_front, run_body = split_frontmatter(read(os.path.join(ROOT, 'commands', 'run.md')))
-S.check('$ARGUMENTS' in run_body, 'commands/run.md forwards $ARGUMENTS to the root')
+S.check('commands' not in manifest and not os.path.isdir(os.path.join(ROOT, 'commands')),
+        'entry points are skills: no commands/ dir and no plugin.json commands key')
+S.check(manifest.get('skills') == './skills/', 'plugin.json skills == ./skills/')
+for path in glob.glob(os.path.join(ROOT, 'skills', '*', 'SKILL.md')):
+    front, _ = split_frontmatter(read(path))
+    name = os.path.basename(os.path.dirname(path))
+    S.check(bool(front) and front.get('name') == name, '%s: frontmatter name == directory name' % rel(path))
+    if path in COMMAND_SKILLS:
+        S.check(bool(front and front.get('description') and front.get('allowed-tools')), '%s: description + allowed-tools' % rel(path))
+        S.check(front.get('user-invocable', 'true') != 'false', '%s: a command skill is user-invocable' % rel(path))
+    else:
+        S.check(front.get('user-invocable') == 'false', '%s: a background skill sets user-invocable: false' % rel(path))
+run_front, run_body = split_frontmatter(read(os.path.join(ROOT, 'skills', 'run', 'SKILL.md')))
+S.check('$ARGUMENTS' in run_body, 'skills/run/SKILL.md forwards $ARGUMENTS to the root')
 
 
 # ---------- 8. requirements.json schema (plugin + packs) ----------
@@ -368,8 +374,7 @@ try:
 except ImportError:
     yaml = None
 if S.check(yaml is not None, 'PyYAML is importable (needed for the strict frontmatter parse: pip install pyyaml)'):
-    fm_files = (glob.glob(os.path.join(ROOT, 'agents', '*.md')) + glob.glob(os.path.join(ROOT, 'commands', '*.md'))
-                + glob.glob(os.path.join(ROOT, 'skills', '*', 'SKILL.md')))
+    fm_files = glob.glob(os.path.join(ROOT, 'agents', '*.md')) + glob.glob(os.path.join(ROOT, 'skills', '*', 'SKILL.md'))
     for path in sorted(fm_files):
         text = read(path)
         end = text.find('\n---\n', 4)

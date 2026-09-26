@@ -1,5 +1,6 @@
 ---
-description: Verifies the repo's environment requirements (OS/project) against requirements.json — health-gate for swarm dependencies.
+name: doctor
+description: "Check swarm requirements in this repo (read-only). Use when asked if swarm dependencies are met."
 allowed-tools: Agent, Read, Bash, SendMessage
 ---
 

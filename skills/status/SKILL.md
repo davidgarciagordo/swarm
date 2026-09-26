@@ -1,5 +1,6 @@
 ---
-description: Shows the swarm's status in this repo — current run, tier, registered agents, summary, open findings and review-panel scores.
+name: status
+description: "Show swarm status: current run, tier, findings, scores. Use when asked for swarm status."
 allowed-tools: Bash, Read
 ---
 

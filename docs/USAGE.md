@@ -35,7 +35,7 @@ For local development, point Claude Code at your checkout directly instead:
 claude --plugin-dir /path/to/swarm
 ```
 
-This loads the plugin's commands, agents, skills and hooks for that session — the five
+This loads the plugin's agents, skills and hooks for that session — the five
 `/swarm:*` slash commands become available, and its agent definitions become invokable from
 anywhere in the conversation. There's nothing to `npm install` or build first: it's a set of
 markdown agent/command/skill files plus a few shell scripts, read directly by Claude Code.
@@ -69,10 +69,10 @@ reference material for when you want more control. You don't need any of it to g
 
 ## 4. The 5 commands
 
-These are the *only* five slash commands this plugin defines — real files under `commands/`:
-`commands/init.md`, `commands/run.md`, `commands/doctor.md`, `commands/status.md`,
-`commands/findings.md`. Nothing else is implemented — don't type anything else expecting it to
-work. `/swarm:run "<goal>"` above is `commands/run.md`, documented as the plugin's single entry point;
+These are the *only* five slash commands this plugin defines — user-invocable skills:
+`skills/init/SKILL.md`, `skills/run/SKILL.md`, `skills/doctor/SKILL.md`, `skills/status/SKILL.md`,
+`skills/findings/SKILL.md`. Nothing else is implemented — don't type anything else expecting it to
+work. `/swarm:run "<goal>"` above is `skills/run/SKILL.md`, documented as the plugin's single entry point;
 the other four are optional, standalone utilities.
 
 ### `/swarm:init`

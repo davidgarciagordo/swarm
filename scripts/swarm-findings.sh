@@ -7,7 +7,7 @@
 #
 # Exit contract (ruling 12): 0 = normal · 1 = no .swarm/ · 64 = invalid filter (user error, handled
 # by the script) · 2 = there are entries that cannot be parsed deterministically. Only 2 triggers
-# the bounded fallback in commands/findings.md.
+# the bounded fallback in skills/findings/SKILL.md.
 set -u
 
 SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"

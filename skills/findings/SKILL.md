@@ -1,5 +1,6 @@
 ---
-description: Filtered query of the swarm's findings — by agent or by tag, open-only by default.
+name: findings
+description: "List open swarm findings by agent or tag. Use when asked about swarm findings."
 argument-hint: "[agent|TAG] [--all]"
 allowed-tools: Bash, Read
 ---

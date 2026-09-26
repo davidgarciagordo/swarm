@@ -1,5 +1,6 @@
 ---
-description: "/swarm:run — the swarm's single entry point: describe what you want in natural language, no prior steps needed."
+name: run
+description: "Run a goal through the swarm end to end. Use when the user wants work done by the swarm."
 argument-hint: "<goal>"
 allowed-tools: Agent, Read, Bash, SendMessage, AskUserQuestion
 ---

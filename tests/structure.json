@@ -15,6 +15,10 @@
     "root": 30000,
     "always-loaded-skill": 10500
   },
+  "command_skills": {
+    "_doc": "User-facing /swarm:<name> entry points (skills/<name>/SKILL.md); every other skill is background (user-invocable: false).",
+    "names": ["init", "run", "doctor", "status", "findings"]
+  },
   "always_loaded_skills": [
     "swarm-protocol"
   ],

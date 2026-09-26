@@ -35,7 +35,7 @@ Para desarrollo local, apunta Claude Code directamente a tu checkout en su lugar
 claude --plugin-dir /ruta/a/swarm
 ```
 
-Esto carga los comandos, agentes, skills y hooks del plugin para esa sesión — los cinco comandos
+Esto carga los agentes, skills y hooks del plugin para esa sesión — los cinco comandos
 `/swarm:*` quedan disponibles, y sus definiciones de agente se pueden invocar desde cualquier punto
 de la conversación. No hay nada que compilar ni `npm install`: es un conjunto de ficheros markdown
 de agente/comando/skill más unos pocos scripts de shell, leídos directamente por Claude Code.
@@ -72,10 +72,10 @@ empezar.
 
 ## 4. Los 5 comandos
 
-Estos son los *únicos* cinco comandos de barra que define este plugin — ficheros reales bajo
-`commands/`: `commands/init.md`, `commands/run.md`, `commands/doctor.md`, `commands/status.md`,
-`commands/findings.md`. Nada más está implementado — no escribas otra cosa esperando que funcione.
-`/swarm:run "<objetivo>"` de arriba es `commands/run.md`, documentado como el punto de entrada único del
+Estos son los *únicos* cinco comandos de barra que define este plugin — skills invocables por el
+usuario: `skills/init/SKILL.md`, `skills/run/SKILL.md`, `skills/doctor/SKILL.md`, `skills/status/SKILL.md`,
+`skills/findings/SKILL.md`. Nada más está implementado — no escribas otra cosa esperando que funcione.
+`/swarm:run "<objetivo>"` de arriba es `skills/run/SKILL.md`, documentado como el punto de entrada único del
 plugin; los otros cuatro son utilidades opcionales e independientes.
 
 ### `/swarm:init`

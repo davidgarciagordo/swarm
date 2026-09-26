@@ -1,5 +1,7 @@
 ---
-description: Initializes .swarm/ in this repo (memory, gitignore, health-gate for the backend files).
+name: init
+description: "Initialize .swarm/ in this repo (writes files)."
+disable-model-invocation: true
 allowed-tools: Bash
 ---
 

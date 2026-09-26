@@ -4,7 +4,7 @@
 #
 # Exit contract (ruling 12): 0 = normal · 1 = no .swarm/ · 2 = there is data this script CANNOT
 # parse deterministically (it prints everything it could, plus one "unparseable: …" line per
-# case). 2 is what triggers the bounded fallback in commands/status.md.
+# case). 2 is what triggers the bounded fallback in skills/status/SKILL.md.
 # It never degrades silently to "tier: ?": unreadable data is SAID.
 set -u
 
