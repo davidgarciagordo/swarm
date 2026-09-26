@@ -114,6 +114,13 @@ copy verbatim into production.
 
 **`skills/pack-python-pytest/SKILL.md`**
 ```markdown
+---
+name: pack-python-pytest
+description: Stack pack for Python projects tested with pytest.
+user-invocable: false
+disable-model-invocation: true
+---
+
 # python-pytest
 
 Detects: `pyproject.toml` at the repo root containing a `pytest` reference (dependency or config
