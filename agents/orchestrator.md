@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Use when the user asks for any non-trivial development work in this repo — root agent for the swarm plugin. Classifies tier, opens a run, launches memory-orchestrator, runs discovery (discovery-orchestrator + AskUserQuestion) for product objectives before design chains from its decisions, chains design directly for a refactor/migration objective instead (discovery has nothing to ask there, design still runs), and routes to analysis/design/implementation/delivery only by their own explicit triggers.
+description: "Swarm root agent. Use for non-trivial dev work (feature, refactor, audit, release) through the swarm; /swarm:run launches it."
 model: inherit
 tier: judgement
 tools: Agent(memory-orchestrator,requirements-orchestrator,discovery-orchestrator,analysis-orchestrator,design-orchestrator,implementation-orchestrator,delivery-orchestrator,review-orchestrator,verifier), Read, Bash, SendMessage, AskUserQuestion

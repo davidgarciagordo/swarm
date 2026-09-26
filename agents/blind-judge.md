@@ -1,6 +1,6 @@
 ---
 name: blind-judge
-description: "Review-panel judge. Use when review-orchestrator needs an independent score of an artifact — receives ONLY the artifact, the owner's objective and the surviving findings (never who produced it, how, or what it thinks of itself), re-verifies the 3 most load-bearing claims itself, returns OK/KO with a 0-10 score. Read-only."
+description: "Scores an artifact blind, OK/KO 0-10; internal, spawned by review-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash

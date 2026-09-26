@@ -1,6 +1,6 @@
 ---
 name: migration-engineer
-description: Use when implementation-orchestrator has a phase whose code changes the persistence schema — writes the schema migration that matches the new domain mappings, inside implementer's worktree, and commits it there. Never applies a migration against a real database.
+description: "Writes schema migrations; internal, spawned by implementation-orchestrator."
 model: inherit
 tier: standard
 tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage

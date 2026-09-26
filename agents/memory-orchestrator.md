@@ -1,6 +1,6 @@
 ---
 name: memory-orchestrator
-description: Use when any swarm agent needs to read, write, build or curate .swarm/ memory — single gate to the memory subsystem (files backend required + claude-mem best-effort). Exactly one live instance per run; resume it via SendMessage instead of spawning another.
+description: "Single gate to .swarm memory; internal, spawned by swarm agents."
 model: inherit
 tier: mechanical
 tools: Read, Grep, Bash, Agent(memory-builder,memory-curator), SendMessage, mcp__plugin_claude-mem_mcp-search__*

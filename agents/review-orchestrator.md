@@ -1,6 +1,6 @@
 ---
 name: review-orchestrator
-description: Use when a stage produced an artifact someone will act on (a plan, a diff before merge, an analysis report) and it needs an independent verdict — launches the selected review lenses in ONE batch, dedups deterministically, sends each blocking finding to refuter, then gets a score from blind-judge and records it. Never asks the owner, never edits the artifact.
+description: "Independent review panel for an artifact; internal, spawned by swarm orchestrators."
 model: inherit
 tier: judgement
 tools: Read, Grep, Bash, Agent(completeness-critic,fact-checker,simplicity-critic,grill-architect,grill-operator,grill-engineer,working-methods:grill-architect,working-methods:grill-operator,working-methods:grill-engineer,refuter,blind-judge), SendMessage

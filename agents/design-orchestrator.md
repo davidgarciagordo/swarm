@@ -1,6 +1,6 @@
 ---
 name: design-orchestrator
-description: Use when the root orchestrator needs a real implementation plan — for a decided product objective (after discovery), or directly for a refactor/migration objective that skipped discovery but still needs a real redesign — launches pattern-advisor+domain-modeler, then planner to author the plan file, then (tier full only, always your case) review-orchestrator's panel on the plan (grill lenses, fact-checker, completeness, simplicity, refuter, blind judge), and arbitrates the outcome itself. Never asks the owner.
+description: "Produces a reviewed implementation plan; internal, spawned by orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Bash, Agent(planner,pattern-advisor,domain-modeler,review-orchestrator), SendMessage

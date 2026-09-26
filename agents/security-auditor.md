@@ -1,6 +1,6 @@
 ---
 name: security-auditor
-description: Use when analysis-orchestrator audits a codebase for authN/authZ gaps, tenant/user data isolation, OWASP-class issues, secrets, and crypto misuse — read-only, never asks the owner.
+description: "Audits auth, isolation, OWASP; internal, spawned by analysis-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage

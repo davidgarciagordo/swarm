@@ -1,6 +1,6 @@
 ---
 name: planner
-description: Use when design-orchestrator needs the actual implementation plan written — phases with file:line, disjoint areas, risks; the only leaf in this domain with Write/Edit, since its job is to author a real plan file. Never asks the owner.
+description: "Writes the implementation plan; internal, spawned by design-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage

@@ -1,6 +1,6 @@
 ---
 name: grill-architect
-description: "Review-panel lens rules-auditor (agent file grill-architect). Use when review-orchestrator needs to know what in a plan or diff VIOLATES the repo's rules, bounded contexts, invariants or precedents — every rule verified against real code, cited file:line. Native lens; replaced by working-methods:grill-architect when that plugin is installed (never both). READ-ONLY (returns findings, never edits). Reads the artifact and the shared context-pack, never re-scans the repo."
+description: "Finds rule/boundary violations; internal, spawned by review-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob

@@ -1,6 +1,6 @@
 ---
 name: doc-writer
-description: Use when implementation-orchestrator has a phase whose behaviour change needs documenting — writes docs in the active stack pack's format plus the changelog entry, inside implementer's worktree, so they land in the same merge as the code.
+description: "Writes docs and changelog for a phase; internal, spawned by implementation-orchestrator."
 model: inherit
 tier: standard
 tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage

@@ -1,6 +1,6 @@
 ---
 name: delivery-orchestrator
-description: Use when the root orchestrator has an explicit owner request to publish work — sequences release-manager (phase A previews the push/PR, phase B executes it with the owner's itemised approval) and then handoff-writer, on every terminal path. Never pushes itself, never builds the approval, never auto-chains after implementation.
+description: "Publishes work: release then handoff; internal, spawned by orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Bash, Agent(release-manager,handoff-writer), SendMessage

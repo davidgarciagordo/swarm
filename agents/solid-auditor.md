@@ -1,6 +1,6 @@
 ---
 name: solid-auditor
-description: Use when analysis-orchestrator audits code (or a design plan) for SOLID/design-principle violations, coupling, cohesion, leaky abstractions, over/under-engineering — cross-language, cross-stack, read-only, never asks the owner.
+description: "Audits SOLID and design principles; internal, spawned by analysis-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage

@@ -1,6 +1,6 @@
 ---
 name: requirements-orchestrator
-description: Use when the root or /swarm:doctor needs to verify the repo's OS/project requirements are satisfied before running the swarm — merges the plugin's own requirements.json with the active stack pack's (if any), spawns env-checker / dependency-auditor, and dependency-installer only with an itemised owner approval, and reports BLOCKED with the exact missing tool + install hint, or OK.
+description: "Verifies swarm requirements; internal, spawned by orchestrator and /swarm:doctor."
 model: inherit
 tier: judgement
 tools: Read, Grep, Bash, Agent(env-checker,dependency-auditor,dependency-installer), SendMessage

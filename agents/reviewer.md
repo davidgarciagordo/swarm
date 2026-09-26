@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: "Thin alias kept for compatibility — the pre-merge diff review (BEFORE merging) is now done by review-orchestrator (artifact-type diff: defect-hunter, rules-auditor, fact-checker, completeness-critic, then refuter + blind-judge). Use only if something still launches reviewer by name: it returns a BLOCKED redirect naming the header to use, it reviews nothing itself."
+description: "Deprecated alias of review-orchestrator; internal."
 model: inherit
 tier: judgement
 tools: Read, SendMessage

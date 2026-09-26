@@ -1,6 +1,6 @@
 ---
 name: swarm-protocol
-description: Universal contract for every agent in the swarm plugin — memory, evidence, mailbox, adhoc/worktree modes. Use when running as a swarm agent (preloaded through the agent's skills field); not a user command.
+description: "Swarm agent contract; preloaded, not a command."
 user-invocable: false
 ---
 

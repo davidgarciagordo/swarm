@@ -1,6 +1,6 @@
 ---
 name: data-model-auditor
-description: Use when analysis-orchestrator audits a codebase for schema/mapping/migration drift and referential integrity gaps — read-only, never asks the owner.
+description: "Audits schema/mapping drift; internal, spawned by analysis-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage

@@ -1,6 +1,6 @@
 ---
 name: options-generator
-description: Use when discovery-orchestrator needs 2-3 candidate approaches for a product goal with trade-offs and one recommendation under YAGNI discipline — never asks the owner directly.
+description: "Proposes 2-3 approaches; internal, spawned by discovery-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage

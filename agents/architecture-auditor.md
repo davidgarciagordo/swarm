@@ -1,6 +1,6 @@
 ---
 name: architecture-auditor
-description: Use when analysis-orchestrator audits a codebase for architectural boundaries, layering, coupling, and invariant violations — read-only, never asks the owner.
+description: "Audits layering, coupling, boundaries; internal, spawned by analysis-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage

@@ -1,6 +1,6 @@
 ---
 name: opportunity-analyst
-description: Use when analysis-orchestrator audits a codebase for technical debt and product/architecture opportunities — returns quick wins with ROI, read-only, never asks the owner.
+description: "Finds tech-debt quick wins; internal, spawned by analysis-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage

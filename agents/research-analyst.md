@@ -1,6 +1,6 @@
 ---
 name: research-analyst
-description: Use when discovery-orchestrator needs prior art, competitor behaviour and de-facto standards for a product goal turned into concrete requirements — runs in background, never asks the owner directly.
+description: "Researches prior art; internal, spawned by discovery-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, SendMessage

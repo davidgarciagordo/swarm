@@ -1,6 +1,6 @@
 ---
 name: performance-analyst
-description: Use when analysis-orchestrator audits a codebase for N+1 queries, missing indexes, cache opportunities, queue backpressure, and hot-path inefficiencies — read-only, never asks the owner.
+description: "Finds N+1, index, cache issues; internal, spawned by analysis-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage

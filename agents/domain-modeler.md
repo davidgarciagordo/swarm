@@ -1,6 +1,6 @@
 ---
 name: domain-modeler
-description: Use when design-orchestrator needs the domain model for a feature — aggregates, value objects, events, invariants, respecting the active stack pack's boundaries, read-only, never asks the owner.
+description: "Models aggregates, VOs, events; internal, spawned by design-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage

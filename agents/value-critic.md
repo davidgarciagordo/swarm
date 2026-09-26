@@ -1,6 +1,6 @@
 ---
 name: value-critic
-description: Use when discovery-orchestrator needs the value question asked first about a product goal — returns at most 3 high-impact questions with options and a recommendation, never asks the owner directly.
+description: "Asks the value question first; internal, spawned by discovery-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage

@@ -1,6 +1,6 @@
 ---
 name: discovery-orchestrator
-description: Use when the root orchestrator needs product discovery before any design — launches value-critic, research-analyst, options-generator and feasibility-spiker in one batch and merges their output into ONE batch of questions+options for the root to present. Never asks the owner itself.
+description: "Product discovery before design; internal, spawned by orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Bash, Agent(value-critic,research-analyst,options-generator,feasibility-spiker), SendMessage

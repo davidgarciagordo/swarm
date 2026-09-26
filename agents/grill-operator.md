@@ -1,6 +1,6 @@
 ---
 name: grill-operator
-description: "Review-panel lens operator (agent file grill-operator). Use when review-orchestrator needs a plan attacked from the day-to-day counter — the user in a hurry, with bad intent, doing it WRONG: broken flows, friction, edge cases of USE. Native lens; replaced by working-methods:grill-operator when that plugin is installed (never both). READ-ONLY (returns findings, never edits). Reads the artifact and the shared context-pack, never re-scans the repo."
+description: "Attacks a plan from real use; internal, spawned by review-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob

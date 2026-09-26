@@ -1,6 +1,6 @@
 ---
 name: feasibility-spiker
-description: Use when discovery-orchestrator has one concrete feasibility question that only a throwaway spike can answer — builds and runs it in an isolated worktree, in background, and reports viable / not viable. Never asks the owner directly.
+description: "Runs a throwaway feasibility spike; internal, spawned by discovery-orchestrator."
 model: inherit
 tier: standard
 tools: Read, Write, Edit, Grep, Glob, Bash, SendMessage

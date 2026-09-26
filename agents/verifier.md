@@ -1,6 +1,6 @@
 ---
 name: verifier
-description: Use when the root orchestrator needs an INDEPENDENT check that a domain orchestrator's DONE/OK verdict is real — before curate/close, confirms every claim traces to a persisted finding and nothing required by the domain's own contract is missing. Never invoked by the domain it verifies, never invokes itself.
+description: "Independently checks a DONE verdict; internal, spawned by orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Bash

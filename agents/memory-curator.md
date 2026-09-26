@@ -1,6 +1,6 @@
 ---
 name: memory-curator
-description: Use when memory-orchestrator closes a run — resolves findings whose cited line changed, prunes old resolved ones, garbage-collects run/ history and trims agent MEMORY.md files over 25KB. Purely mechanical, no judgement.
+description: "Curates .swarm findings and history; internal, spawned by memory-orchestrator."
 model: inherit
 tier: mechanical
 tools: Read, Edit, Bash, SendMessage

@@ -1,6 +1,6 @@
 ---
 name: fact-checker
-description: "Review-panel lens (veracity). Use when review-orchestrator needs every load-bearing claim of a plan, diff or report re-verified with the cheapest read-only command or a file:line read — including commands the artifact proposes, and anything the artifact marks 'unverified' that one command could check. READ-ONLY (never edits, never mutates)."
+description: "Re-verifies an artifact's claims; internal, spawned by review-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage

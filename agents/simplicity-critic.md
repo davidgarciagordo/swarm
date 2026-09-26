@@ -1,6 +1,6 @@
 ---
 name: simplicity-critic
-description: "Review-panel lens (simplicity). Use when review-orchestrator needs to know what is SUPERFLUOUS in a plan — over-engineering, speculative abstraction, a step that a cheaper existing tool or precedent already covers. READ-ONLY (returns findings, never edits). Reads the artifact and the shared context-pack, never re-scans the repo."
+description: "Finds over-engineering in a plan; internal, spawned by review-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob

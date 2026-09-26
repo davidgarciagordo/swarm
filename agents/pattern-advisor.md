@@ -1,6 +1,6 @@
 ---
 name: pattern-advisor
-description: Use when design-orchestrator needs the right design pattern for a feature — GoF/tactical DDD/enterprise/idiomatic pattern from the stack pack, citing real precedents from the repo, read-only, never asks the owner.
+description: "Picks a design pattern; internal, spawned by design-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage

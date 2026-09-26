@@ -1,6 +1,6 @@
 ---
 name: grill-engineer
-description: "Review-panel lens defect-hunter (agent file grill-engineer). Use when review-orchestrator needs to know what in a plan or diff BREAKS — edge cases, concurrency, idempotency, partial failures, dirty data, what fails in production under load. Native lens; replaced by working-methods:grill-engineer when that plugin is installed (never both). READ-ONLY (returns findings, never edits). Reads the artifact and the shared context-pack, never re-scans the repo."
+description: "Finds what breaks in production; internal, spawned by review-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob

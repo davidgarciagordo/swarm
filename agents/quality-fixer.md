@@ -1,6 +1,6 @@
 ---
 name: quality-fixer
-description: Use when implementation-orchestrator needs lint/format/typecheck --fix run against implementer's just-written code, with model judgment only for what --fix couldn't resolve. Points at implementer's worktree via an absolute path, never gets its own isolation. Never asks the owner.
+description: "Runs lint/format/typecheck fixes; internal, spawned by implementation-orchestrator."
 model: inherit
 tier: standard
 tools: Read, Grep, Glob, Edit, Bash, SendMessage

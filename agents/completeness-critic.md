@@ -1,6 +1,6 @@
 ---
 name: completeness-critic
-description: "Review-panel lens (completeness). Use when review-orchestrator needs to know what is MISSING from a plan, diff or report versus the owner's objective and its reference — absent steps, uncovered cases, unanswered parts of the question. READ-ONLY (returns findings, never edits). Reads the artifact and the shared context-pack, never re-scans the repo."
+description: "Finds what a plan/diff/report misses; internal, spawned by review-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob

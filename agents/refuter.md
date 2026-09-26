@@ -1,6 +1,6 @@
 ---
 name: refuter
-description: "Review-panel filter. Use when review-orchestrator has blocking (P1) findings from its lenses and needs each one independently challenged before it counts — tries to REFUTE every finding against the real artifact and repo, keeps only what survives, logs every refutation with its reason. Never adds findings, never edits."
+description: "Challenges blocking findings; internal, spawned by review-orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Glob, Bash, SendMessage

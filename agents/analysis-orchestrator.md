@@ -1,6 +1,6 @@
 ---
 name: analysis-orchestrator
-description: Use when the root orchestrator needs a read-only codebase audit — selects a subset of its 7 lenses by objective, launches them in one batch, and forwards their findings directly (no custom batch format, no owner interaction). Never asks the owner itself.
+description: "Read-only codebase audit via selected lenses; internal, spawned by orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Bash, Agent(opportunity-analyst,architecture-auditor,security-auditor,vulnerability-scanner,performance-analyst,data-model-auditor,solid-auditor), SendMessage

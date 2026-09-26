@@ -1,6 +1,6 @@
 ---
 name: implementation-orchestrator
-description: Use when the root orchestrator needs ONE phase of an arbitrado plan actually built — sequences test-writer (RED) → implementer (isolated worktree, GREEN) → migration-engineer (if the phase touches schema) → doc-writer (if turns allow) → quality-fixer → review-orchestrator (review panel, gate BEFORE merge) → local merge to the run's branch. Never asks the owner, never touches master or a remote.
+description: "Builds one plan phase, TDD to merge; internal, spawned by orchestrator."
 model: inherit
 tier: judgement
 tools: Read, Grep, Bash, Agent(test-writer,implementer,migration-engineer,doc-writer,quality-fixer,review-orchestrator), SendMessage

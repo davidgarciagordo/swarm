@@ -1,6 +1,6 @@
 ---
 name: handoff-writer
-description: Use when delivery-orchestrator closes a run — writes the session-handoff markdown (copy-paste prompt for the next session, where everything is, next step) into the repo's handoffs directory, from the run's own state. Writes the file and leaves it uncommitted on purpose.
+description: "Writes the session handoff; internal, spawned by delivery-orchestrator."
 model: inherit
 tier: standard
 tools: Read, Grep, Write, Bash, SendMessage
