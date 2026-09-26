@@ -18,7 +18,7 @@ pushes anything anywhere on its own.
 
 ```bash
 /plugin marketplace add davidgarciagordo/swarm
-/plugin install swarm
+/plugin install swarm@swarm
 ```
 
 Or the whole suite (this + design-review, token-economy, forge-methodology, working-methods,
@@ -40,15 +40,17 @@ This loads the plugin's commands, agents, skills and hooks for that session — 
 anywhere in the conversation. There's nothing to `npm install` or build first: it's a set of
 markdown agent/command/skill files plus a few shell scripts, read directly by Claude Code.
 
+One cost to know about: the bash-guard hook (`hooks/bash-guard.py`) is registered as `PreToolUse` with
+matcher `Bash`, and hook matchers cannot filter by agent, so it starts `python3` on every Bash call
+in every session while the plugin is enabled — including sessions that never use the swarm. For a
+non-swarm agent it exits 0 immediately without deciding anything, so the cost is a few milliseconds
+of latency per Bash call, never a changed decision.
+
 You don't need a setup step: the first time you type `/swarm:run "<goal>"` in the target repo (the
 repo you actually want to work on — it doesn't have to be this one), it creates the `.swarm/`
 directory this plugin uses for memory on its own, transparently, then runs your goal — see §3
 below. `/swarm:init` still exists as a separate command if you ever want to run that step by hand
 (power users, CI) — it's just no longer something you have to know about or run first.
-
-If this plugin is ever published to a marketplace, installation would instead go through Claude
-Code's normal plugin-marketplace flow (`/plugin install swarm` or equivalent) — but that path does
-not exist yet, so don't follow instructions that assume it does.
 
 ## 3. Quickstart — the one command you need
 
@@ -549,8 +551,8 @@ So a design run's output like
 ```
 DONE
 evidence: files=3 cmds=7 turns=15/30
-PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan listo, 4 tareas → revisar antes de fase 5
-- grill: 1 P1 incorporado (idempotencia del export), 2 P2 anotados como riesgo
+PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan ready, 4 tasks → review before phase 5
+- grill: 1 P1 incorporated (export idempotency), 2 P2 noted as risk
 ```
 reads as: the run succeeded (`DONE`), it's backed by real evidence (3 files read, 7 commands run,
 finished on turn 15 of a 30-turn budget), the plan is at that exact path and line, and the

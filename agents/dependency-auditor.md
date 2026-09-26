@@ -1,6 +1,6 @@
 ---
 name: dependency-auditor
-description: Use when requirements-orchestrator needs the project's dependencies audited — runs the active stack pack's scan-deps/outdated/licenses commands to report CVEs, outdated and unused packages and license risks. Read-only: never installs, updates or removes anything.
+description: "Use when requirements-orchestrator needs the project's dependencies audited — runs the active stack pack's scan-deps/outdated/licenses commands to report CVEs, outdated and unused packages and license risks. Read-only: never installs, updates or removes anything."
 model: inherit
 tier: mechanical
 tools: Read, Grep, Glob, Bash, SendMessage

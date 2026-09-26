@@ -10,3 +10,5 @@ __pycache__/
 .swarm/findings/
 .swarm/run/
 .swarm/.lock.d
+.swarm/decisions.md
+.swarm/memory.json

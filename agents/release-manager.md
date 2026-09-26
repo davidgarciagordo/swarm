@@ -1,6 +1,6 @@
 ---
 name: release-manager
-description: Use when delivery-orchestrator needs a branch published — phase A previews the exact push/PR commands after checking a clean tree, a real remote and a green local suite; phase B pushes and opens the PR only with an itemised approved-push: header naming remote, branch and base; operation configure-remote creates or adds the origin the owner approved, and only with an approved-remote: header. Never merges a PR, never commits, never moves the working tree, never rewrites an existing remote URL.
+description: "Use when delivery-orchestrator needs a branch published — phase A previews the exact push/PR commands after checking a clean tree, a real remote and a green local suite; phase B pushes and opens the PR only with an itemised approved-push: header naming remote, branch and base; operation configure-remote creates or adds the origin the owner approved, and only with an approved-remote: header. Never merges a PR, never commits, never moves the working tree, never rewrites an existing remote URL."
 model: inherit
 tier: standard
 tools: Read, Grep, Write, Bash, SendMessage

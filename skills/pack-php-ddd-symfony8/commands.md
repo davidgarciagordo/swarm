@@ -3,7 +3,7 @@
 Canonical forms of this stack's deterministic commands (`lint | fix | typecheck |
 test | test-one | scan-deps | scan-secrets | sast`, plus the migration and license keys this
 stack needs). **Every form is written to pass `hooks/bash-guard.py` with the allowlist of the
-agent named in the `executor` column** — `tests/test_stack_pack.sh` verifies it row by row.
+agent named in the `executor` column** — `tests/test_structure.py` verifies it row by row.
 If you add a row, also add the corresponding prefix to its executor's allowlist, or the test
 fails (which is exactly what should happen).
 

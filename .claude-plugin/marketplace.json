@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "swarm",
+  "description": "Swarm of single-responsibility Claude Code agents for the development cycle, optimized for quality per token.",
+  "owner": {
+    "name": "David García Gordo",
+    "url": "https://github.com/davidgarciagordo"
+  },
+  "plugins": [
+    {
+      "name": "swarm",
+      "displayName": "Swarm",
+      "description": "Swarm of single-responsibility Claude Code agents for the development cycle, optimized for quality per token.",
+      "source": "./"
+    }
+  ]
+}

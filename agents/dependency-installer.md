@@ -1,6 +1,6 @@
 ---
 name: dependency-installer
-description: Use when requirements-orchestrator has an explicit, itemised owner approval to install or update project dependencies — runs composer/npm for exactly the approved package ids and nothing else. Mutating: refuses to run without an approved: header line.
+description: "Use when requirements-orchestrator has an explicit, itemised owner approval to install or update project dependencies — runs composer/npm for exactly the approved package ids and nothing else. Mutating: refuses to run without an approved: header line."
 model: inherit
 tier: mechanical
 tools: Read, Grep, Bash, SendMessage

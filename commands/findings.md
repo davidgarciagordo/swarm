@@ -1,6 +1,6 @@
 ---
 description: Filtered query of the swarm's findings — by agent or by tag, open-only by default.
-argument-hint: [agent|TAG] [--all]
+argument-hint: "[agent|TAG] [--all]"
 allowed-tools: Bash, Read
 ---
 

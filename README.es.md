@@ -30,7 +30,7 @@ interpretar la salida) ver `docs/USAGE.es.md`. Para añadir tu propio stack pack
 
 ```bash
 /plugin marketplace add davidgarciagordo/swarm
-/plugin install swarm
+/plugin install swarm@swarm
 ```
 
 O toda la suite (este + design-review, token-economy, forge-methodology, working-methods, automations) desde [un único catálogo](https://github.com/davidgarciagordo/claude-plugins):

@@ -29,7 +29,7 @@ the output) see `docs/USAGE.md`. To add a stack pack of your own, see `docs/EXTE
 
 ```bash
 /plugin marketplace add davidgarciagordo/swarm
-/plugin install swarm
+/plugin install swarm@swarm
 ```
 
 Or the whole suite (this + design-review, token-economy, forge-methodology, working-methods, automations) from [one catalog](https://github.com/davidgarciagordo/claude-plugins):

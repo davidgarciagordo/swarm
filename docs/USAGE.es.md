@@ -18,7 +18,7 @@ reales cuando una decisión necesita a una persona, y nunca empuja nada a ningú
 
 ```bash
 /plugin marketplace add davidgarciagordo/swarm
-/plugin install swarm
+/plugin install swarm@swarm
 ```
 
 O toda la suite (este + design-review, token-economy, forge-methodology, working-methods,
@@ -39,6 +39,12 @@ Esto carga los comandos, agentes, skills y hooks del plugin para esa sesión —
 `/swarm:*` quedan disponibles, y sus definiciones de agente se pueden invocar desde cualquier punto
 de la conversación. No hay nada que compilar ni `npm install`: es un conjunto de ficheros markdown
 de agente/comando/skill más unos pocos scripts de shell, leídos directamente por Claude Code.
+
+Un coste a tener en cuenta: el hook bash-guard (`hooks/bash-guard.py`) se registra como `PreToolUse`
+con matcher `Bash`, y los matchers de hooks no filtran por agente, así que arranca `python3` en cada
+llamada a Bash de cada sesión mientras el plugin está activo — también en sesiones que nunca usan el
+swarm. Para un agente que no es del swarm sale con 0 al instante sin decidir nada: el coste son unos
+milisegundos de latencia por llamada a Bash, nunca una decisión distinta.
 
 No necesitas un paso de preparación: la primera vez que escribes `/swarm:run "<objetivo>"` en el repo
 target (el repo sobre el que realmente quieres trabajar — no tiene por qué ser este), crea el

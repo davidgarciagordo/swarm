@@ -4,7 +4,7 @@
 Checks: agent frontmatter schema · Agent(...) spawn graph · line budgets per role · no model ids in
 agent material · every on-demand path a core file names exists and carries its trigger · no orphan
 on-demand file · allowlist <-> agents consistency · commands <-> plugin.json · requirements.json
-schema · every documented verdict passes hooks/validate-output.py · every documented ```bash line
+schema · frontmatter is strict YAML · every documented verdict passes hooks/validate-output.py · every documented ```bash line
 and stack-pack command passes hooks/bash-guard.py for the agent that runs it.
 Role facts that frontmatter cannot express live in tests/structure.json.
 """
@@ -361,5 +361,26 @@ decisions = parallel(lambda j: guard('swarm:' + j[0], j[2], MAIN), cmd_jobs)
 shutil.rmtree(SWARM_DIR, ignore_errors=True)
 for (name, src, cmd), res in zip(cmd_jobs, decisions):
     S.check(res == 'allow', '%s: documented command denied for swarm:%s: %s' % (src, name, cmd[:160]))
+
+# ---------- 11. every frontmatter block is valid YAML (a strict loader must not drop keys) ----------
+try:
+    import yaml
+except ImportError:
+    yaml = None
+if S.check(yaml is not None, 'PyYAML is importable (needed for the strict frontmatter parse: pip install pyyaml)'):
+    fm_files = (glob.glob(os.path.join(ROOT, 'agents', '*.md')) + glob.glob(os.path.join(ROOT, 'commands', '*.md'))
+                + glob.glob(os.path.join(ROOT, 'skills', '*', 'SKILL.md')))
+    for path in sorted(fm_files):
+        text = read(path)
+        end = text.find('\n---\n', 4)
+        if not S.check(text.startswith('---\n') and end > 0, '%s: has a --- frontmatter block' % rel(path)):
+            continue
+        try:
+            data = yaml.safe_load(text[4:end])
+            err = None
+        except yaml.YAMLError as e:
+            data, err = None, str(e).split('\n')[0]
+        S.check(isinstance(data, dict) and bool(data.get('description')),
+                '%s: frontmatter is valid YAML with a description (%s)' % (rel(path), err or 'ok'))
 
 S.done()
