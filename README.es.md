@@ -202,6 +202,11 @@ mismo split):
 | run típico: lecturas bajo demanda necesarias | n/a | `model-tiers.md` ~2.7k + `judgement.md` ~4.5k | `model-tiers.md` 0 (solo se lee ante un fallo de resolución/escalado) + `judgement.md` ~1.6k + `worktree.md` 4×~0.23k |
 | **run típico, total** | **~147.8k+ tok** | **~67.4k tok** | **~61.8k tok (−8% vs `c26aee1`, −58% vs `a07e655`)** |
 
+**Coste siempre presente** (lo que instalar el plugin añade a *cada* sesión, antes de llamar al
+swarm — las descripciones de agentes y skills que ve el modelo), medido con `claude plugin details`:
+~3,581 tok en 0.2.0 → **~1,196 tok** en 0.2.1. Solo los puntos de entrada (`orchestrator`, `/swarm:*`)
+conservan una descripción de disparo; cada agente que lanza un orquestador lleva una sola línea.
+
 Todos los presupuestos de tamaño se siguen cumpliendo: hoja ≤80 líneas, orquestador de dominio ≤150,
 raíz ≤250, `SKILL.md` ≤120 — `tests/structure.json` también acota bytes por rol, para pillar un
 fichero con líneas muy largas que el recuento de líneas por sí solo no vería.

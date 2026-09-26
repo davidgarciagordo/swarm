@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.1
+
+### Changed
+- **Always-on cost ~3,581 → ~1,196 tok** per session (`claude plugin details`). Agents spawned only
+  by an orchestrator carry a one-line description (what it does; internal, spawned by whom); the
+  root `orchestrator` and the `/swarm:*` entry points keep a trigger description. The stack pack is
+  read by path and sets `disable-model-invocation`.
+- **Commands are skills.** `commands/*.md` → `skills/<name>/SKILL.md`, same `/swarm:init`, `run`,
+  `doctor`, `status`, `findings` names; `plugin.json` drops `commands`. `/swarm:init` writes files,
+  so it sets `disable-model-invocation`. `tests/test_structure.py` §7 checks command skills vs
+  background skills (`user-invocable: false`).
+- Low-confidence prompt-audit items, style only: English example plan slugs, example `PLAN` lines
+  say phases, no `v1` tag in the install scope note, one default in the planner's revise step.
+
 ## 0.2.0
 
 Model tiers, the review panel and a blind judge, the infra/CI route, and hardened hooks — plus a

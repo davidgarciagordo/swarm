@@ -196,6 +196,11 @@ first slim commit) → now (further hooks/test hardening on top of the same spli
 | typical run: required on-demand reads | n/a | `model-tiers.md` ~2.7k + `judgement.md` ~4.5k | `model-tiers.md` 0 (read only on a resolve failure/escalation now) + `judgement.md` ~1.6k + `worktree.md` 4×~0.23k |
 | **typical run, total** | **~147.8k+ tok** | **~67.4k tok** | **~61.8k tok (−8% vs `c26aee1`, −58% vs `a07e655`)** |
 
+**Always-on cost** (what installing the plugin adds to *every* session, before any swarm call —
+agent and skill descriptions listed to the model), measured with `claude plugin details`:
+~3,581 tok in 0.2.0 → **~1,196 tok** in 0.2.1. Only the entry points (`orchestrator`, `/swarm:*`)
+keep a trigger description; every agent an orchestrator spawns carries one line.
+
 All size budgets are still met: leaf ≤80 lines, domain orchestrator ≤150, root ≤250, `SKILL.md` ≤120
 — `tests/structure.json` also caps bytes per role, catching a long-line file the line count alone
 would miss.
