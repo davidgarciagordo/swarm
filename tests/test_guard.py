@@ -12,7 +12,11 @@ The regression table tests/fixtures/guard_cases.jsonl was captured from the prev
 suite: every old DENY stays a deny (a rewrite may never loosen), old ALLOWs are kept unless the
 metachar contract above refuses them, they fell to `default` (no `find`: agents with no entry,
 the Bash-less `reviewer` included, get the tightest list), or their `SWARM_ROOT=` names a directory
-that is not an existing `.swarm` (three rows, flipped in 0.2: /abs/..., /tmp/x, /absolute/path/...).
+that is not an existing `.swarm` (three rows, flipped in 0.2: /abs/..., /tmp/x, /absolute/path/...), or
+their writer `cd` names a path that is not an existing linked worktree (two `cd /tmp/wt` rows, flipped in
+0.2: the real-worktree allow lives in P11), or they are dependency-installer installs without `--no-scripts
+--no-plugins`/`--ignore-scripts` (five rows, flipped in 0.2: package code never runs; the allows moved to rows
+carrying those flags and to P13).
 """
 import json
 import os
@@ -22,7 +26,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from swarmtest import ROOT, Suite, guard, guard_raw, parallel, rng  # noqa: E402
+from swarmtest import ROOT, Suite, guard, guard_raw, parallel, rng, sh  # noqa: E402
 
 S = Suite('guard')
 R = rng('guard')
@@ -89,13 +93,15 @@ with open(os.path.join(ROOT, 'tests', 'fixtures', 'guard_cases.jsonl')) as fh:
 # ---------- P1: every agent can run its plain read commands ----------
 SR_REPO = tempfile.mkdtemp(prefix='swarm-guard-sr.')
 os.makedirs(os.path.join(SR_REPO, '.swarm'))
+sr_cwd = []  # (agent, command, cwd, expected, why): relative SWARM_ROOT resolves from cwd
 for _ in range(N):
     agent = R.choice(AGENTS)
     cmd = safe_command(agent)
     if cmd:
         cases.append((agent, cmd, 'allow', 'P1 plain allowlisted command'))
         cases.append((agent, 'SWARM_ROOT=%s/.swarm %s' % (SR_REPO, cmd), 'allow', 'P1 SWARM_ROOT= prefix is transparent'))
-        cases.append((agent, 'SWARM_ROOT=.swarm %s' % cmd, 'allow', 'P1 relative SWARM_ROOT= is transparent'))
+        sr_cwd.append((agent, 'SWARM_ROOT=.swarm %s' % cmd, SR_REPO, 'allow', 'P1 relative SWARM_ROOT= is transparent'))
+        sr_cwd.append((agent, 'SWARM_ROOT=%s/.swarm %s' % (word(), cmd), SR_REPO, 'deny', 'P1 relative SWARM_ROOT= must exist'))
         cases.append((agent, 'SWARM_ROOT=%s %s' % (R.choice(['/tmp/%s' % word(), '/abs/%s/.swarm' % word(), '../%s/.swarm' % word(),
                                                             '.swarm/../x', '%s/.swarm/../..' % SR_REPO]), cmd),
                       'deny', 'P1 SWARM_ROOT= outside an existing .swarm dir'))
@@ -205,10 +211,79 @@ for _ in range(N // 2 if DOCKER_WRITERS else 0):
     cwd_cases.append((R.choice(READ_ONLY), 'docker exec %s ls' % c, cwd, 'deny', 'P9 read-only roles never docker exec'))
     cwd_cases.append((agent, 'docker exec %s ls' % c, tempfile.gettempdir(), 'deny', 'P9 no containers file above cwd'))
 
+# ---------- P11: a writer's `cd` only into an existing linked worktree; nothing executes a pipe ----------
+WT_MAIN = tempfile.mkdtemp(prefix='swarm-guard-wt.')
+WT = WT_MAIN + '-linked'
+sh(['git', 'init', '-q', WT_MAIN])
+sh(['git', '-C', WT_MAIN, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'x'])
+sh(['git', '-C', WT_MAIN, 'worktree', 'add', '-q', WT, '-b', 'wt-%s' % word()])
+CD_WRITERS = [a for a in sorted(WRITERS) if 'cd' in allow_of(a)]
+S.check(os.path.isfile(os.path.join(WT, '.git')), 'P11 fixture: linked worktree created')
+for agent in CD_WRITERS:
+    tail = R.choice(['git status', 'git add -A', 'ls src'])
+    cwd_cases.append((agent, 'cd %s && %s' % (WT, tail), WT_MAIN, 'allow', 'P11 cd into a linked worktree'))
+    for bad in (WT_MAIN, WT + '/..', tempfile.gettempdir(), os.path.basename(WT), WT + '/sub'):
+        cwd_cases.append((agent, 'cd %s && %s' % (bad, tail), WT_MAIN, 'deny', 'P11 cd outside a linked worktree root'))
+for _ in range(N // 2):
+    agent = R.choice(sorted(WRITERS & set(AGENTS)))
+    head = R.choice([p for p in allow_of(agent) if p.split(' ')[0] not in ('cat', 'head', 'tail', 'wc', 'grep', 'rg',
+                     'jq', 'sort', 'uniq', 'cut', 'tr', 'cmp', 'diff') and not p.startswith('scripts/')] or ['zq'])
+    cwd_cases.append((agent, 'ls | %s x' % head, WT_MAIN, 'deny', 'P11 only text filters read a pipe'))
+
+# ---------- P12: a read-only `cd` goes only up to the git toplevel that holds its cwd ----------
+SUB = os.path.join(WT_MAIN, 'sub', 'dir')
+os.makedirs(SUB)
+OTHER = tempfile.mkdtemp(prefix='swarm-guard-other.')
+sh(['git', 'init', '-q', OTHER])
+for agent in [a for a in READ_ONLY if 'cd' in allow_of(a)]:
+    cwd_cases.append((agent, 'cd %s' % WT_MAIN, SUB, 'allow', 'P12 read-only cd up to its own toplevel'))
+    cwd_cases.append((agent, 'cd %s' % WT_MAIN, WT_MAIN, 'allow', 'P12 read-only cd to the toplevel it is in'))
+    for bad in (OTHER, '/', tempfile.gettempdir(), SUB, WT_MAIN + '/sub/..', os.path.expanduser('~') + '/.ssh', WT):
+        cwd_cases.append((agent, 'cd %s' % bad, SUB, 'deny', 'P12 read-only cd outside its own toplevel'))
+
+# ---------- P13: package installs and scanners fit a POSITIVE shape (random flags/specs) ----------
+DI, VS = 'swarm:dependency-installer', 'swarm:vulnerability-scanner'
+NPM_OK = ['--no-audit', '--no-fund', '--save-dev', '-D', '--save-exact', '--no-save', '--omit=dev']
+NPM_BAD = ['-g', '--global', '-C', '--prefix=/tmp', '--git=/bin/sh', '--node-gyp=/tmp/x', '--script-shell=/tmp/x',
+           '--userconfig=/tmp/r', '--globalconfig=/tmp/r', '--registry=http://x', '--ignore-scripts=false', '--', '--glob',
+           '--foreground-scripts', '--install-links', '--cache=/tmp', '--%s' % word(), '-%s' % R.choice('abcfgilpqsx')]
+SPEC_BAD = ['github:%s/%s' % (word(), word()), 'git+ssh://git@h/%s.git' % word(), 'https://e.x/%s.tgz' % word(),
+            './%s' % word(), '../%s.tgz' % word(), '/tmp/%s' % word(), '%s@file:%s.tgz' % (word(), word()),
+            '%s@github:a/b' % word(), 'file:%s' % word(), '%s/%s' % (word(), word()), '.%s' % word(), 'A%s' % word()]
+CMP_OK = ['--dev', '--no-interaction', '-n', '--no-progress', '--with-dependencies', '-W', '--prefer-dist']
+CMP_BAD = ['-d', '--working-dir=/tmp', '--repository=https://e', '--no-scr', '--prefer-source', '--%s' % word()]
+
+
+def pkg():
+    return R.choice(['', '@%s/' % word()]) + word() + R.choice(['', '@%d.%d.%d' % (R.randint(0, 9), R.randint(0, 9), R.randint(0, 9)), '@latest'])
+
+
+for _ in range(N):
+    good = R.sample(NPM_OK, R.randint(0, 3)) + ['--ignore-scripts'] + [pkg() for _ in range(R.randint(0, 3))]
+    R.shuffle(good)
+    cases.append((DI, 'npm install ' + ' '.join(good), 'allow', 'P13 registry install, no scripts'))
+    cases.append((DI, 'npm install ' + ' '.join([w for w in good if w != '--ignore-scripts']), 'deny', 'P13 npm without --ignore-scripts'))
+    cases.append((DI, inject('npm install ' + ' '.join(good), R.choice(NPM_BAD + SPEC_BAD)), 'deny', 'P13 npm flag/spec outside the list'))
+    comp = R.sample(CMP_OK, R.randint(0, 3)) + ['--no-scripts', '--no-plugins']
+    target = '%s/%s' % (word(), word()) + R.choice(['', ':^%d.%d' % (R.randint(0, 9), R.randint(0, 9))])
+    cases.append((DI, 'composer require %s %s' % (target, ' '.join(comp)), 'allow', 'P13 composer require, no scripts/plugins'))
+    drop = R.choice(['--no-scripts', '--no-plugins'])
+    cases.append((DI, 'composer require %s %s' % (target, ' '.join(w for w in comp if w != drop)), 'deny', 'P13 composer missing ' + drop))
+    cases.append((DI, inject('composer update %s %s' % (target, ' '.join(comp)), R.choice(CMP_BAD)), 'deny', 'P13 composer flag outside the list'))
+    cases.append((VS, 'php vendor/bin/phpmd src text %s' % ','.join(R.sample(['cleancode', 'codesize', 'design', 'naming'], 2)),
+                  'allow', 'P13 phpmd with built-in rulesets'))
+    cases.append((VS, R.choice(['php vendor/bin/phpmd src text %s.xml' % word(), 'php vendor/bin/phpmd src text phpmd.xml --%s=x' % word(),
+                                'php vendor/bin/deptrac analyse --%s=x' % R.choice(['config-file', 'cache-file', 'con', 'cache', word()]),
+                                'php vendor/bin/deptrac analyse -c %s.php' % word()]), 'deny', 'P13 scanner config/cache outside the list'))
+
+cwd_cases += sr_cwd
 results = parallel(lambda c: guard(c[0], c[1], c[2]), cwd_cases)
 for (agent, cmd, cwd, want, why), got in zip(cwd_cases, results):
     S.check(got == want, '%s: %s %r (cwd %s) -> %s, expected %s' % (why, agent, cmd, cwd, got, want))
 shutil.rmtree(REPO, ignore_errors=True)
+shutil.rmtree(WT_MAIN, ignore_errors=True)
+shutil.rmtree(WT, ignore_errors=True)
+shutil.rmtree(OTHER, ignore_errors=True)
 
 results = parallel(lambda c: guard(c[0], c[1]), cases)
 for (agent, cmd, want, why), got in zip(cases, results):

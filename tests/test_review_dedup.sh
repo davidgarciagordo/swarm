@@ -76,6 +76,11 @@ assert_eq "1" "$("$S" round --swarm-root "$SR" --run r-1 --stage design --artifa
 assert_exit 64 "round rejects a path-like stage" "$S" round --swarm-root "$SR" --run r-1 --stage ../x --artifact "$A1"
 assert_exit 64 "round requires --artifact" "$S" round --swarm-root "$SR" --run r-1 --stage design
 assert_eq "1" "$([ -d "$SR/.lock.d" ] && echo 0 || echo 1)" "the round lock is released"
+# --swarm-root is a path the script writes under: only an existing `.swarm` dir, no `..`/`.` component
+mkdir -p "$TMP/notswarm"
+assert_exit 64 "record refuses a --swarm-root that is not .swarm" "$S" record --swarm-root "$TMP/notswarm" --run r-1 --stage x --artifact-type plan --score 9 --verdict OK --lenses a --model m
+assert_exit 64 "round refuses a --swarm-root that climbs out" "$S" round --swarm-root "$SR/../" --run r-1 --stage x --artifact "$A1"
+assert_eq "0" "$(ls -A "$TMP/notswarm" | wc -l | tr -d ' ')" "nothing written outside .swarm/"
 
 
 # every lens the script can select is an agent review-orchestrator is allowed to spawn

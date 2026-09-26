@@ -216,5 +216,66 @@
       "tail", "wc", "grep", "rg", "jq", "cmp", "diff", "sort", "uniq", "cut", "tr", "php -l",
       "docker exec", "scripts/mem-", "scripts/mem-lock.sh"
     ]
+  },
+  "shapes": {
+    "_doc": "Positive argv shapes, looked up by the LONGEST prefix (3 then 2 words) of an already-allowlisted argv; a list is alternatives (empty = deny). flags {name: null | value regex} are exact names, no abbreviations; `--x=v` or `--x v`; \"*\" = any flag. pos: a regex for every positional (count within n, default [0,0]) or a list matched by index. need: flags that must appear exactly once. \"@name\" = patterns/flagsets. `every` binds all roles, `read_only` roles not in file_writers too; read_only_strict heads run only through a read_only entry.",
+    "patterns": {
+      "branch": "[A-Za-z0-9][A-Za-z0-9._/-]*",
+      "remote": "[A-Za-z0-9][A-Za-z0-9._-]*",
+      "owner_repo": "[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)?",
+      "text": "[^'\"]*",
+      "relpath": "(?!/)(?!-)(?!(?:.*/)?[.][.](?:/|$))[A-Za-z0-9._/-]+",
+      "url": "(?:https?|ssh|git)://[A-Za-z0-9.@_-]+(?::[0-9]+)?(?:/[A-Za-z0-9._/-]*)?|file:///[A-Za-z0-9._/-]*|[A-Za-z0-9._-]+@[A-Za-z0-9._-]+:[A-Za-z0-9._/-]+|[.]{0,2}/[A-Za-z0-9._/-]*",
+      "push_ref": "(?:[A-Za-z0-9][A-Za-z0-9._/-]*:)?(?!(?i:(?:master|main|develop|dev|development|trunk|stable|release|production|prod|head)$|refs/|heads/|tags/))[A-Za-z0-9][A-Za-z0-9._/-]*",
+      "wt_branch": "worktree-agent-[A-Za-z0-9]+",
+      "wt_path": "/?(?:[A-Za-z0-9_-][A-Za-z0-9._-]*/)*[.]claude/worktrees/agent-[A-Za-z0-9]+/?",
+      "npm_pkg": "(?:@[a-z0-9~-][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*(?:@[A-Za-z0-9._^~<>=|* -]+)?",
+      "composer_pkg": "[a-z0-9][a-z0-9_.-]*/[a-z0-9][a-z0-9_.-]*(?::[A-Za-z0-9._^~<>=|*@, -]+)?"
+    },
+    "flagsets": {
+      "npm_ro": {"--json": null, "--all": null, "--long": null, "--parseable": null, "--production": null, "--package-lock-only": null, "--depth": "[0-9]+", "--omit": "dev|optional|peer", "--audit-level": "info|low|moderate|high|critical|none"},
+      "npm_install": {"--ignore-scripts": null, "--save-dev": null, "-D": null, "--save-exact": null, "-E": null, "--save-optional": null, "--no-save": null, "--no-audit": null, "--no-fund": null, "--package-lock-only": null, "--prefer-offline": null, "--omit": "dev|optional|peer"},
+      "composer_ro": {"--direct": null, "-D": null, "--strict": null, "--no-dev": null, "--locked": null, "--minor-only": null, "--major-only": null, "--patch-only": null, "--all": null, "--tree": null, "--latest": null, "--outdated": null, "--name-only": null, "--no-interaction": null, "-n": null, "--no-plugins": null, "--no-scripts": null, "--no-ansi": null, "--format": "json|table|plain|summary|text", "--abandoned": "ignore|report|fail"},
+      "composer_install": {"--no-scripts": null, "--no-plugins": null, "--no-interaction": null, "-n": null, "--no-progress": null, "--dev": null, "--no-dev": null, "--prefer-dist": null, "--dry-run": null, "--no-audit": null, "--with-dependencies": null, "-w": null, "--with-all-dependencies": null, "-W": null}
+    },
+    "every": {
+      "git branch": {"flags": {"-D": null}, "pos": ["@wt_branch"], "need": ["-D"]},
+      "git merge": [{"flags": {"--no-ff": null}, "pos": ["@wt_branch"]}, {"flags": {"--abort": null}, "pos": [], "need": ["--abort"]}],
+      "git worktree": [],
+      "git worktree list": {"flags": {"--porcelain": null}, "pos": []},
+      "git worktree prune": {"flags": {}, "pos": []},
+      "git worktree remove": {"flags": {"--force": null}, "pos": ["@wt_path"]},
+      "git push": {"flags": {"-u": null, "--set-upstream": null}, "pos": ["@remote", "@push_ref"]},
+      "git remote": {"flags": {"-v": null}, "pos": []},
+      "git remote get-url": {"flags": {"--push": null, "--all": null}, "pos": ["@remote"]},
+      "git remote add": {"flags": {}, "pos": ["@remote", "@url"]},
+      "gh repo": [],
+      "gh repo create": {"flags": {"--public": null, "--private": null, "--push": null, "--remote": "@remote", "--description": "@text", "--source": "[.]"}, "pos": ["@owner_repo"]},
+      "gh pr": [],
+      "gh pr create": {"flags": {"--draft": null, "--base": "@branch", "--head": "@branch", "--repo": "@owner_repo", "--title": "@text", "--body-file": "@relpath"}, "pos": [], "need": ["--base", "--head"]},
+      "gh auth": [],
+      "gh auth status": {"flags": {"--hostname": "[A-Za-z0-9.-]+", "-h": "[A-Za-z0-9.-]+", "--active": null, "-a": null}, "pos": []},
+      "claude plugin": [],
+      "claude plugin list": {"flags": {"--json": null, "--available": null}, "pos": []},
+      "composer update": {"flags": "*", "pos": ".+", "n": [1, 99]},
+      "php -l": {"flags": {}, "pos": ".+", "n": [1, 99]}
+    },
+    "read_only": {
+      "npm audit": {"flags": "@npm_ro", "pos": []},
+      "npm outdated": {"flags": "@npm_ro", "pos": "@npm_pkg", "n": [0, 99]},
+      "npm ls": {"flags": "@npm_ro", "pos": "@npm_pkg", "n": [0, 99]},
+      "npm install": {"flags": "@npm_install", "pos": "@npm_pkg", "n": [0, 99], "need": ["--ignore-scripts"]},
+      "npm ci": {"flags": "@npm_install", "pos": [], "need": ["--ignore-scripts"]},
+      "composer audit": {"flags": "@composer_ro", "pos": []},
+      "composer licenses": {"flags": "@composer_ro", "pos": []},
+      "composer outdated": {"flags": "@composer_ro", "pos": "@composer_pkg", "n": [0, 1]},
+      "composer show": {"flags": "@composer_ro", "pos": "@composer_pkg", "n": [0, 1]},
+      "composer install": {"flags": "@composer_install", "pos": [], "need": ["--no-scripts", "--no-plugins"]},
+      "composer require": {"flags": "@composer_install", "pos": "@composer_pkg", "n": [1, 99], "need": ["--no-scripts", "--no-plugins"]},
+      "composer update": {"flags": "@composer_install", "pos": "@composer_pkg", "n": [1, 99], "need": ["--no-scripts", "--no-plugins"]},
+      "php vendor/bin/deptrac": {"flags": {"--no-progress": null, "--no-cache": null, "--report-uncovered": null, "--fail-on-uncovered": null, "--report-skipped": null}, "pos": ["analy[sz]e"]},
+      "php vendor/bin/phpmd": {"flags": {"--strict": null, "--ignore-violations-on-exit": null, "--ignore-errors-on-exit": null, "--minimumpriority": "[0-5]", "--suffixes": "[a-z0-9,]+", "--exclude": "[A-Za-z0-9._/,*-]+"}, "pos": ["[A-Za-z0-9._/,-]+", "text|json|xml|ansi|github|checkstyle|sarif|gitlab", "(?:cleancode|codesize|controversial|design|naming|unusedcode|phpmd[.]xml|phpmd[.]xml[.]dist|phpmd[.]dist[.]xml)(?:,(?:cleancode|codesize|controversial|design|naming|unusedcode|phpmd[.]xml|phpmd[.]xml[.]dist|phpmd[.]dist[.]xml))*"]}
+    },
+    "read_only_strict": ["npm", "composer"]
   }
 }

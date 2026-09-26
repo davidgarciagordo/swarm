@@ -143,6 +143,8 @@ PYEOF
     [ -n "$SR" ] && [ -n "$RUN" ] && [ -n "$STAGE" ] && [ -n "$ATYPE" ] && [ -n "$SCORE" ] \
       && [ -n "$VERDICT" ] && [ -n "$LENSES" ] && [ -n "$MODEL" ] || usage "record: all 8 flags are mandatory"
     [ -d "$SR" ] || usage "swarm-root does not exist: $SR"
+    case "/${SR%/}/" in */../*|*/./*) usage "swarm-root has a relative component: $SR" ;; */.swarm/) ;;
+      *) usage "swarm-root must be a .swarm directory: $SR" ;; esac
     case "$ATYPE" in plan|diff|report) ;; *) usage "invalid --artifact-type: '$ATYPE'" ;; esac
     case "$SCORE" in ''|*[!0-9]*) usage "--score must be an integer 0-10" ;; esac
     [ "$SCORE" -le 10 ] || usage "--score must be an integer 0-10"
@@ -176,6 +178,8 @@ PYEOF
     [ -n "$SR" ] && [ -n "$RUN" ] && [ -n "$STAGE" ] && [ -n "$ART" ] \
       || usage "$SUB: --swarm-root, --run, --stage and --artifact are mandatory"
     [ -d "$SR" ] || usage "swarm-root does not exist: $SR"
+    case "/${SR%/}/" in */../*|*/./*) usage "swarm-root has a relative component: $SR" ;; */.swarm/) ;;
+      *) usage "swarm-root must be a .swarm directory: $SR" ;; esac
     for pair in "run:$RUN" "stage:$STAGE"; do
       val="${pair#*:}"
       case "$val" in .*|*[!A-Za-z0-9._-]*) usage "invalid characters in --${pair%%:*}: '$val'" ;; esac

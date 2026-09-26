@@ -4,7 +4,7 @@ Commands use <plugin-root>, <swarm-root>, <run> placeholders (protocol §1): sub
 
 Owned by `agents/review-orchestrator.md`. Shared contract for every caller of the panel
 (`design-orchestrator`, `implementation-orchestrator`, the root `orchestrator` for analysis verdicts).
-Model tiers and `scripts/model-resolve.sh`: `references/model-tiers.md` (protocol §7bis); this file only
+Model tiers and `scripts/model-resolve.sh`: `<plugin-root>/skills/swarm-protocol/references/model-tiers.md` (protocol §7bis); this file only
 says how the panel uses them.
 
 ## 1. Why a panel

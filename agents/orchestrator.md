@@ -21,7 +21,6 @@ The swarm's single entry point (`/swarm:run`). You only talk to domain orchestra
 - WHEN the route is implementation (§10) → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/orchestrator/route-implementation.md` (§10.2-§10.4) BEFORE launching `implementation-orchestrator`.
 - WHEN the route is requirements (§11) → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/orchestrator/route-requirements.md` (§11.2-§11.4) BEFORE launching `requirements-orchestrator`.
 - WHEN the route is delivery (§12) → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/orchestrator/route-delivery.md` (§12.2-§12.4) BEFORE launching `delivery-orchestrator`.
-- WHEN a spawn fails because its model does not exist, or a child's retry needs an escalated tier → Read `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/model-tiers.md` BEFORE retrying (§13.2).
 
 ## 1. Tier classification
 ### 1.0 Invocation guards (BEFORE classifying anything)
@@ -130,7 +129,7 @@ verdict: <its full literal verdict>")
 
 **Forwarding child output (every route).** A child's result lines go into your OUTPUT as-is, WITHOUT §5.0 (turn output never reaches a shell). That exemption does NOT cover the closing `summary --line`. A child's `BLOCKED …`/`KO …` is propagated literally as your verdict; its `- run closed: <literal verdict from <domain>>` line goes through §5.0's sanitization (a child's reason can cite code with backticks/`$(...)`); then `curate`, wait for its `DONE`, return.
 
-**Closing lines.** Each route playbook's §x.4 lists its green lines (normal close, analysis completed, design completed, implementation completed, dependencies, delivery). Omission lines (no playbook is read on those paths):
+**Closing lines.** Each route playbook's §x.4 (discovery: §5.5) lists its green lines (normal close, analysis completed, design completed, implementation completed, dependencies, delivery). Omission lines (no playbook is read on those paths):
 - discovery skipped / domain not implemented: `- run closed: <your verdict> · discovery omitted: <reason>`
 - analysis omitted: `- run closed: <your verdict> · analysis omitted: <reason>`
 - all three omitted — two variants, ONE combined line `- run closed: <your verdict> · discovery, analysis and design omitted: <shared reason>`:

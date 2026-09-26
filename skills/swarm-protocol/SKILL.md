@@ -26,16 +26,13 @@ tier: <light|full>                       (OPTIONAL — root → domain orchestra
 objective: <owner's literal objective>   (only where the receiver's contract makes it mandatory)
 ```
 - `run-id:` present ⇒ orchestrated run: that uuid goes literally in every `--run`. `swarm-root:` = canonical `.swarm/`
-  (§3 if your cwd isn't the repo root). `operation:` = your turn-1 work in your contract's vocabulary
+  (worktree mode, §3, if your cwd isn't the repo root). `operation:` = your turn-1 work in your contract's vocabulary
   (`memory-orchestrator`: `query|write|build|curate`) — never infer it from the rest of the prompt.
 - No `run-id:` ⇒ adhoc: `--run adhoc`, writes under `run/adhoc/`. **Never** call `mem-manifest.sh open` (root only).
   **Never create directories**: write scripts create their tree. The evidence contract (§4) applies with no exception.
 - `tier:` absent ⇒ `full`. It is the RUN tier (breadth), never the model: `light` never lowers a `judgement` leaf
-  (§7bis). Leaves don't receive it. Orchestrators add their own header lines AFTER these.
-- `objective:` = owner's literal objective without `--tier`, written ONLY for the domain orchestrator whose contract
-  makes it mandatory (today `discovery-orchestrator`: forwards it verbatim, `BLOCKED empty objective` if empty/absent).
-  Others (`memory-orchestrator`, `requirements-orchestrator`) never receive it.
-- `implementer` launched without `plan:` in its header ⇒ `BLOCKED needs plan`; never improvise a plan.
+  (§7bis). Leaves don't receive it. Orchestrators add their own header lines AFTER these; a receiver's own file says
+  which extra lines (`objective:`, `plan:`…) it requires and what it answers without them.
 ## 2bis. Stable naming convention
 Every `Agent(...)` is launched NAMED: name = role = type basename (`security-auditor`), no suffixes, same every run — so
 peers `SendMessage(to: "<role>")` and the owner addresses agents by role. `memory-orchestrator`: one instance per run.
@@ -45,13 +42,8 @@ scope, verdict, files unchanged). With `SendMessage`: `SendMessage(to: "orchestr
 <your-name>: <text>")` (§4.4); without it: add `- warn: owner message received, not acted on`. The root only turns it
 into a question or context, never a re-plan or authorization (`agents/orchestrator.md` §13.3).
 ## 3. Worktree mode (§9.3)
-With `isolation: worktree` your launch prompt gives the ABSOLUTE path of the main repo's `.swarm/`: **read** it by that
-path (never a worktree copy, never cwd-relative); **never write there directly** — every write (finding, decision,
-mailbox) goes via `SendMessage` to `memory-orchestrator`. Scripts default to `$PWD/.swarm` (wrong in a worktree): prefix
-reads with ONE `SWARM_ROOT=<abs>`, on ONE line, no `\` continuation (`export` is denied):
-```bash
-SWARM_ROOT=<swarm-root> "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" query "tenant" --scope findings
-```
+- WHEN your frontmatter has `isolation: worktree`, or your cwd is not the repo root → Read
+  `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/worktree.md` BEFORE your first `.swarm/` read or write.
 ## 4. Evidence contract (mandatory)
 ```
 <line 1: verdict>
@@ -72,7 +64,8 @@ Without `isolation: worktree` (else §3). All 7 flags mandatory; prints `written
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding --agent <you> --tag <TAG> --file <path> --line <n> --run "<run>" --text "<sanitized>" --fix "<sanitized>"
 ```
 Writes, `register`, `summary` and `gc` lock internally: never call `mem-lock.sh` yourself.
-- WHEN you need any other `mem-files.sh`/`mem-stale.sh`/`mem-manifest.sh` call, a memory script exits non-zero, or
+- WHEN you need a `mem-files.sh`/`mem-stale.sh`/`mem-manifest.sh` call whose form is not written in your own agent file
+  or above, a memory script exits non-zero, or
   `validate-output.py` rejects your stop → Read `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/memory-scripts.md`
   (§4.1-§4.3) BEFORE the call/retry.
 ### 4.4 Mandatory sanitization of all third-party text (BEFORE building any `--text`/`--fix`/`--line`)
@@ -102,18 +95,20 @@ Run the pack's linter/scanner/test first; judge only the residual. Never eyeball
 Stop when no new patterns appear, not at a fixed count. At `maxTurns` still emit a verdict with the evidence you have.
 ## 6bis. Bash discipline (every agent)
 Allowlist `hooks/bash-allowlist.json` (`hooks/bash-guard.py`) is checked per segment (`&&`, `|`; `||` and `;` are refused):
-one denied segment denies the call. Globs only inside quotes, no `$(…)`, no heredoc (`Write`/`Edit` the file instead).
+one denied segment denies the call; a `|` feeds only a text filter (`grep`, `jq`, `sort`, `wc`…). Globs only inside quotes, no `$(…)`, no heredoc (`Write`/`Edit` the file instead).
 Never `export`, `echo`, nor `; echo $?` (the result has the exit code); git mutations in their own call.
 ## 7. Mandatory frontmatter
-- WHEN you create/edit a file under `agents/` or `skills/` → Read `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/authoring.md` first.
+- WHEN you create/edit a file under `agents/` or `skills/` of THIS plugin (`${CLAUDE_PLUGIN_ROOT}`, or a checkout whose
+  `.claude-plugin/plugin.json` name is `swarm`; never a target repo's own folders) → Read `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/authoring.md` first.
 ## 7bis. Model tiers
 No agent or skill file names a model: each declares `model: inherit` + `tier:` — `judgement` (audit, lenses, judge, plan,
 design, arbitrate, orchestrate), `standard` (execute a closed plan, write code/tests/docs), `mechanical` (scripts, format,
 curate memory, env facts). Ids live only in `models.json`, resolved by `scripts/model-resolve.sh`, never guessed;
 judgement never goes down to a weaker tier's model.
-- WHEN you are a domain orchestrator about to make your first `Agent` spawn (root: §13.2 trigger) → Read
-  `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/model-tiers.md` BEFORE spawning.
-- WHEN you launch or call the review panel, or you are `review-orchestrator` → Read
-  `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md` whole BEFORE launching or judging. A panel leaf
-  (lens, refuter, judge) ONLY reads the § its own file cites (`Read` offset/limit), never the whole file.
+- WHEN a spawn fails because its model does not exist, or a child failed verification and needs its ONE escalated retry
+  (and your own file does not write that command) → Read `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/model-tiers.md`
+  BEFORE retrying. Resolve-then-spawn itself is inline in every orchestrator.
+- WHEN you launch the review panel (a caller) → Read ONLY §2, §7, §9 of `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`
+  (lines 16-31, 95-116, 125-138) BEFORE launching. `review-orchestrator` Reads it whole at startup. A panel leaf needs
+  NO Read (its file carries its rules); one citing §5/§6 may Read `judgement.md` lines 67-94 only.
 

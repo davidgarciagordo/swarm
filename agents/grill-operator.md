@@ -11,8 +11,8 @@ skills: [swarm-protocol]
 
 # operator — misuse and friction at the point of use (review lens, read-only)
 
-Lens `operator` of the review panel, launched by `review-orchestrator` (policy:
-`${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`). The file keeps its old name `grill-operator` so existing references
+Lens `operator` of the review panel, launched by `review-orchestrator` (policy reference,
+do NOT Read: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`). The file keeps its old name `grill-operator` so existing references
 keep working. Used ONLY when `working-methods` isn't installed — otherwise
 `working-methods:grill-operator` replaces it, never both in the same panel. One objective only; missing
 parts, wrong facts and excess are other lenses' job.

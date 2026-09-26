@@ -4,6 +4,7 @@ set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_SCRIPT="$SCRIPT_DIR/mem-lock.sh"
+. "$SCRIPT_DIR/lib/validate.sh"
 
 SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"
 export SWARM_ROOT
@@ -67,6 +68,8 @@ _register() {
     echo "swarm: mem-manifest.sh register — missing required arg" >&2
     return 64
   fi
+  swarm_require "mem-manifest.sh register" run --run "$run" && swarm_require "mem-manifest.sh register" agent --agent "$agent" \
+    || return 64
   local dir="$SWARM_ROOT/run/$run/agents"
   mkdir -p "$dir"
   python3 -c "
@@ -93,6 +96,8 @@ _summary() {
     echo "swarm: mem-manifest.sh summary — missing required arg" >&2
     return 64
   fi
+  swarm_require "mem-manifest.sh summary" run --run "$run" && swarm_require "mem-manifest.sh summary" oneline --line "$line" \
+    || return 64
   local dir="$SWARM_ROOT/run/$run"
   mkdir -p "$dir"
   echo "$line" >> "$dir/summary.md"
@@ -123,6 +128,7 @@ cmd_gc() {
       *) shift ;;
     esac
   done
+  swarm_require "mem-manifest.sh gc" count --keep "$keep" || return 64
   local run_root="$SWARM_ROOT/run"
   [ -d "$run_root" ] || return 0
 

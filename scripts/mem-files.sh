@@ -4,6 +4,7 @@ set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_SCRIPT="$SCRIPT_DIR/mem-lock.sh"
+. "$SCRIPT_DIR/lib/validate.sh"
 
 SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"
 export SWARM_ROOT
@@ -73,6 +74,10 @@ _write_finding() {
     echo "swarm: mem-files.sh write finding — missing required arg" >&2
     return 64
   fi
+  local w="mem-files.sh write finding"
+  swarm_require "$w" agent --agent "$agent" && swarm_require "$w" run --run "$run" && swarm_require "$w" line --line "$line" \
+    && swarm_require "$w" relpath --file "$file" && swarm_require "$w" oneline --tag "$tag" \
+    && swarm_require "$w" oneline --text "$text" && swarm_require "$w" oneline --fix "$fix" || return 64
   mkdir -p "$SWARM_ROOT/findings"
   local out="$SWARM_ROOT/findings/${agent}.md"
   touch "$out"
@@ -103,6 +108,7 @@ _write_decision() {
     echo "swarm: mem-files.sh write decision — missing --text" >&2
     return 64
   fi
+  swarm_require "mem-files.sh write decision" oneline --text "$text" || return 64
   local out="$SWARM_ROOT/decisions.md"
   [ -f "$out" ] || printf '# Decisiones\n' > "$out"
   local today
@@ -127,6 +133,9 @@ _write_mailbox() {
     echo "swarm: mem-files.sh write mailbox — missing required arg" >&2
     return 64
   fi
+  local w="mem-files.sh write mailbox"
+  swarm_require "$w" agent --to "$to" && swarm_require "$w" run --run "$run" && swarm_require "$w" oneline --from "$from" \
+    && swarm_require "$w" oneline --text "$text" || return 64
   local dir="$SWARM_ROOT/run/${run}/mailbox"
   mkdir -p "$dir"
   local out="$dir/${to}.md"

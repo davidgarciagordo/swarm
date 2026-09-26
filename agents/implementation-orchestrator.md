@@ -48,7 +48,7 @@ grep -m1 '^tier:' "${CLAUDE_PLUGIN_ROOT}/agents/implementer.md"
 ```
 Model missing ⇒ `model-resolve.sh --mark-unavailable <id> --swarm-root <…>`, re-resolve, retry once.
 Fresh re-spawn after failed verification ⇒ `--escalate <tier>` first
-(`${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md` §7). Register every child first:
+(WHEN the command is not clear ⇒ Read `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/model-tiers.md`). Register every child first:
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh" register --run <run> --agent test-writer --domain implementation --area "." --owner implementation-orchestrator
 ```

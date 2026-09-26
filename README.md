@@ -311,9 +311,18 @@ deterministic dedup (`scripts/review-dedup.sh`), a `refuter` for blocking findin
 turn with `WAITING <n>` + `pending: <names>` instead of a premature verdict; the output hook caps it
 at 6 per agent instance (reset by its next verdict) and rejects it when it can't count it.
 
-**Bash guard.** Agents without `Write`/`Edit` cannot redirect output to a file (`>`, `>>`) nor use
-git's `--output`. `docker exec` is only in named allowlists, runs only read-only inner commands, and
-only into containers listed one per line in the repo's `.swarm/docker-containers`.
+**Bash guard.** Deny-by-default: a read-only role's command is denied outright if it contains ANY
+shell metacharacter anywhere (`| & > ( ) ; $ \` \ { } <`, an unquoted glob, `~`), quoted or not — one
+command, no chaining, no redirection, no `docker exec`. A writer (isolated worktree) may use `&&`/`|`
+and a handful of documented exceptions, but a `|` only ever feeds a text filter (`grep`, `jq`,
+`sort`…) — nothing else a pipe hands it executes — and `cd` goes only into an existing *linked* git
+worktree root, never back into the main checkout. `docker exec` is only in named allowlists, runs
+only read-only inner commands, and only into containers listed one per line in the repo's
+`.swarm/docker-containers`. Known gaps, documented rather than hidden: a writer's `cd` can still
+enter a *different* agent's linked worktree (the guard can't tell whose is whose); short combined
+`npx`/`npm` flags are denied even when safe (`npx tsc -p x` → spell it `--project`); a pipe into a
+non-filter is denied even when harmless (`… | git …`, `… | php vendor/bin/phpunit` — no shipped
+contract needs that shape).
 
 ## 📚 Core vs on-demand material
 
@@ -321,16 +330,51 @@ Every agent loads only its **core** file plus the preloaded `swarm-protocol` ski
 leaf ≤80 lines, domain orchestrator ≤150, root ≤250, `SKILL.md` ≤120). Material an agent needs only in
 some situations lives in plain `.md` files it `Read`s when an explicit `WHEN <condition> → Read <path>`
 line in its core fires: `skills/swarm-protocol/references/` (memory-script signatures, the guard's
-quoting rules, `WAITING`, model-tier resolution, authoring rules), `skills/swarm-protocol/judgement.md`
+quoting rules, `WAITING`, model-tier resolution, worktree mode, authoring rules),
+`skills/swarm-protocol/judgement.md`
 (review-panel policy) and `playbooks/<agent>/` (agent-specific playbooks, never auto-loaded). Core files
 spell those paths with `${CLAUDE_PLUGIN_ROOT}` (substituted when the agent loads); on-demand files use the
 `<plugin-root>` placeholder instead, because a file opened with `Read` is returned verbatim.
+
+**Extending without growing the always-loaded cost.** A new rare behaviour — a new error path, a new
+tool's quirk, a new edge case — is a new (or extended) on-demand file plus one `WHEN <condition> →
+Read <path>` trigger line in the owning core file, never a paragraph inlined into that core file.
+This is a tested invariant, not a convention to remember: `tests/test_structure.py` fails the suite
+on any on-demand file no core file's trigger points at (an orphan), and on any core file over its
+role's line/byte budget.
+
+## 💰 Cost
+
+Measured, not estimated — `a07e655` (the checkpoint right before this slim pass) → `c26aee1` (the
+first slim commit) → now (further hooks/test hardening on top of the same split):
+
+| | `a07e655` | `c26aee1` | now |
+|---|---|---|---|
+| `SKILL.md` (preloaded into every agent) | 398 lines | 119 lines | 114 lines (~2.4k tok) |
+| on-demand files (`references/` + `playbooks/` + `judgement.md`) | 1 file / 145 lines | 30 files / 1652 lines | 31 files / 1665 lines |
+| typical run: agent files + `SKILL.md` | ~147.8k tok | ~60.2k tok | ~59.3k tok |
+| typical run: required on-demand reads | n/a | `model-tiers.md` ~2.7k + `judgement.md` ~4.5k | `model-tiers.md` 0 (read only on a resolve failure/escalation now) + `judgement.md` ~1.6k + `worktree.md` 4×~0.23k |
+| **typical run, total** | **~147.8k+ tok** | **~67.4k tok** | **~61.8k tok (−8% vs `c26aee1`, −58% vs `a07e655`)** |
+
+All size budgets are still met: leaf ≤80 lines, domain orchestrator ≤150, root ≤250, `SKILL.md` ≤120
+— `tests/structure.json` also caps bytes per role, catching a long-line file the line count alone
+would miss.
 
 ## 🏷️ Naming convention
 
 Every spawned agent is launched **named after its role** — the basename of its type, no suffixes or variants (`memory-orchestrator`, `analysis-orchestrator`, `pattern-advisor`, `dependency-installer`, and in the future `release-manager`…). This is what lets peer agents `SendMessage` each other by name without discovering it first, and lets the owner address a specific agent directly — "tell `memory-builder` when it's done" — without the caller having to look up who that is. `memory-orchestrator` is the one case that's mandatory today: a single named instance per run.
 
 ## ✅ Tests
+
+Structural + generative, never wording. `tests/test_structure.py` checks the agent graph, the
+frontmatter schema, line/byte budgets per role, that every on-demand file is reached by a trigger
+(and none are orphaned), allowlist↔agent consistency, and that every documented command — agent,
+playbook, or a stack pack's `commands.md` row — actually passes the real guard for the agent that
+runs it. `tests/test_guard.py` and `tests/test_bash_guard_generative.sh` fuzz `hooks/bash-guard.py`
+itself against seeded properties plus a regression table (`tests/fixtures/guard_cases.jsonl`)
+captured from the previous guard's suite, so a rewrite can tighten the guard but never loosen a
+prior deny. No test asserts a fixed sentence: rewording an agent file never fails the suite, only
+breaking its structure or behavior does.
 
 ```bash
 bash tests/run.sh

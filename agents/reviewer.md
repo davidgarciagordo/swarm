@@ -16,7 +16,7 @@ invariants, quality, test coverage, Critical/Important/Minor severity) is covere
 panel on `artifact-type: diff` — completeness-critic (plan steps), rules-auditor (invariants and
 repo rules), defect-hunter (what breaks), fact-checker (claims) — plus a refuter and a blind judge
 it never had. A separate reviewer would pay twice for the same signal, so its role is routed to
-`review-orchestrator` (policy: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md` §9). Severity mapping:
+`review-orchestrator` (policy reference, do NOT Read: `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md` §9). Severity mapping:
 Critical = P1, Important = P2, Minor = P3.
 
 ## If you are launched

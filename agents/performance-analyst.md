@@ -27,7 +27,7 @@ and **hot paths** (avoidable complexity on the critical path: request handler, m
 
 - `scope: infra` — audit CI/build/deploy/tooling files FIRST (`.github/`, `Makefile`, `Dockerfile*`,
   `docker-compose*`, `scripts/`, codegen config) through your lens, cited by `file:line`. Absent ⇒ app code.
-- `review-findings: <lines>` — round-2 relaunch after a panel `KO` (root §13.6): re-check EACH point
+- `review-findings: <lines>` — round-2 relaunch after a panel `KO` (route-analysis.md §13.6): re-check EACH point
   against the repo first; correct a wrong claim, or keep it with fresh `file:line` evidence.
 - `veracity: …` — protocol §4.6, always present; follow it.
 

@@ -59,8 +59,8 @@ grep -m1 '^tier:' "${CLAUDE_PLUGIN_ROOT}/agents/planner.md"
 ```
 Printed id → `Agent` `model` (omit on `inherit`). Missing model: `model-resolve.sh --mark-unavailable
 <id> --swarm-root <swarm-root>`, resolve again, retry once. The id given to `planner` is the review's
-`producer-model:`. Remaining tier rules: BEFORE your first spawn → Read
-`${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/model-tiers.md`.
+`producer-model:`. WHEN a child failed verification and needs its ONE escalated retry → Read
+`${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/model-tiers.md` first.
 
 ## Launching pattern-advisor + domain-modeler (ONE single batch)
 

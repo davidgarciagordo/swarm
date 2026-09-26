@@ -13,6 +13,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 
@@ -285,11 +286,19 @@ def logical_lines(block):
 
 SWARM_DIR = tempfile.mkdtemp(prefix='swarm-structure.')
 os.makedirs(os.path.join(SWARM_DIR, '.swarm'))
+MAIN = os.path.join(SWARM_DIR, 'main')  # `<toplevel …>` = the repo the agent runs in (its cwd below)
+LINKED_WT = os.path.join(SWARM_DIR, 'wt')  # `<… worktree …>` = an existing linked worktree, as a writer's `cd` needs
+for argv in (['git', 'init', '-q', os.path.join(SWARM_DIR, 'main')],
+             ['git', '-C', os.path.join(SWARM_DIR, 'main'), '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q',
+              '--allow-empty', '-m', 'x'],
+             ['git', '-C', os.path.join(SWARM_DIR, 'main'), 'worktree', 'add', '-q', LINKED_WT, '-b', 'wt']):
+    subprocess.run(argv, capture_output=True, check=True)
 
 
 def concrete(cmd):  # <swarm-root> = an existing .swarm, as the header's swarm-root: always is
     cmd = cmd.replace('<plugin-root>', ROOT).replace('<swarm-root>', os.path.join(SWARM_DIR, '.swarm'))
-    return re.sub(r'<[A-Za-z][^<>\n]*>', 'PLACEHOLDER', cmd)
+    return re.sub(r'<[A-Za-z][^<>\n]*>', lambda m: LINKED_WT if 'worktree' in m.group(0) and not
+                  m.group(0).startswith('<agentId') else MAIN if 'toplevel' in m.group(0) else 'PLACEHOLDER', cmd)
 
 
 cmd_jobs = []
@@ -318,7 +327,19 @@ for table in glob.glob(os.path.join(ROOT, 'skills', 'pack-*', 'commands.md')):
             cmd_jobs.append((executor, rel(table), concrete(m.group(1))))
     S.check(rows >= 12, '%s: the command table parses (%d rows)' % (rel(table), rows))
 
-decisions = parallel(lambda j: guard('swarm:' + j[0], j[2]), cmd_jobs)
+# line ranges a trigger cites (`judgement.md` … `lines A-B`) start at a `## ` heading and end right before one / EOF
+for src in CORE:
+    for m in re.finditer(r'`[^`]*?([A-Za-z0-9_./-]+\.md)`[^`\n]*?\n?[^`\n]*?\(?lines? ((?:\d+-\d+(?:, )?)+)', read(src)):
+        target = os.path.join(ROOT, 'skills', 'swarm-protocol', os.path.basename(m.group(1)))
+        if not os.path.isfile(target):
+            continue
+        lines = read(target).split('\n')
+        for a, b in (map(int, r.split('-')) for r in m.group(2).split(', ')):
+            S.check(lines[a - 1].startswith('## ') and (b >= len(lines) or lines[b].startswith('## ') or not lines[b].strip()
+                                                       and b + 1 < len(lines) and lines[b + 1].startswith('## ')),
+                    '%s cites %s lines %d-%d, not a whole § (line %d: %r)' % (rel(src), m.group(1), a, b, a, lines[a - 1][:40]))
+
+decisions = parallel(lambda j: guard('swarm:' + j[0], j[2], MAIN), cmd_jobs)
 shutil.rmtree(SWARM_DIR, ignore_errors=True)
 for (name, src, cmd), res in zip(cmd_jobs, decisions):
     S.check(res == 'allow', '%s: documented command denied for swarm:%s: %s' % (src, name, cmd[:160]))

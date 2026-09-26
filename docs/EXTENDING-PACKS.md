@@ -55,10 +55,11 @@ grounded in that pack's actual, working content, not invented syntax.
 
 ## `commands.md` — the part that has to be exactly right
 
-This is the file a real test (`tests/test_stack_pack.sh`) parses and verifies command-by-command
-against the real permission guard. Get its shape wrong and your pack silently fails closed — a leaf
-just won't find a command for a key, with no error, because "no command for this key" is a valid,
-expected outcome for every key.
+This is the file `tests/test_structure.py` (the plugin's structural suite) parses and verifies
+command-by-command against the real permission guard, for every pack matching
+`skills/pack-*/commands.md` — including a second pack you add, with no test of your own to write.
+Get its shape wrong and your pack silently fails closed — a leaf just won't find a command for a
+key, with no error, because "no command for this key" is a valid, expected outcome for every key.
 
 **Table format**, four columns, exactly this header:
 
@@ -79,9 +80,9 @@ expected outcome for every key.
 
 **The constraint that actually bites**: every command's ejecutor must ALREADY have that command's
 prefix in its own `hooks/bash-allowlist.json` entry, or the guard denies it at runtime — silently,
-from the leaf's point of view, as a normal permission denial. `tests/test_stack_pack.sh` catches
-this for the shipped pack by running every row through the real guard; do the same for yours (see
-"Testing your pack" below) before you trust a single row.
+from the leaf's point of view, as a normal permission denial. `tests/test_structure.py` catches this
+for every pack, shipped or yours, by running every row through the real guard (see "Testing your
+pack" below) — trust it over assuming a row works.
 
 **Never chain two commands with `&&`** — the guard denies multi-command segments outright, and a
 pack row that assumes chaining will never actually run.
@@ -111,7 +112,9 @@ allowlist changes. But the READ-ONLY leaves that only ever get two-word-prefix g
 existing tools (`vulnerability-scanner`, `dependency-auditor`) do NOT have anything for a new
 ecosystem by default — you will need to add entries like `"pip-audit"` or `"safety check"` to
 `hooks/bash-allowlist.json` yourself, the same way `composer audit`/`npm audit` are there today for
-those two leaves specifically.
+those two leaves specifically. A read-only leaf's `npm`/`composer` (and `php vendor/bin/deptrac|phpmd`)
+must ALSO fit a positive entry in that file's `shapes.read_only` table — exact flags, value shapes and
+positionals; a flag you don't list there is denied, so add it next to the command.
 
 **Verify, never assume**, against the real guard:
 
@@ -163,17 +166,24 @@ files' contracts.
 
 ## Testing your pack
 
-Mirror `tests/test_stack_pack.sh`'s structure for your own pack (it's hardcoded to the one shipped
-pack today, so write a sibling file rather than editing it):
+There's no per-pack test file to write anymore. `tests/test_structure.py` (the plugin's structural
+suite — see the README's "Tests" section for the suite's philosophy) already globs
+`skills/pack-*/commands.md` generically: it parses every pack's table the same way regardless of
+name, asserts each row's `+`-separated executor(s) are real agents, runs every row's command through
+the real `hooks/bash-guard.py` with that executor's `agent_type` and asserts `allow` — the exact
+check that would have caught every "forgot to update the allowlist" mistake in this guide's own
+worked example, before a leaf ever hit it live — and asserts the table parses at least 12 rows, so a
+near-empty or malformed table fails loudly instead of silently passing.
 
-1. Assert all 6 files exist.
-2. Assert `SKILL.md` documents your real detection marker.
-3. Parse `commands.md`'s table the same way the reference test does, and for every row, run its
-   command through `hooks/bash-guard.py` with its named executor's real `agent_type` — assert
-   `allow`. This is the single most valuable check: it's the one that would have caught every
-   "forgot to update the allowlist" mistake in this guide's own worked example, before a leaf ever
-   hit it live.
-4. Run the full suite (`bash tests/run.sh`) and confirm nothing else broke.
+So adding a second pack needs no new test file, just:
+
+1. Drop your `skills/pack-<name>/commands.md` in the documented shape (see "The 6-file contract"
+   above) — `tests/test_structure.py` picks it up on its next run automatically.
+2. Check by hand that `SKILL.md` documents your real detection marker — the structural suite
+   doesn't assert this one; nothing else does either.
+3. Run the full suite (`bash tests/run.sh`). A denied row fails by name and command
+   (`skills/pack-<name>/commands.md: documented command denied for swarm:<executor>: <command>`), so
+   you fix the allowlist, not the row's wording.
 
 ## What a pack does NOT need
 

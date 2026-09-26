@@ -8,7 +8,7 @@ The approval gate (four fields `remote=`/`branch=`/`base=`/`url=`) already ran i
 
 ### Re-verification against reality (closes the gap between the preview and the push)
 
-Repeat validations 1-4 (cheap) AND check the approval describes the world NOW (the owner may have switched branches while deciding; the remote may have changed by ANY means):
+Repeat validations §1-§5 of validations.md (already read, in that order) AND check the approval describes the world NOW (the owner may have switched branches while deciding; the remote may have changed by ANY means):
 - `git rev-parse --abbrev-ref HEAD` must print exactly the approved `branch=`;
 - the approved `remote=` must exist AND its PUSH URL(s) must match the approved `url=` EXACTLY, character for character — **use `--push --all`, never `git remote get-url <remote>` alone nor `--push` without `--all`**:
   ```bash

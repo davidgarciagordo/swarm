@@ -5,6 +5,7 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_SCRIPT="$SCRIPT_DIR/mem-lock.sh"
 MANIFEST_SCRIPT="$SCRIPT_DIR/mem-manifest.sh"
+. "$SCRIPT_DIR/lib/validate.sh"
 SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"
 export SWARM_ROOT
 REPO_ROOT="$(dirname "$SWARM_ROOT")"
@@ -22,7 +23,7 @@ _with_lock() {
 _sha8_of_line() {
   local file="$1" line="$2"
   local target="$REPO_ROOT/$file"
-  if [ ! -f "$target" ]; then
+  if ! swarm_valid line "$line" || ! swarm_valid relpath "$file" || [ ! -f "$target" ]; then  # never a sed script
     echo "00000000"
     return
   fi
@@ -115,6 +116,7 @@ _prune() {
       *) shift ;;
     esac
   done
+  swarm_require "mem-curate.sh prune" count --days "$days" || return 64
   local dir="$SWARM_ROOT/findings"
   [ -d "$dir" ] || return 0
   local now cutoff_epoch

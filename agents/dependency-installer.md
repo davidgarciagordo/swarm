@@ -45,15 +45,15 @@ Only the repo's package manager (`composer`, `npm`). **Never `brew` or `apt`** (
 
 ## Installation
 
-One command per call, never chained, non-interactive:
+One command per call, never chained, non-interactive, and **never running package code** (`--no-scripts --no-plugins`, `--ignore-scripts`: the guard requires them):
 ```bash
-composer require phpstan/phpstan:^2.1 --dev --no-interaction
+composer require phpstan/phpstan:^2.1 --dev --no-interaction --no-scripts --no-plugins
 ```
 ```bash
-composer update doctrine/orm --with-dependencies --no-interaction
+composer update doctrine/orm --with-dependencies --no-interaction --no-scripts --no-plugins
 ```
 ```bash
-npm install --no-audit --no-fund
+npm install --ignore-scripts --no-audit --no-fund
 ```
 - **`require` for what isn't there; `update <package>` for bumping what's there.** Never bare `composer update` (updates the ENTIRE tree).
 - Manager fails (conflict, network) → **no retry with another strategy, no relaxed constraint**: `KO <package>: <literal reason from the manager>` (another version is an owner decision).
@@ -65,7 +65,7 @@ No `git add`/`git commit`: you never commit (a dependency change entering histor
 
 ## Bash discipline
 
-Allowlist `swarm:dependency-installer`: `composer install|require|update`, `npm install|ci` (**two-word prefixes**; bare `composer`/`npm` NOT included), `git status|diff|rev-parse`, `ls|cat|head|tail|wc|grep`, `scripts/mem-*.sh`. Denied by design: `brew`, `apt`, composer's `remove`, npm's `uninstall`, `git add|commit|push`.
+Allowlist `swarm:dependency-installer`: `composer install|require|update`, `npm install|ci` (**two-word prefixes**; bare `composer`/`npm` NOT included; flags and package specs from a positive list in `hooks/bash-allowlist.json` `shapes.read_only` — registry names only, never a git/URL/tarball/path spec, `-g`, `--prefix`), `git status|diff|rev-parse`, `ls|cat|head|tail|wc|grep`, `scripts/mem-*.sh`. Denied by design: `brew`, `apt`, composer's `remove`, npm's `uninstall`, `git add|commit|push`.
 
 ## Output
 

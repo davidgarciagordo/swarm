@@ -315,10 +315,19 @@ no pasa por el panel son los objetivos `direct`, que no abren run. Política:
 `WAITING <n>` + `pending: <nombres>` en vez de un veredicto prematuro; el hook de salida lo limita a 6
 por instancia de agente (se reinicia con su siguiente veredicto) y lo rechaza si no puede contarlo.
 
-**Guard de Bash.** Los agentes sin `Write`/`Edit` no pueden redirigir la salida a un fichero (`>`,
-`>>`) ni usar `--output` de git. `docker exec` solo está en allowlists con nombre, solo ejecuta
-comandos internos de lectura y solo en contenedores listados, uno por línea, en el
-`.swarm/docker-containers` del repo.
+**Guard de Bash.** Deny-by-default: a un rol read-only se le deniega el comando entero si contiene
+CUALQUIER metacarácter de shell en cualquier parte (`| & > ( ) ; $ \` \ { } <`, un glob sin comillas,
+`~`), entrecomillado o no — un solo comando, sin encadenar, sin redirigir, sin `docker exec`. Un
+writer (worktree aislado) puede usar `&&`/`|` y un puñado de excepciones documentadas, pero un `|`
+solo alimenta un filtro de texto (`grep`, `jq`, `sort`…) — nada más de lo que un pipe le pasa se
+ejecuta — y `cd` solo entra en la raíz de un worktree de git *linked* existente, nunca de vuelta al
+checkout principal. `docker exec` solo está en allowlists con nombre, solo ejecuta comandos internos
+de lectura y solo en contenedores listados, uno por línea, en el `.swarm/docker-containers` del
+repo. Huecos conocidos, documentados y no escondidos: un `cd` de un writer todavía puede entrar en el
+worktree *linked* de OTRO agente (el guard no distingue de quién es cada uno); los flags cortos
+combinados de `npx`/`npm` se deniegan aunque serían seguros (`npx tsc -p x` → usa `--project`); un
+pipe hacia algo que no es un filtro se deniega aunque sería inofensivo (`… | git …`, `… | php
+vendor/bin/phpunit` — ningún contrato del repo necesita esa forma).
 
 ## 📚 Núcleo vs material bajo demanda
 
@@ -326,17 +335,53 @@ Cada agente carga solo su fichero **núcleo** más el skill precargado `swarm-pr
 hoja ≤80 líneas, orquestador de dominio ≤150, raíz ≤250, `SKILL.md` ≤120). Lo que un agente solo necesita
 en ciertas situaciones vive en ficheros `.md` que lee con `Read` cuando se cumple una línea explícita
 `WHEN <condición> → Read <ruta>` de su núcleo: `skills/swarm-protocol/references/` (firmas de los scripts
-de memoria, reglas de comillas del guard, `WAITING`, resolución de tiers de modelo, reglas de autoría),
-`skills/swarm-protocol/judgement.md` (política del panel de revisión) y `playbooks/<agente>/` (playbooks
-propios de cada agente, nunca se cargan solos). Los núcleos escriben esas rutas con `${CLAUDE_PLUGIN_ROOT}`
-(se sustituye al cargar el agente); los ficheros bajo demanda usan el placeholder `<plugin-root>`, porque
-un fichero abierto con `Read` se devuelve tal cual.
+de memoria, reglas de comillas del guard, `WAITING`, resolución de tiers de modelo, modo worktree, reglas
+de autoría), `skills/swarm-protocol/judgement.md` (política del panel de revisión) y `playbooks/<agente>/`
+(playbooks propios de cada agente, nunca se cargan solos). Los núcleos escriben esas rutas con
+`${CLAUDE_PLUGIN_ROOT}` (se sustituye al cargar el agente); los ficheros bajo demanda usan el placeholder
+`<plugin-root>`, porque un fichero abierto con `Read` se devuelve tal cual.
+
+**Extender sin engordar el coste siempre-cargado.** Un comportamiento raro nuevo — un camino de
+error, la rareza de una herramienta, un caso límite — es un fichero bajo demanda nuevo (o ampliado)
+más una línea `WHEN <condición> → Read <ruta>` en el núcleo que lo dispara, nunca un párrafo metido
+en ese núcleo. Es un invariante comprobado por test, no una convención a recordar:
+`tests/test_structure.py` falla si un fichero bajo demanda no tiene ningún núcleo que lo apunte
+(huérfano), o si un núcleo se pasa del presupuesto de líneas/bytes de su rol.
+
+## 💰 Coste
+
+Medido, no estimado — `a07e655` (el checkpoint justo antes de este pase de adelgazamiento) →
+`c26aee1` (el primer commit del adelgazamiento) → ahora (más endurecido de hooks/tests sobre el
+mismo split):
+
+| | `a07e655` | `c26aee1` | ahora |
+|---|---|---|---|
+| `SKILL.md` (precargado en cada agente) | 398 líneas | 119 líneas | 114 líneas (~2.4k tok) |
+| ficheros bajo demanda (`references/` + `playbooks/` + `judgement.md`) | 1 fichero / 145 líneas | 30 ficheros / 1652 líneas | 31 ficheros / 1665 líneas |
+| run típico: ficheros de agentes + `SKILL.md` | ~147.8k tok | ~60.2k tok | ~59.3k tok |
+| run típico: lecturas bajo demanda necesarias | n/a | `model-tiers.md` ~2.7k + `judgement.md` ~4.5k | `model-tiers.md` 0 (solo se lee ante un fallo de resolución/escalado) + `judgement.md` ~1.6k + `worktree.md` 4×~0.23k |
+| **run típico, total** | **~147.8k+ tok** | **~67.4k tok** | **~61.8k tok (−8% vs `c26aee1`, −58% vs `a07e655`)** |
+
+Todos los presupuestos de tamaño se siguen cumpliendo: hoja ≤80 líneas, orquestador de dominio ≤150,
+raíz ≤250, `SKILL.md` ≤120 — `tests/structure.json` también acota bytes por rol, para pillar un
+fichero con líneas muy largas que el recuento de líneas por sí solo no vería.
 
 ## 🏷️ Convención de nombres
 
 Todo agente lanzado va **nombrado con su rol** — el basename de su tipo, sin sufijos ni variantes (`memory-orchestrator`, `analysis-orchestrator`, `pattern-advisor`, `dependency-installer`, y en el futuro `release-manager`…). Esto es lo que permite que agentes pares se manden `SendMessage` entre sí por nombre sin tener que descubrirlo antes, y que el owner se dirija a un agente concreto directamente — "avisa a `memory-builder` cuando termine" — sin que quien lo pide tenga que averiguar quién es. `memory-orchestrator` es el único caso obligatorio hoy: una única instancia nombrada por run.
 
 ## ✅ Tests
+
+Estructurales + generativos, nunca de redacción. `tests/test_structure.py` comprueba el grafo de
+agentes, el esquema de frontmatter, los presupuestos de líneas/bytes por rol, que todo fichero bajo
+demanda tenga un trigger que lo alcance (y ninguno quede huérfano), la consistencia allowlist↔agente,
+y que todo comando documentado — de un agente, de un playbook, o una fila de `commands.md` de un
+stack pack — pase de verdad el guard real para el agente que lo ejecuta. `tests/test_guard.py` y
+`tests/test_bash_guard_generative.sh` hacen fuzzing de `hooks/bash-guard.py` con propiedades con
+semilla más una tabla de regresión (`tests/fixtures/guard_cases.jsonl`) capturada del guard anterior,
+así que una reescritura puede endurecer el guard pero nunca aflojar un deny previo. Ningún test
+afirma una frase fija: cambiar la redacción de un fichero de agente nunca hace fallar la suite, solo
+romper su estructura o su comportamiento lo hace.
 
 ```bash
 bash tests/run.sh

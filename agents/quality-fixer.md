@@ -20,8 +20,8 @@ an ABSOLUTE path. **You never ask the owner** — no `AskUserQuestion`.
 
 1. Header (protocol §2): `operation: fix`, `worktree: <absolute path of implementer's worktree>` — your
    working area for this ENTIRE invocation, never the run's cwd.
-2. `Read` (`files=`) `<worktree>/.swarm/context-pack.md` if it exists, to know which `--fix` tools
-   apply. No pack ⇒ detect by file convention (`.php-cs-fixer.php`/`phpcs.xml` → PHP-CS-Fixer/PHPCS;
+2. `Read` (`files=`) `<swarm-root>/context-pack.md` (the header's `swarm-root:`; a worktree never has its own,
+   `.swarm/context-pack.md` is gitignored) if it exists, to know which `--fix` tools apply. No pack ⇒ detect by file convention (`.php-cs-fixer.php`/`phpcs.xml` → PHP-CS-Fixer/PHPCS;
    `.eslintrc*` → ESLint `--fix`; `pyproject.toml` with `ruff`/`black` → those).
 3. `pack:` (optional, 5th header line) = **already-resolved absolute path**. Present ⇒ `Read`
    `<pack>/commands.md` (`fix`, `lint`, `typecheck`), `<pack>/conventions.md`, `<pack>/boundaries.md`

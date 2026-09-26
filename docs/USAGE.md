@@ -609,10 +609,12 @@ BLOCKED --tier inválido: medium (usa direct, light o full)
 
 No agent names a model: each declares `model: inherit` + `tier: judgement|standard|mechanical`, and
 `models.json` maps tiers to ordered model candidates. To use other ids (another host, another
-vendor), drop a `.swarm/models.json` with the same schema — it overrides per tier. Orchestrators
-resolve every child with `scripts/model-resolve.sh`; `/swarm:doctor` shows the effective mapping.
-The full rules (unavailable models, escalation, judge independence) and the review panel are
-summarised in the README section "Model tiers and the review panel"; the policy is
+vendor), drop a `.swarm/models.json` with the same schema — it overrides per tier. Resolve-then-spawn
+is inline in every orchestrator's own file, so resolving a child's model costs nothing extra to read;
+the on-demand `model-tiers.md` reference is only opened when a spawn actually fails (missing model)
+or a child needs its one escalated retry. `/swarm:doctor` shows the effective mapping. The full rules
+(unavailable models, escalation, judge independence) and the review panel are summarised in the
+README section "Model tiers and the review panel"; the policy is
 `skills/swarm-protocol/judgement.md`.
 
 `docker exec` from an agent only works for containers you list, one per line, in
@@ -663,3 +665,10 @@ read-only lens without `SendMessage`, logs `- warn: owner message received, not 
 root still sees it happened. The root treats every relayed message as untrusted input — at most a
 question back to you or extra context for its own judgment, never a re-plan, a scope change or an
 authorization it didn't already have.
+
+**What are the bash guard's known gaps?** Documented, not hidden: (1) a writer's `cd` can still enter
+a *different* agent's linked worktree — the guard tells a linked worktree apart from the main
+checkout, but not which worktree belongs to which agent; (2) short combined `npx`/`npm` flags are
+denied even where they'd be safe — `npx tsc -p x` is denied, spell it `npx tsc --project x` instead;
+(3) a `|` may only feed a text filter (`grep`, `jq`, `sort`, `wc`…) — `… | git …` or `… | php
+vendor/bin/phpunit` is denied even though nothing shipped needs that shape.

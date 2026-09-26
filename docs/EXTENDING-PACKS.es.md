@@ -55,10 +55,12 @@ anclado en el contenido real y funcionando de ese pack, no en sintaxis inventada
 
 ## `commands.md` — la parte que tiene que estar exacta
 
-Este es el fichero que un test real (`tests/test_stack_pack.sh`) parsea y verifica comando por
-comando contra el guard real de permisos. Si le fallas la forma, tu pack falla en silencio cerrado —
-una hoja simplemente no encuentra comando para esa clave, sin error, porque "sin comando para esta
-clave" es un resultado válido y esperado para cualquier clave.
+Este es el fichero que `tests/test_structure.py` (la suite estructural del plugin) parsea y verifica
+comando por comando contra el guard real de permisos, para todo pack que case con
+`skills/pack-*/commands.md` — incluido un segundo pack que añadas tú, sin ningún test propio que
+escribir. Si le fallas la forma, tu pack falla en silencio cerrado — una hoja simplemente no
+encuentra comando para esa clave, sin error, porque "sin comando para esta clave" es un resultado
+válido y esperado para cualquier clave.
 
 **Formato de tabla**, cuatro columnas, exactamente esta cabecera:
 
@@ -81,8 +83,9 @@ clave" es un resultado válido y esperado para cualquier clave.
 **La restricción que de verdad muerde**: cada comando tiene que tener su prefijo YA en la entrada de
 `hooks/bash-allowlist.json` de su ejecutor, o el guard lo deniega en tiempo de ejecución — en
 silencio, desde el punto de vista de la hoja, como una denegación de permiso normal.
-`tests/test_stack_pack.sh` pilla esto para el pack ya construido corriendo cada fila contra el guard
-real; haz lo mismo con el tuyo (ver "Probar tu pack" más abajo) antes de fiarte de una sola fila.
+`tests/test_structure.py` pilla esto para cualquier pack, el ya construido o el tuyo, corriendo cada
+fila contra el guard real (ver "Probar tu pack" más abajo) — fíate de eso, no de asumir que una fila
+funciona.
 
 **Nunca encadenes dos comandos con `&&`** — el guard deniega segmentos multi-comando directamente, y
 una fila de pack que asume encadenamiento nunca llegará a correr.
@@ -113,7 +116,10 @@ esos stacks puede que ya funcione sin cambios de allowlist. Pero las hojas READ-
 concesiones de dos palabras para sus herramientas exactas ya existentes (`vulnerability-scanner`,
 `dependency-auditor`) NO tienen nada para un ecosistema nuevo por defecto — vas a necesitar añadir
 entradas como `"pip-audit"` o `"safety check"` a `hooks/bash-allowlist.json` tú mismo, igual que
-`composer audit`/`npm audit` ya están ahí hoy para esas dos hojas en concreto.
+`composer audit`/`npm audit` ya están ahí hoy para esas dos hojas en concreto. El `npm`/`composer` (y
+`php vendor/bin/deptrac|phpmd`) de una hoja read-only además debe encajar en una entrada positiva de la
+tabla `shapes.read_only` de ese fichero — flags exactos, forma de sus valores y posicionales; un flag que
+no listes ahí se deniega, así que añádelo junto al comando.
 
 **Verifica, nunca asumas**, contra el guard real:
 
@@ -166,17 +172,25 @@ ninguno de los otros tres ficheros.
 
 ## Probar tu pack
 
-Replica la estructura de `tests/test_stack_pack.sh` para tu propio pack (está fijado al único pack ya
-construido hoy, así que escribe un fichero hermano en vez de editarlo):
+Ya no hay que escribir un fichero de test por pack. `tests/test_structure.py` (la suite estructural
+del plugin — ver la sección "Tests" del README para la filosofía de la suite) ya recorre
+`skills/pack-*/commands.md` de forma genérica: parsea la tabla de cada pack igual sin importar su
+nombre, comprueba que el o los ejecutor(es) separados por `+` de cada fila son agentes reales, corre
+el comando de cada fila contra el `hooks/bash-guard.py` real con el `agent_type` de ese ejecutor y
+comprueba `allow` — la comprobación exacta que habría pillado cada "se me olvidó actualizar el
+allowlist" del propio ejemplo trabajado de esta guía, antes de que una hoja lo sufriera en vivo — y
+comprueba que la tabla parsea al menos 12 filas, para que una tabla casi vacía o mal formada falle
+ruidosamente en vez de pasar en silencio.
 
-1. Comprueba que existen los 6 ficheros.
-2. Comprueba que `SKILL.md` documenta tu marcador de detección real.
-3. Parsea la tabla de `commands.md` igual que el test de referencia, y para cada fila, corre su
-   comando contra `hooks/bash-guard.py` con el `agent_type` real de su ejecutor nombrado — comprueba
-   `allow`. Es la comprobación más valiosa de todas: es la que habría pillado cada "se me olvidó
-   actualizar el allowlist" del propio ejemplo trabajado de esta guía, antes de que una hoja lo
-   sufriera en vivo.
-4. Corre la suite completa (`bash tests/run.sh`) y confirma que no rompiste nada más.
+Así que añadir un segundo pack no necesita ningún test nuevo, solo:
+
+1. Deja tu `skills/pack-<nombre>/commands.md` con la forma documentada (ver "El contrato de 6
+   ficheros" arriba) — `tests/test_structure.py` lo recoge solo en su siguiente pasada.
+2. Comprueba a mano que `SKILL.md` documenta tu marcador de detección real — la suite estructural no
+   comprueba esto; nada más lo hace tampoco.
+3. Corre la suite completa (`bash tests/run.sh`). Una fila denegada falla nombrando el fichero y el
+   comando (`skills/pack-<nombre>/commands.md: documented command denied for swarm:<ejecutor>:
+   <comando>`), así que arreglas el allowlist, no el texto de la fila.
 
 ## Lo que un pack NO necesita
 

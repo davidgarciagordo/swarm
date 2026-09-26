@@ -1,12 +1,12 @@
 # discovery-orchestrator · spiker cleanup
-On demand from agents/discovery-orchestrator.md — trigger: `feasibility-spiker` reported `DONE`/`BLOCKED`, or you reached `maxTurns` with it silent while holding its `agentId`.
+On demand from agents/discovery-orchestrator.md — trigger: `feasibility-spiker` reported `DONE`/`BLOCKED`, or ≤4 `maxTurns` remain with it silent while you hold its `agentId`.
 Commands use <plugin-root>, <swarm-root>, <run> placeholders (protocol §1): substitute literally.
 
-Generic mechanics (why `--force`, branch guard shape, soft failure):
-`<plugin-root>/playbooks/_shared/worktree-cleanup.md`. The spiker's paths are RELATIVE to your cwd
+WHEN a delete is denied or fails → Read `<plugin-root>/playbooks/_shared/worktree-cleanup.md` (why `--force`, branch
+guard shape, soft failure) BEFORE the warn. The spiker's paths are RELATIVE to your cwd
 (the repo root you run in): `.claude/worktrees/agent-<agentId>` and branch `worktree-agent-<agentId>`.
 
-### 1-timeout. Spiker launched (agentId in hand) but never reported (`maxTurns` exhausted)
+### 1-timeout. Spiker launched (agentId in hand) but silent with ≤4 `maxTurns` left (Read + 2 deletes + verdict)
 
 Same orphan as 1bis by another route (the platform never auto-cleans a worktree with `spike/`
 inside). Alongside `- warn: feasibility-spiker no response`, still attempt the deletion, with the

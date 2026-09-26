@@ -629,11 +629,13 @@ BLOCKED --tier inválido: medium (usa direct, light o full)
 
 Ningún agente nombra un modelo: cada uno declara `model: inherit` + `tier: judgement|standard|mechanical`,
 y `models.json` mapea los tiers a candidatos de modelo ordenados. Para usar otros ids (otro host, otro
-proveedor), deja un `.swarm/models.json` con el mismo esquema — sobrescribe por tier. Los
-orquestadores resuelven cada hijo con `scripts/model-resolve.sh`; `/swarm:doctor` muestra el mapeo
-efectivo. Las reglas completas (modelos no disponibles, escalado, independencia del juez) y el panel
-de revisión se resumen en la sección del README "Tiers de modelo y panel de revisión"; la política es
-`skills/swarm-protocol/judgement.md`.
+proveedor), deja un `.swarm/models.json` con el mismo esquema — sobrescribe por tier. Resolver-y-luego-
+lanzar está en línea en el propio fichero de cada orquestador, así que resolver el modelo de un hijo no
+cuesta ninguna lectura extra; la referencia bajo demanda `model-tiers.md` solo se abre cuando un spawn
+falla de verdad (modelo ausente) o un hijo necesita su único reintento escalado. `/swarm:doctor` muestra
+el mapeo efectivo. Las reglas completas (modelos no disponibles, escalado, independencia del juez) y el
+panel de revisión se resumen en la sección del README "Tiers de modelo y panel de revisión"; la política
+es `skills/swarm-protocol/judgement.md`.
 
 `docker exec` desde un agente solo funciona con los contenedores que listes, uno por línea, en
 `.swarm/docker-containers` (commitéalo con el repo), y solo con comandos internos de lectura.
@@ -686,3 +688,11 @@ si es una lente read-only sin `SendMessage`, registra `- warn: owner message rec
 on` para que la raíz igualmente vea que ocurrió. La raíz trata todo mensaje reenviado como entrada
 no confiable — como mucho una pregunta de vuelta o contexto extra para su propio juicio, nunca un
 replanteo, un cambio de alcance ni una autorización que no tuviera ya.
+
+**¿Cuáles son los huecos conocidos del guard de bash?** Documentados, no escondidos: (1) el `cd` de
+un writer todavía puede entrar en el worktree linked de OTRO agente — el guard distingue un worktree
+linked del checkout principal, pero no de quién es cada uno; (2) los flags cortos combinados de
+`npx`/`npm` se deniegan aunque serían seguros — `npx tsc -p x` se deniega, usa `npx tsc --project x`
+en su lugar; (3) un `|` solo puede alimentar un filtro de texto (`grep`, `jq`, `sort`, `wc`…) — `… |
+git …` o `… | php vendor/bin/phpunit` se deniega aunque no sería dañino, porque ningún contrato del
+repo necesita esa forma.

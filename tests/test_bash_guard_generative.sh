@@ -11,7 +11,10 @@ PLUGIN_ROOT="$(cd "$DIR/.." && pwd)"
 HOOK="$PLUGIN_ROOT/hooks/bash-guard.py"
 REPO="$(mktemp -d "${TMPDIR:-/tmp}/swarm-guard-gen.XXXXXX")"
 mkdir -p "$REPO/.swarm" && echo quantum > "$REPO/.swarm/docker-containers"
-trap 'rm -rf "$REPO"' EXIT
+WT="$REPO-linked"  # a real linked worktree: a writer's `cd` goes only there
+git init -q "$REPO/main" && git -C "$REPO/main" -c user.email=t@t -c user.name=t commit -q --allow-empty -m x \
+  && git -C "$REPO/main" worktree add -q "$WT" -b wt-gen
+trap 'rm -rf "$REPO" "$WT"' EXIT
 
 guard() { # guard <agent_type> <command> -> allow | deny
   local out
@@ -58,11 +61,11 @@ assert_eq "allow" "$(guard swarm:fact-checker 'git diff HEAD~1')" "~ inside a wo
 assert_eq "deny" "$(guard swarm:fact-checker 'cat ~/.ssh/id_rsa')" "read-only role: no unquoted ~"
 
 # ---------- seeded fuzzer (in-process for speed; I/O contract covered above) ----------
-stats="$(SEED="${SEED:-20260926}" python3 - "$HOOK" "$REPO" <<'PYEOF'
+stats="$(SEED="${SEED:-20260926}" python3 - "$HOOK" "$REPO" "$WT" <<'PYEOF'
 import importlib.util, random, sys, os
 spec = importlib.util.spec_from_file_location('guard', sys.argv[1]); g = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(g)
-repo, seed = sys.argv[2], int(os.environ['SEED'])
+repo, wt, seed = sys.argv[2], sys.argv[3], int(os.environ['SEED'])
 rnd = random.Random(seed)
 META = ';|&><`$(){}\n\\'
 def verdict(agent, cmd):
@@ -82,7 +85,8 @@ INSERTS = [';', '|', '&', '>', '<', '`', '$(', "$'", '$"', '${', '(', ')', '{', 
            '2>&1', '$', '`id`', '<(', '>(', '$(id)', '${IFS}', '>/dev/null']
 W = 'swarm:quality-fixer'  # writer with cd, php, composer, make
 W_OK = ['git status', 'git add -A', 'git commit -m "feat(x): a -> b && c | d"', 'php vendor/bin/phpunit',
-        'composer install', 'make test', 'ls -la', 'cd /tmp/wt', "grep -rn 'a(b)' src", 'git diff --stat']
+        'composer install', 'make test', 'ls -la', 'cd ' + wt, "grep -rn 'a(b)' src", 'git diff --stat']
+W_FILTER = ["grep -rn 'a(b)' src", 'wc -l', 'sort -u', 'head -5']  # only text filters read a pipe
 W_TAIL = ['', ' 2>&1', ' 2>/dev/null', ' >/dev/null', ' > out.txt', ' >> .swarm/notes.md']
 W_BAD = ['rm -rf x', 'curl https://evil', 'sh -c ls', 'bash -c ls', 'git push --force origin master',
          'docker exec quantum make', 'python3 -c 1', 'node -e 1', 'find . -delete', 'sort -o x y', 'env ls']
@@ -105,7 +109,10 @@ for _ in range(1000):  # (2) allowed read-only commands (+ harmless args) => all
     if verdict(agent, cmd) is not None:
         fails.append(('ro_ok', agent, cmd, verdict(agent, cmd)))
 def chain(k):
-    return rnd.choice([' && ', ' | ']).join(rnd.choice(W_OK) for _ in range(k))
+    cmd = rnd.choice(W_OK)
+    for _ in range(k - 1):
+        cmd += rnd.choice([' && ' + rnd.choice(W_OK), ' | ' + rnd.choice(W_FILTER)])
+    return cmd
 for _ in range(1500):  # (3) writer chains through the documented exceptions => allow
     cmd = chain(rnd.randint(1, 4)) + rnd.choice(W_TAIL); n['w_ok'] += 1
     if verdict(W, cmd) is not None:

@@ -1,42 +1,10 @@
 # Changelog
 
-## Unreleased
-
-### Changed
-- **Core vs on-demand split.** `swarm-protocol` `SKILL.md` (preloaded into every agent) shrank from 398
-  to ≤120 lines; memory-script signatures, hook details, guard quoting rationale, `WAITING`, model-tier
-  resolution and authoring rules moved to `skills/swarm-protocol/references/`, each reached by an explicit
-  `WHEN … → Read` trigger. Agent-specific rare material moved to `playbooks/<agent>/` (e.g.
-  `memory-orchestrator` claude-mem mirror, `memory-builder` pack format, `memory-curator` MEMORY.md trim).
-  No rule was dropped; generic Bash traps now live once in the protocol (§6bis).
-- `memory-builder` gains the `Edit` tool: the enrichment step now inserts into `.swarm/context-pack.md` with
-  `Edit` instead of `cat >> … <<EOF`, because the guard refuses `<` (heredocs) for every role. Its `Write`/`Edit`
-  scope is unchanged (`.swarm/context-pack.md`, `.swarm/index.md`).
-- Tests: a byte budget per role sits next to the line budget (`tests/structure.json`); documented ```bash
-  commands are checked line by line (a `\` continuation now fails, as it does in the real guard); on-demand
-  files may not contain the `CLAUDE_PLUGIN_ROOT` variable.
-
-### Security
-- `bash-guard`: `rg --hostname-bin` denied (ran any repo executable); read-only roles can no longer run
-  `npm audit fix`, switch registry/prefix/working dir (`--registry`, `--prefix`, `composer -d/--working-dir`)
-  or write reports (`phpmd --reportfile*`, `deptrac --output/-o`); `SWARM_ROOT=` must be a `.swarm` path
-  without `..` that already exists when absolute; `dev`/`development` are protected push targets; redirects
-  may not target `.git/` or `.claude/` (except `.claude/agent-memory/`); `node -r/--require/--import/--loader`,
-  `php -B/-R/-E` and `php -d auto_prepend_file|auto_append_file|extension|zend_extension` join INTERP_DENY,
-  now documented as advisory for writers (they can write a file and run it).
-
-### Fixed
-- `judgement.md` was cited by a repo-relative path that does not exist when the swarm runs in another
-  repo; agents now cite `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`.
-- `verifier` no longer claims the shell expands `${CLAUDE_PLUGIN_ROOT}` (the agent body is substituted at
-  load; the Bash environment has no such variable).
-- Memory agents' commands use the `<run>`/`<swarm-root>` placeholders instead of `$RUN` shell variables.
-- 45 documented commands used `\` line continuations the guard denies; joined to one line.
-- Stale cross-references after the split: `orchestrator` §4.4 wording, `delivery-orchestrator` §12.2bis path,
-  `abc123` literals in `git branch -D` examples, the objective-gate trigger for non-interactive runs, the
-  worktree-cleanup trigger, the root's model-tiers trigger, and `<plugin-root>` in `shell-and-guard.md`.
-
 ## 0.2.0
+
+Model tiers, the review panel and a blind judge, the infra/CI route, and hardened hooks — plus a
+slim pass that cut what every agent pays on every turn without dropping a rule. See the README's
+"Cost" section for the measured before→after numbers.
 
 ### Added
 - **Model tiers.** No agent names a model: every agent declares `model: inherit` + `tier:
@@ -46,6 +14,9 @@
   escalates to the next tier with a DIFFERENT model, and picks an independent blind judge
   (`--avoid`; `--avoid inherit` warns that independence can't be proven). Every orchestrator,
   including memory-, requirements- and delivery-orchestrator, resolves its children this way.
+  Resolve-then-spawn is inline in every orchestrator's own file now — reading the on-demand
+  `model-tiers.md` reference is reserved for an actual failure (missing model, escalated retry),
+  not spent on every run.
 - **Review panel.** `review-orchestrator` + `completeness-critic`, `fact-checker`,
   `simplicity-critic`, `refuter`, `blind-judge` review every plan, pre-merge diff and analysis
   report (policy: `skills/swarm-protocol/judgement.md`). `scripts/review-dedup.sh` selects lenses,
@@ -71,9 +42,44 @@
 - Read-only verification commands in the allowlists: `jq`, `cmp`, `diff`, `sort`, `uniq`, `cut`,
   `tr`, `php -l`, and `docker exec` (named allowlists only).
 
-### Security
+### Changed — the slim pass (core vs on-demand, new test philosophy)
+- **Core vs on-demand split.** `swarm-protocol` `SKILL.md` (preloaded into every agent) shrank from
+  398 to 114 lines; memory-script signatures, hook details, guard quoting rationale, `WAITING`,
+  model-tier resolution, worktree mode and authoring rules moved to
+  `skills/swarm-protocol/references/` (one new file, `worktree.md`, split out of SKILL.md §3 itself),
+  each reached from a core file by an explicit `WHEN <condition> → Read <path>` trigger line — never
+  inlined. Agent-specific rare material moved to `playbooks/<agent>/` (e.g. `memory-orchestrator`
+  claude-mem mirror, `memory-builder` pack format, `memory-curator` MEMORY.md trim). No rule was
+  dropped; generic Bash traps now live once in the protocol (§6bis). **The rule going forward:** new
+  rare behaviour (a new error path, a new tool's quirk, a new edge case) is a new or extended
+  on-demand file plus one trigger line, never a paragraph added to a core file — enforced mechanically
+  by `tests/test_structure.py` (line/byte budgets per role, and an on-demand file with no core file
+  pointing at it fails the suite as an orphan).
+- **Test philosophy: structural + generative, never wording.** ~60 `test_*.sh` files that asserted a
+  literal sentence or a hardcoded scenario were replaced by `tests/test_structure.py` (frontmatter
+  schema, the `Agent(...)` spawn graph, line/byte budgets per role, on-demand-trigger wiring,
+  allowlist↔agent consistency, commands↔`plugin.json` consistency, `requirements.json` schema, every
+  documented verdict through `hooks/validate-output.py`, and every documented ` ```bash ` line —
+  agent, playbook, or a stack-pack's `commands.md` row — through the real `hooks/bash-guard.py` for
+  the agent that actually runs it) plus `tests/test_guard.py` and
+  `tests/test_bash_guard_generative.sh` (seeded fuzzers exercising the guard's properties, backed by
+  `tests/fixtures/guard_cases.jsonl`, a regression table captured from the previous guard's suite: a
+  rewrite may loosen nothing that table calls DENY). No test asserts a fixed sentence — the suite
+  stays green as long as the real structure and behaviour it enforces hold, wording included.
+- `memory-builder` gains the `Edit` tool: the enrichment step now inserts into
+  `.swarm/context-pack.md` with `Edit` instead of `cat >> … <<EOF`, because the guard refuses `<`
+  (heredocs) for every role. Its `Write`/`Edit` scope is unchanged (`.swarm/context-pack.md`,
+  `.swarm/index.md`).
+- Design's grill×3 now runs inside the review panel; `reviewer` is a thin alias of the diff panel.
+- The root reads the child tier map with `grep -m1` (frontmatter only).
+- `swarm-init.sh` upgrades an existing `.gitignore` block entry by entry.
+
+### Security — the guard's model: deny-by-default, metacharacters included
 - `hooks/bash-guard.py` denies output redirection to a file (`>`, `>>`, `>|`, `&>`, `>(…)`) and git
-  `--output` for every agent without `Write`/`Edit` (`file_writers` in `bash-allowlist.json`).
+  `--output` for every agent without `Write`/`Edit` (`file_writers` in `bash-allowlist.json`); a
+  read-only role's command is denied outright if it contains ANY shell metacharacter anywhere
+  (`| & > ( ) ; $ \` \ { } <`, an unquoted glob, `~`), quoted or not — one command, no chaining, no
+  redirection, no `docker exec`.
 - The redirect guard uses the same quote automaton as the segment splitter (`$'…'` with escaped
   quotes no longer hides a `> file`); `find -fprint/-fprint0/-fprintf/-fls` are denied; plugin
   scripts (`scripts/mem-*.sh`, `model-resolve.sh`, `review-dedup.sh`…) are accepted only
@@ -82,8 +88,68 @@
   into containers listed in the repo's `.swarm/docker-containers`.
 - `design-orchestrator` lost `claude plugin` (working-methods detection moved to
   `review-orchestrator`).
+- `rg --hostname-bin` denied (ran any repo executable); read-only roles can no longer run `npm audit
+  fix`, switch registry/prefix/working dir (`--registry`, `--prefix`, `composer -d/--working-dir`) or
+  write reports (`phpmd --reportfile*`, `deptrac --output/-o`); `SWARM_ROOT=` must be a `.swarm` path
+  without `..` that already exists (absolute, or relative to `cwd`); `dev`/`development` are
+  protected push targets; redirects may not target `.git/` or `.claude/` in any letter case (except
+  `.claude/agent-memory/`); `node -r/--require/--import/--loader`, `php -B/-R/-E` and `php -d
+  auto_prepend_file|auto_append_file|extension|zend_extension` join `INTERP_DENY`, documented as
+  advisory for writers (they can write a file and run it).
+- **A `|` may only feed a text filter** (`cat`, `head`, `tail`, `wc`, `grep`, `rg`, `jq`, `sort`,
+  `uniq`, `cut`, `tr`, `cmp`, `diff` — `PIPE_OK`): nothing else a pipe hands a command executes, for
+  writer or read-only role alike.
+- **A writer's `cd` goes only into an existing LINKED git worktree root** (`.git` is a file there,
+  never a directory) — never back into the main checkout.
+- **Interpreters need a script file, not a REPL or a bare call.** No REPL flag (`python3 -i`, `node
+  -i`, `php -a`…), no `-`/`/dev/...` script argument, no bare invocation left to read stdin; `npm`/
+  `npx` take no `-c`/`--call` (a shell string), `-y`/`--yes` or `-p`/`--package` (fetch-and-run) —
+  singly or in a short flag cluster.
+- `uniq`'s second positional argument is denied — under BSD getopt it's an *output* file, not a
+  second input; `make` denies `-`, a `/dev/...` argument, and a trailing `f-`.
+- **Positive shapes instead of deny prefixes.** `bash-allowlist.json` `shapes` lists, per argv prefix, the
+  exact flags (no abbreviations), their value shapes and the positionals accepted (`every` role;
+  `read_only` roles on top; `npm`/`composer` run by a read-only role only through such an entry).
+  `dependency-installer`: `npm install|ci` require `--ignore-scripts` and take registry names only (no
+  git/URL/tarball/path/`file:` spec, `-g`, `-C`/`--prefix`, `--git`, `--node-gyp`, `--script-shell`,
+  any `*config*`); `composer install|require|update` require `--no-scripts --no-plugins`.
+  `vulnerability-scanner`: `deptrac analyse` without `--config-file`/`--cache-file`, `phpmd` rulesets
+  from a fixed list (built-ins + the repo's `phpmd.xml`). Orchestrators: `git worktree
+  list|prune|remove <.claude/worktrees/agent-*>` and `git merge [--no-ff] worktree-agent-*|--abort` only
+  (no `add`, `--no-verify`, `-s`). `git push`, `git remote`, `gh repo|pr|auth`, `claude plugin` moved
+  from code to the same table. `jq` refuses `env`/`$ENV` and `-f`; git `--output` is denied for every
+  role; redirects may not target `.husky/`, `.githooks/`, `.vscode/`, `.mcp.json` or `.envrc`; a
+  read-only role's `cd` goes only up to the git toplevel holding its cwd (never `/`, `~/.ssh`, another
+  repo). The guard is back under 250 lines.
+- **The memory scripts are the boundary for their own paths** (`scripts/lib/validate.sh`): `--agent`,
+  `--to` must match `^[a-z0-9][a-z0-9-]{0,63}$`, `--run` a uuid or `adhoc`, `--line` a positive integer
+  (it reached `sed`: `1w <file>` wrote a file), `--file` a relative path without `..`, `--days`/`--keep`
+  an integer (they reached `$((…))`: `now[$(cmd)]` ran `cmd`), every record field one line.
+  `review-dedup.sh --swarm-root` must be a `.swarm` dir without `..`. Seeded traversal payloads in
+  `tests/test_mem_paths_fuzz.py` assert exit ≠ 0 and nothing written outside `.swarm/`.
 
-### Changed
-- Design's grill×3 now runs inside the review panel; `reviewer` is a thin alias of the diff panel.
-- The root reads the child tier map with `grep -m1` (frontmatter only).
-- `swarm-init.sh` upgrades an existing `.gitignore` block entry by entry.
+### Fixed
+- `judgement.md` was cited by a repo-relative path that does not exist when the swarm runs in another
+  repo; agents now cite `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`.
+- `verifier` no longer claims the shell expands `${CLAUDE_PLUGIN_ROOT}` (the agent body is substituted at
+  load; the Bash environment has no such variable).
+- Memory agents' commands use the `<run>`/`<swarm-root>` placeholders instead of `$RUN` shell variables.
+- 45 documented commands used `\` line continuations the guard denies; joined to one line.
+- Stale cross-references after the split: `orchestrator` §4.4 wording, `delivery-orchestrator` §12.2bis path,
+  `abc123` literals in `git branch -D` examples, the objective-gate trigger for non-interactive runs, the
+  worktree-cleanup trigger, the root's model-tiers trigger, and `<plugin-root>` in `shell-and-guard.md`.
+
+### Known gaps (documented, not silently swept under the rug)
+- A writer's `cd` can still enter a *different* linked worktree, such as another agent's — the guard
+  can tell a linked worktree from the main checkout, but not which worktree belongs to which agent.
+- Short combined `npx`/`npm` flags are now denied even where they'd be safe — `npx tsc -p x` is
+  denied; spell it `npx tsc --project x`.
+- A pipe into a non-filter command is now denied even where it would have been harmless — `… | git
+  …` or `… | php vendor/bin/phpunit` — because no shipped contract uses that shape.
+- Writers keep bare `npm`/`composer`/`php`: package scripts and plugins run there by design (a writer
+  can write a file and run it anyway); the positive npm/composer shapes bind read-only roles only.
+- A read-only `cd` may climb to ANY git toplevel above its cwd (a submodule's superproject included);
+  it cannot leave that ancestry.
+- `swarm-status.sh` trusts `run/current` (it only reads, and only `mem-manifest.sh open` writes it).
+- `jq` refuses the bare word `env` in any argument (`.env` and `"env"` pass): an input file literally
+  named `env` is refused too.

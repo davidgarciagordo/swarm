@@ -62,5 +62,5 @@
     "gpt",
     "gemini"
   ],
-  "on_demand_trigger": "\\b(WHEN|BEFORE|AFTER|ONLY)\\b|⇒|(?i:policy:)|at startup"
+  "on_demand_trigger": "\\b(WHEN|BEFORE|AFTER|ONLY)\\b|⇒|(?i:policy:)|at startup|do NOT Read"
 }

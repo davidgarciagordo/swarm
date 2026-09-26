@@ -139,7 +139,7 @@ for _ in range(N):
     records.append((agent, tag, f, line, text))
 for agent, tag, f, line, text in records:  # sequential: the dup verdict depends on order
     rc, out, err = sh([MEMF, 'write', 'finding', '--agent', agent, '--tag', tag, '--file', f, '--line', str(line),
-                       '--run', 'fuzz', '--text', text, '--fix', 'fix-it'], env=ENV, cwd=repo)
+                       '--run', 'adhoc', '--text', text, '--fix', 'fix-it'], env=ENV, cwd=repo)
     key = (agent, tag, f, line)
     S.check(rc == 0 and out.strip() == ('dup' if key in keys else 'written'), 'write %s -> rc=%s %r' % (key, rc, out.strip()))
     keys.setdefault(key, text)

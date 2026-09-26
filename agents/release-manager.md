@@ -48,11 +48,11 @@ Delivery leaf; the **only agent in the swarm with `git push` and `gh`** — publ
 
 ## On demand (Read BEFORE acting; files use `<plugin-root>`/`<swarm-root>`/`<run>` placeholders)
 
-- WHEN `operation: prepare-release`, or `publish-release` after its gate → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/release-manager/validations.md` (§1-§5) BEFORE the first validation command.
+- WHEN `operation: prepare-release`, or `publish-release` after its gate → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/release-manager/validations.md` (§1-§5) FIRST, BEFORE the first validation command.
 - WHEN `operation: prepare-release` and validations passed → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/release-manager/prepare-release.md` (release notes + Phase A) BEFORE writing the notes.
-- WHEN `operation: publish-release` and the gate passed → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/release-manager/publish-release.md` (re-verification, push, PR) BEFORE re-verifying.
+- WHEN `operation: publish-release` and the gate passed → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/release-manager/publish-release.md` (re-verification, push, PR) AFTER validations.md and BEFORE re-verifying (it repeats §1-§5).
 - WHEN `operation: configure-remote` and the gate passed → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/release-manager/configure-remote.md` BEFORE any precondition command.
-- WHEN any `git`/`gh` command exits non-zero → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/release-manager/git-errors.md` BEFORE writing the verdict (literal UNTRIMMED stderr, SSH-alias hints).
+- WHEN `git push`, `git remote add`, `gh repo create` or `gh pr create` exits non-zero (a probe like `gh auth status` failing is expected, not this) → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/release-manager/git-errors.md` BEFORE writing the verdict (literal UNTRIMMED stderr, SSH-alias hints).
 
 ## Bash discipline
 

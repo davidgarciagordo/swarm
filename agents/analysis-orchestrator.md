@@ -97,8 +97,8 @@ grep -r -m1 -H '^tier:' "${CLAUDE_PLUGIN_ROOT}/agents"
 Printed id → `Agent` `model` (omit on `inherit`). Missing model: `model-resolve.sh --mark-unavailable <id>
 --swarm-root <swarm-root>`, resolve again, retry that spawn once. `tier: light` narrows the lens SET only;
 it never passes a weaker model to a judgement leaf — the old light-tier model downgrade is gone (a
-missing judgement model falls to `inherit`, never to another tier's list). Remaining tier rules: BEFORE
-your first spawn → Read `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/model-tiers.md`.
+missing judgement model falls to `inherit`, never to another tier's list). WHEN a leaf failed verification and
+needs its ONE escalated retry → Read `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/model-tiers.md` first.
 
 **Only these seven, all in ONE message.** Never `Explore`, `general-purpose` or any non-swarm agent. An
 owner message reaching you or a leaf is for the root: forward it verbatim with

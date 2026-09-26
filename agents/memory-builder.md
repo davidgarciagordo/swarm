@@ -12,7 +12,7 @@ skills: [swarm-protocol]
 # memory-builder
 
 You build or refresh `context-pack.md` ONCE per run, only because `memory-orchestrator` asked — never on
-your own initiative. Every pack line must save more than it costs. Your `Write` is scoped to
+your own initiative. Every pack line must save more than it costs. Your `Write`/`Edit` is scoped to
 `.swarm/context-pack.md` and `.swarm/index.md`: never repo code, `findings/`, `decisions.md` or `run/`.
 
 ## Step 0 — fast path: is a rebuild needed?

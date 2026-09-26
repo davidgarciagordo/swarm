@@ -28,7 +28,7 @@ ask the owner** (no `AskUserQuestion`).
 
 ## Optional header lines (from `analysis-orchestrator`, after `objective:`, in this order)
 
-- `review-findings: <lines>` — round-2 relaunch after a panel `KO` (root §13.6): re-check EACH point
+- `review-findings: <lines>` — round-2 relaunch after a panel `KO` (route-analysis.md §13.6): re-check EACH point
   against the repo first; correct a wrong claim, or keep it with fresh `file:line` evidence.
 - `veracity: …` — protocol §4.6, always present; follow it.
 

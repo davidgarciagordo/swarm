@@ -1,5 +1,5 @@
 # swarm-protocol · model tiers
-On demand from skills/swarm-protocol/SKILL.md — trigger: you are an orchestrator about to make your first `Agent` spawn of the run.
+On demand from skills/swarm-protocol/SKILL.md — trigger: a spawn failed for a missing model, or a child needs its ONE escalated retry.
 Commands use <plugin-root>, <swarm-root>, <run> placeholders (protocol §1): substitute literally.
 
 ## 7bis. Model tiers (who runs on which model)

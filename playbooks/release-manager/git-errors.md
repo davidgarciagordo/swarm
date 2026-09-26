@@ -1,5 +1,5 @@
 # release-manager · git-errors
-On demand from agents/release-manager.md — trigger: any `git`/`gh` command exits non-zero.
+On demand from agents/release-manager.md — trigger: `git push`, `git remote add`, `gh repo create` or `gh pr create` exits non-zero.
 Commands use <plugin-root>, <swarm-root>, <run> placeholders (protocol §1): substitute literally.
 
 ## `git`/`gh` errors: literal, never reinterpreted
