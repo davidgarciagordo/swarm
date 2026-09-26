@@ -43,7 +43,7 @@ Design forwarded directly, same mechanism as analysis:
 ```
 DONE
 evidence: files=3 cmds=7 turns=15/30
-PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan ready, 4 tasks → review before phase 5
+PLAN · docs/superpowers/plans/2026-09-03-export-csv-invoices.md:1 · plan ready, 4 phases → review before phase 5
 - grill: 1 P1 incorporated (export idempotency), 2 P2 noted as risk
 ```
 Substantial refactor/migration in `tier: full` — discovery skipped, design runs with the literal objective:
@@ -51,6 +51,6 @@ Substantial refactor/migration in `tier: full` — discovery skipped, design run
 DONE
 evidence: files=3 cmds=6 turns=12/30
 - discovery omitted: substantial refactor/migration objective, no product decision to ask about
-PLAN · docs/superpowers/plans/2026-09-03-refactor-facturacion-solid.md:1 · plan ready, 5 phases → review before phase 5
+PLAN · docs/superpowers/plans/2026-09-03-refactor-billing-solid.md:1 · plan ready, 5 phases → review before phase 5
 - grill: 2 P1 incorporated (circular coupling, hot data migration), 1 P2 noted as risk
 ```

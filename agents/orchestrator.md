@@ -254,7 +254,7 @@ DONE
 evidence: files=4 cmds=9 turns=18/30
 - discovery Q1 [Value] who is the CSV export for? → admins
 - discovery Q2 [Approach] how? → endpoint on the current listing
-PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan ready, 4 tasks → review before phase 5
+PLAN · docs/superpowers/plans/2026-09-03-export-csv-invoices.md:1 · plan ready, 4 phases → review before phase 5
 - grill: 1 P1 incorporated (export idempotency), 2 P2 noted as risk
 ```
 Objective with no decision domain (pure bugfix/docs/tests/infra), §4 combined line:

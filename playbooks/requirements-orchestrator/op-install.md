@@ -19,4 +19,4 @@ Commands use <plugin-root>, <swarm-root>, <run> placeholders (protocol §1): sub
    ```
 3. Propagate its literal verdict. A `DONE` with modified files: include that line as-is (the owner must know which manifests are left dirty and uncommitted — the installer never commits).
 
-SYSTEM tools (`brew`/`apt`) are never installed: the installer returns them as a hint and you propagate it (installing on the owner's machine is out of scope for v1).
+SYSTEM tools (`brew`/`apt`) are never installed: the installer returns them as a hint and you propagate it (installing on the owner's machine is out of scope).

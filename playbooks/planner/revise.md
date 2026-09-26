@@ -6,7 +6,7 @@ Commands use <plugin-root>, <swarm-root>, <run> placeholders (protocol §1): sub
 
 With `operation: revise` a draft already exists (its path comes in your prompt) and `design-orchestrator`
 summarizes which review findings are load-bearing. Use `Edit` on THAT same file — never create a new one
-for a revision. Incorporate the `P1`s it summarizes (if any) phase by phase or step by step.
+for a revision. Incorporate the `P1`s it summarizes (if any) phase by phase.
 
 **Arbitration-closed marker (idempotency):** the `operation: revise` that `design-orchestrator` sends as
 ITS LAST action before `DONE` — with findings to incorporate or none — carries in `context:` the explicit

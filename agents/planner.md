@@ -55,7 +55,7 @@ the plan — never invented, never asked.
 **Mandatory sanitization** of any repo text you interpolate (protocol §4.4). The path ALWAYS goes in
 double quotes in `--file` (second layer of defense, not a substitute for the slug rule).
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding --agent planner --tag PLAN --file "docs/superpowers/plans/2026-09-03-export-csv-facturas.md" --line 1 --run <run> --text "plan ready, 4 phases" --fix "review before phase 5"
+"${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding --agent planner --tag PLAN --file "docs/superpowers/plans/2026-09-03-export-csv-invoices.md" --line 1 --run <run> --text "plan ready, 4 phases" --fix "review before phase 5"
 ```
 `written` or `dup` are both fine. Exit 64 = you're missing a flag: fix it, don't invent one.
 
@@ -68,7 +68,7 @@ Plan content goes through `Write`/`Edit`, never Bash. Generic rules: protocol.
 ```
 DONE
 evidence: files=4 cmds=1 turns=12/20
-PLAN · docs/superpowers/plans/2026-09-03-export-csv-facturas.md:1 · plan ready, 4 phases → review before phase 5
+PLAN · docs/superpowers/plans/2026-09-03-export-csv-invoices.md:1 · plan ready, 4 phases → review before phase 5
 ```
 
 `DONE` with `files=0` is always rejected — at least the context-pack and `decisions.md` count. The written
