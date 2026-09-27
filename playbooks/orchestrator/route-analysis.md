@@ -15,7 +15,8 @@ Agent(subagent_type: "swarm:analysis-orchestrator", name: "analysis-orchestrator
   swarm-root: <absolute path of .swarm>
   operation: audit
   tier: <light|full>
-  objective: <the owner's literal objective, without the --tier flag>)
+  objective: <the owner's literal objective, without the --tier flag>
+  lenses: <only the lenses sizing pulled — optional line, omit to let it choose>)
 ```
 
 ### 8.3 Forwarding the findings (no `AskUserQuestion` — nothing to ask)

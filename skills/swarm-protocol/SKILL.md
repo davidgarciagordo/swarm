@@ -98,6 +98,9 @@ Stop when no new patterns appear, not at a fixed count. At `maxTurns` still emit
 Allowlist `hooks/bash-allowlist.json` (`hooks/bash-guard.py`) is checked per segment (`&&`, `|`; `||` and `;` are refused):
 one denied segment denies the call; a `|` feeds only a text filter (`grep`, `jq`, `sort`, `wc`…). Globs only inside quotes, no `$(…)`, no heredoc (`Write`/`Edit` the file instead).
 Never `export`, `echo`, nor `; echo $?` (the result has the exit code); git mutations in their own call.
+**Bash denied by the session's permissions** (not by the guard — no `bash-guard` reason in the message): never retry it
+nor a variant. Read with `Read`/`Grep`/`Glob` instead; if a script is essential, emit ONE line
+`BLOCKED needs Bash: <cmd>` and close with the evidence you have — no turn spent on denied commands.
 ## 7. Mandatory frontmatter
 - WHEN you create/edit a file under `agents/` or `skills/` of THIS plugin (`${CLAUDE_PLUGIN_ROOT}`, or a checkout whose
   `.claude-plugin/plugin.json` name is `swarm`; never a target repo's own folders) → Read `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/authoring.md` first.

@@ -58,6 +58,24 @@ guía completa.
 - `/swarm:status` — resumen determinista, sin turno de modelo, del run actual, tier, agentes, hallazgos abiertos y las últimas puntuaciones del panel de revisión.
 - `/swarm:findings [agente|TAG] [--all]` — consulta filtrada determinista, sin turno de modelo, de los hallazgos del enjambre.
 
+## ⚖️ Proporcional por diseño
+
+El enjambre usa solo lo que el objetivo necesita. `/swarm:run` dimensiona el objetivo primero y
+trabaja en nativo por defecto; cada componente del enjambre se trae por separado, solo cuando su
+valor supera su coste, y cada lanzamiento se registra con su motivo (el informe lista qué corrió y
+qué se omitió). Resultados típicos:
+- **Directo** — una pregunta, explicación u objetivo "solo análisis", o una edición pequeña y
+  reversible: se responde en nativo leyendo el repo. Sin subagentes, sin `/swarm:init`, sin
+  `.swarm/`, sin tocar ningún fichero versionado.
+- **Enfocado** — un análisis o cambio acotado: un componente (p. ej. `analysis-orchestrator` solo
+  con la lente de seguridad, o el panel de revisión sobre un plan), más la memoria del run.
+- **Completo** — una construcción multicomponente (app nueva, juego, feature con varias piezas):
+  descubrimiento → diseño (planner + grill) → implementación a petición → panel.
+
+No hace falta ningún flag; `--tier=direct|light|full` es un override opcional. Un objetivo de solo
+lectura nunca inicializa el enjambre ni edita `.gitignore`, y un agente al que se le deniega Bash lee
+con `Read`/`Grep`/`Glob` y reporta `BLOCKED needs Bash: <cmd>` una vez en vez de reintentar.
+
 ## ⚙️ Cómo funciona
 
 ### Arquitectura

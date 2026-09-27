@@ -56,6 +56,22 @@ separate setup step to run or know about. See `docs/USAGE.md` for the full guide
 - `/swarm:status` — deterministic, no-model-turn summary of the current run, tier, agents, open findings, and the review panel's last scores.
 - `/swarm:findings [agent|TAG] [--all]` — deterministic, no-model-turn filtered read of the swarm's findings.
 
+## ⚖️ Proportional by design
+
+The swarm uses only what the goal needs. `/swarm:run` sizes the goal first and works natively by
+default; each swarm component is pulled on its own, only when its value beats its cost, and every
+spawn is logged with its reason (the report lists what ran and what was skipped). Typical outcomes:
+- **Direct** — a question, explanation or "analysis only" goal, or a small reversible edit: answered
+  natively by reading the repo. No subagent, no `/swarm:init`, no `.swarm/`, no tracked file touched.
+- **Focused** — a bounded analysis or change: one component (e.g. `analysis-orchestrator` with only
+  the security lens, or the review panel on one plan), plus the run's memory.
+- **Full** — a multi-component build (new app, game, feature with several parts): discovery →
+  design (planner + grill) → implementation on request → panel.
+
+No flag is needed; `--tier=direct|light|full` is an optional override. A read-only goal never
+initializes the swarm nor edits `.gitignore`, and an agent whose Bash is denied reads with
+`Read`/`Grep`/`Glob` and reports `BLOCKED needs Bash: <cmd>` once instead of retrying.
+
 ## ⚙️ How it works
 
 ### Architecture

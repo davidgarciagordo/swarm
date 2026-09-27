@@ -48,7 +48,7 @@
     ],
     "swarm:orchestrator": [
       "scripts/model-resolve.sh", "git status", "git log", "git diff", "git show", "git blame",
-      "git rev-parse", "cd", "ls", "cat", "head", "tail", "wc", "grep", "rg", "jq", "cmp", "diff", "sort",
+      "git rev-parse", "git ls-files", "cd", "ls", "cat", "head", "tail", "wc", "grep", "rg", "jq", "cmp", "diff", "sort",
       "uniq", "cut", "tr", "php -l", "scripts/mem-", "scripts/mem-lock.sh", "scripts/swarm-init.sh"
     ],
     "swarm:requirements-orchestrator": [

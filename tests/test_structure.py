@@ -388,4 +388,22 @@ if S.check(yaml is not None, 'PyYAML is importable (needed for the strict frontm
         S.check(isinstance(data, dict) and bool(data.get('description')),
                 '%s: frontmatter is valid YAML with a description (%s)' % (rel(path), err or 'ok'))
 
+# ---------- 12. proportional routing: the root sizes before spawning; read-only never writes ----------
+root_text = read(AGENTS[ROOT_AGENT]['path'])
+sizing = re.search(r'^### 1\.1 Step 0 — SIZING.*?(?=^#{2,3} )', root_text, re.M | re.S)
+if S.check(sizing is not None, 'root has a §1.1 Step 0 SIZING section before opening a run'):
+    body = sizing.group(0)
+    S.check(root_text.index(sizing.group(0)) < root_text.index('## 2. Opening a run'),
+            'sizing comes before opening a run')
+    for path_name in ('direct', 'light', 'full'):
+        S.check(re.search(r'\b%s\b' % path_name, body) is not None, 'sizing names the %s path' % path_name)
+    S.check(re.search(r'Read-only objective.*?NEVER `swarm-init`.*?\.gitignore', body, re.S) is not None,
+            'sizing states the read-only rule (no swarm-init, no .swarm/, no tracked edits incl. .gitignore)')
+    S.check('playbooks/orchestrator/sizing.md' in body, 'sizing points at its on-demand playbook')
+    S.check(re.search(r'- spawn <component>: <why>', body) is not None, 'sizing logs every spawn with its reason')
+S.check(re.search(r'--tier=direct\|light\|full', read(os.path.join(ROOT, 'skills', 'run', 'SKILL.md'))) is not None,
+        'skills/run documents the --tier override flag')
+protocol = read(os.path.join(ROOT, 'skills', 'swarm-protocol', 'SKILL.md'))
+S.check('BLOCKED needs Bash: <cmd>' in protocol, 'protocol tells agents to stop, not retry, when Bash is denied')
+
 S.done()

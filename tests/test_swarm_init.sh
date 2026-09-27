@@ -39,6 +39,19 @@ assert_eq "1" "$(grep -c '^# swarm$' "$fixture/.gitignore")" "and still one mark
 decisions_header_count="$(grep -c '^# Decisiones$' "$SWARM_ROOT/decisions.md")"
 assert_eq "1" "$decisions_header_count" "decisions.md not duplicated after 2nd init"
 
+# --read-only writes nothing: no .swarm/, tracked .gitignore byte-identical
+ro="$(make_fixture)"
+printf 'node_modules/\n' > "$ro/.gitignore"
+before="$(cksum < "$ro/.gitignore")"
+SWARM_ROOT="$ro/.swarm" "$INIT_SCRIPT" --read-only >/dev/null 2>&1
+assert_eq "0" "$?" "read-only init exits 0"
+assert_eq "1" "$( [ -e "$ro/.swarm" ]; echo $? )" "read-only init creates no .swarm/"
+assert_eq "$before" "$(cksum < "$ro/.gitignore")" "read-only init leaves .gitignore untouched"
+SWARM_ROOT="$ro/.swarm" "$INIT_SCRIPT" --bogus >/dev/null 2>&1
+assert_eq "64" "$?" "unknown argument exits 64"
+assert_eq "1" "$( [ -e "$ro/.swarm" ]; echo $? )" "and writes nothing"
+rm -rf "$ro"
+
 rm -rf "$fixture"
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

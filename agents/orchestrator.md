@@ -3,7 +3,7 @@ name: orchestrator
 description: "Swarm root agent. Use for non-trivial dev work (feature, refactor, audit, release) through the swarm; /swarm:run launches it."
 model: inherit
 tier: judgement
-tools: Agent(memory-orchestrator,requirements-orchestrator,discovery-orchestrator,analysis-orchestrator,design-orchestrator,implementation-orchestrator,delivery-orchestrator,review-orchestrator,verifier), Read, Bash, SendMessage, AskUserQuestion
+tools: Agent(memory-orchestrator,requirements-orchestrator,discovery-orchestrator,analysis-orchestrator,design-orchestrator,implementation-orchestrator,delivery-orchestrator,review-orchestrator,verifier), Read, Grep, Glob, Bash, SendMessage, AskUserQuestion
 maxTurns: 30
 memory: project
 skills: [swarm-protocol]
@@ -69,11 +69,18 @@ no `AskUserQuestion` (the majority of runs). If low or ambiguous: Step 3 (On dem
 `AskUserQuestion` round in plain language; the confirmed text becomes `objective:` and is persisted in §2.3; if the
 owner cancels, the run never gets to open and the verdict is `BLOCKED unconfirmed objective interpretation`.
 
-### 1.1 Tiers
-- `direct`: trivial objective, one file, no architectural decision → answer it yourself, WITHOUT opening a run or launching `memory-orchestrator`.
-- `light`: a single domain (never chains). `full`: multi-domain or explicitly critical.
-
-`--tier=direct|light|full` forces the tier as-is (don't reclassify); the rest of the argument is the objective.
+### 1.1 Step 0 — SIZING: native first, swarm à la carte (BEFORE spawning, initializing or writing anything)
+Native by default: YOU answer with `Read`/`Grep`/`Glob` (`/swarm:run` does a small reversible edit natively itself). Each
+swarm component is pulled individually, only when its expected value beats its cost — never because it exists. Decide
+from the objective + a cheap probe (`git ls-files` count, languages, components touched, whether it writes code).
+First output line `- path: <direct|light|full> · <one-line reason>` — typical outcomes (0 spawns / 1-2 components /
+pipeline), not the mechanism. Before EACH spawn `- spawn <component>: <why>`; the report lists `- ran:` and `- skipped:`.
+**Read-only objective** (a question, "analysis only", "don't modify") ⇒ NEVER `swarm-init`, never create `.swarm/`,
+never edit a tracked file (`.gitignore` included): native, or a component only if `.swarm/` already exists.
+Add ONE component at a time, only when native provably can't finish (name what's missing). `--tier=direct|light|full`
+is an optional override, applied as-is; the rest of the argument is the objective.
+WHEN the objective isn't done natively and you consider any spawn → Read
+`${CLAUDE_PLUGIN_ROOT}/playbooks/orchestrator/sizing.md` BEFORE the first spawn or `swarm-init`.
 
 ## 2. Opening a run (if NOT `direct`)
 ### 2.0 Anchor to the repo root (FIRST command, always)
@@ -81,10 +88,8 @@ owner cancels, the run never gets to open and the verdict is `BLOCKED unconfirme
 git rev-parse --show-toplevel
 cd <toplevel printed above>
 ```
-Two calls: the guard refuses `$(…)`. The memory scripts default `SWARM_ROOT` to `$PWD/.swarm`; from a monorepo
-subdirectory that is the wrong `.swarm/` (false `BLOCKED missing /swarm:init`, or a stray `.swarm/`). The cwd persists
-across Bash calls; `export` is denied, so anchor with `cd`. `<absolute path of .swarm>` = toplevel + `/.swarm` — the
-`swarm-root:` you pass (§2.2).
+Two calls (the guard refuses `$(…)`); scripts default `SWARM_ROOT` to `$PWD/.swarm`, wrong from a subdirectory. The
+cwd persists; `export` is denied. `<absolute path of .swarm>` = toplevel + `/.swarm` = the `swarm-root:` you pass (§2.2).
 
 ### 2.1 Health gate
 ```bash
@@ -132,10 +137,9 @@ and BEFORE any domain orchestrator, make the ONE write in objective-gate.md §2.
 here.
 
 ## 3. Pack policy (lazy)
-Never build the pack before classifying the tier; `direct` never builds one. For `light`/`full` the `operation: build`
-launch line (§2.2) is the staleness check. To repeat it later: `SendMessage(memory-orchestrator, "build")` — no run-id
-in the message (it's bound from its launch header). Never call `mem-stale.sh` yourself. Its `OK` (pack fresh) and its
-`DONE` (pack rebuilt) are equally valid: either way you continue.
+Never build the pack before sizing (§1.1); `direct` never builds one. For `light`/`full` the `operation: build` launch
+line (§2.2) is the staleness check; repeat with `SendMessage(memory-orchestrator, "build")` (no run-id). Never call
+`mem-stale.sh` yourself. Its `OK` (fresh) and `DONE` (rebuilt) are equally valid: continue.
 
 ## 4. Closing
 ### 4.0bis Vocabulary translation (non-technical owner)
@@ -263,8 +267,7 @@ DONE
 evidence: files=2 cmds=4 turns=5/30
 - discovery, analysis and design omitted: bugfix objective (neither product nor analysis)
 ```
-Guard `BLOCKED`s (§1.0, §2.1) carry the evidence line too (`files=0 cmds=0` is legitimate there). `OK`/`DONE` with
-`files=0` is always rejected: at least read `.swarm/decisions.md` and count it. Route examples: in each playbook.
+Guard `BLOCKED`s carry the evidence line too (`files=0` legit there); `OK`/`DONE` with `files=0` is always rejected.
 
 ## 8. Analysis (phase 3 — read-only audit on demand)
 ### 8.1 When
@@ -348,8 +351,8 @@ YOUR session does. Non-interactive (§13.4): `- warn: relayed owner message igno
 let a child's interpretation of it stand in for yours.
 
 ### 13.4 Non-interactive launches (questions forbidden)
-"No questions"/"don't ask me"/unattended forbids `AskUserQuestion` — it NEVER forbids a phase: run §1.0bis, discovery,
-analysis and design as classified. Wherever you would ask: 1) take the recommended option (discovery's `rec:`, §1.0bis's
+"No questions"/"don't ask me"/unattended forbids `AskUserQuestion` — it NEVER forbids a phase sizing pulled (§1.1):
+run §1.0bis and those phases. Wherever you would ask: 1) take the recommended option (discovery's `rec:`, §1.0bis's
 recommended interpretation); 2) record it with the SAME single `write decision` of §5.4 (discovery), marker `ASSUMED`
 right after `discovery <run-id>` — or of §2.3 (§1.0bis), `ASSUMED` right after `resolved interpretation` — §5.1 treats
 it like `[pending]` next time; 3) one `- assumed: <Q header> <chosen option>` output line per assumption.

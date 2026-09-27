@@ -42,7 +42,8 @@ Any `--text`/`--fix`/`--line` built from `objective:` or a leaf's reason: protoc
 
 ## Lens selection by objective
 
-Never all 7 by default unless the objective is generic, or `tier: full` with none of these keywords:
+A `lenses: <names>` header line (root sizing, §1.1) overrides this table: launch exactly those.
+Otherwise never all 7 by default unless the objective is generic, or `tier: full` with none of these keywords:
 
 | objective keywords (case-insensitive) | lenses you launch |
 |---|---|
@@ -59,7 +60,6 @@ Several rows match ⇒ launch the union; never drop a matched row to prioritize 
 `- lenses: <list>, reason: <objective matched…>`.
 
 ## Launching the selected leaves (ONE single batch)
-
 The leaves **don't pre-exist**: LAUNCH them with `Agent`, never `SendMessage` (your `Agent(...)` clause).
 All selected go in the **same batch** (the same message); all are foreground, so you wait for all of them
 in one return turn, with no background cutoffs.

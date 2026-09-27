@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.2
+
+### Changed
+- **Proportional routing, native first.** A headless `/swarm:run` on a read-only analysis question
+  cost 356 s / $4.28 (discovery, lenses, panel, `swarm-init`) vs 144 s / $0.87 for plain Claude.
+  Now `/swarm:run` answers questions, "analysis only" goals and small reversible edits natively
+  (no subagent), and the root's new §1.1 Step 0 SIZING pulls each swarm component à la carte, only
+  when its value beats its cost, logging `- spawn <component>: <why>` and listing `- ran:` /
+  `- skipped:`. Detail in `playbooks/orchestrator/sizing.md`. `--tier=direct|light|full` is an
+  optional override; `analysis-orchestrator` accepts a `lenses:` header to launch only those.
+- **Read-only goals never write.** No `swarm-init`, no `.swarm/`, no edit to a tracked file
+  (`.gitignore` included). `swarm-init.sh` touches `.gitignore` only after `.swarm/` is written and
+  healthy, and gains `--read-only` (writes nothing, exit 0; unknown argument exits 64).
+- **Bash-denied resilience** (protocol §6bis): a Bash call denied by the session's permissions is
+  never retried; agents read with `Read`/`Grep`/`Glob` and report `BLOCKED needs Bash: <cmd>` once.
+- Root gains `Grep`/`Glob` and `git ls-files` (repo probe). Tests: structural checks for the sizing
+  step, the read-only rule, the `--tier` override and the Bash-denied rule; behavioural checks for
+  `swarm-init.sh --read-only`.
+
 ## 0.2.1
 
 ### Changed

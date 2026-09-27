@@ -9,6 +9,16 @@ REPO_ROOT="$(dirname "$SWARM_ROOT")"
 GITIGNORE="$REPO_ROOT/.gitignore"
 MARKER="# swarm"
 
+# --read-only: a read-only run (question, "analysis only") must not write anything — report and exit 0.
+if [ "${1:-}" = "--read-only" ]; then
+  if [ -d "$SWARM_ROOT" ]; then state="present"; else state="absent"; fi
+  echo "swarm: init skipped (read-only run) — .swarm/ $state, .gitignore untouched"
+  exit 0
+elif [ -n "${1:-}" ]; then
+  echo "swarm: init — unknown argument: $1 (only --read-only)" >&2
+  exit 64
+fi
+
 mkdir -p "$SWARM_ROOT/findings" "$SWARM_ROOT/run"
 
 if [ ! -f "$SWARM_ROOT/memory.json" ]; then
@@ -31,6 +41,12 @@ if [ ! -f "$SWARM_ROOT/decisions.md" ]; then
   printf '# Decisiones\n' > "$SWARM_ROOT/decisions.md"
 fi
 
+if ! "$SCRIPT_DIR/mem-files.sh" health >/dev/null 2>&1; then
+  echo "swarm: init — backend 'files' health check failed, aborting" >&2
+  exit 1
+fi
+
+# .gitignore only after .swarm/ exists and is healthy (the first real write).
 # Per-line idempotent: a repo initialised by an older version gets only the entries it lacks.
 if ! { [ -f "$GITIGNORE" ] && grep -qxF "$MARKER" "$GITIGNORE" 2>/dev/null; }; then
   echo "$MARKER" >> "$GITIGNORE"
@@ -39,11 +55,6 @@ for entry in .swarm/context-pack.md .swarm/index.md .swarm/findings/ .swarm/run/
   .swarm/models.unavailable .swarm/judgements.jsonl; do
   grep -qxF "$entry" "$GITIGNORE" 2>/dev/null || echo "$entry" >> "$GITIGNORE"
 done
-
-if ! "$SCRIPT_DIR/mem-files.sh" health >/dev/null 2>&1; then
-  echo "swarm: init — backend 'files' health check failed, aborting" >&2
-  exit 1
-fi
 
 if [ -z "${CLAUDE_MEM_AVAILABLE:-}" ]; then
   echo "swarm: init — warning: claude-mem not confirmed available (best-effort, non-blocking)" >&2
