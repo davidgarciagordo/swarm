@@ -143,7 +143,7 @@
       "title": "Measured real run",
       "items": [
         "23.5 s · $0.36 · 0 subagents · 0 files changed",
-        "vs 356 s · $4.28 before (full pipeline)"
+        "one run on a small read-only question; not a comparison"
       ]
     }
   ]
