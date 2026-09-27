@@ -1,0 +1,149 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "swarm al 1% — pregunta / análisis",
+    "output": "routing-1pct.es.html",
+    "animation": "none",
+    "visual_preset": "classic",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "ask", "label": "El owner pregunta" },
+    { "id": "sizing", "label": "Sizing (Step 0)" },
+    { "id": "native", "label": "Respuesta nativa" },
+    { "id": "skipped", "label": "Omitido (no hace falta)", "variant": "exception" }
+  ],
+  "nodes": [
+    {
+      "id": "A",
+      "lane": "ask",
+      "col": 0,
+      "type": "external",
+      "label": "Owner",
+      "sublabel": "\"¿Qué hace X?\" (solo análisis)",
+      "width": 280
+    },
+    {
+      "id": "B",
+      "lane": "sizing",
+      "col": 1,
+      "type": "backend",
+      "label": "/swarm:run sizing",
+      "sublabel": "probe barato del repo (sizing.md)",
+      "width": 340
+    },
+    {
+      "id": "C",
+      "lane": "sizing",
+      "col": 2,
+      "type": "backend",
+      "label": "path: direct",
+      "sublabel": "solo lectura, se responde leyendo",
+      "width": 330
+    },
+    {
+      "id": "D",
+      "lane": "native",
+      "col": 3,
+      "type": "backend",
+      "label": "Read + Grep",
+      "sublabel": "p. ej. 2 ficheros, sin subagente",
+      "width": 300
+    },
+    {
+      "id": "E",
+      "lane": "native",
+      "col": 4,
+      "type": "backend",
+      "label": "Informe al owner",
+      "sublabel": "- ran: none (native)",
+      "width": 280
+    },
+    {
+      "id": "S1",
+      "lane": "skipped",
+      "col": 0,
+      "type": "backend",
+      "label": "salto a orchestrator",
+      "sublabel": "no hace falta: solo lectura, 2 ficheros",
+      "width": 290
+    },
+    {
+      "id": "S2",
+      "lane": "skipped",
+      "col": 1,
+      "type": "backend",
+      "label": "init .swarm/",
+      "sublabel": "no hace falta: solo lectura, 2 ficheros",
+      "width": 280
+    },
+    {
+      "id": "S3",
+      "lane": "skipped",
+      "col": 2,
+      "type": "backend",
+      "label": "memory pack",
+      "sublabel": "no hace falta: solo lectura, 2 ficheros",
+      "width": 280
+    },
+    {
+      "id": "S4",
+      "lane": "skipped",
+      "col": 3,
+      "type": "backend",
+      "label": "discovery",
+      "sublabel": "no hace falta: solo lectura, 2 ficheros",
+      "width": 270
+    },
+    {
+      "id": "S5",
+      "lane": "skipped",
+      "col": 4,
+      "type": "backend",
+      "label": "lentes + panel de revisión",
+      "sublabel": "no hace falta: solo lectura, 2 ficheros",
+      "width": 340
+    },
+    {
+      "id": "S6",
+      "lane": "skipped",
+      "col": 5,
+      "type": "backend",
+      "label": "juez ciego",
+      "sublabel": "no hace falta: solo lectura, 2 ficheros",
+      "width": 280
+    }
+  ],
+  "edges": [
+    { "from": "A", "to": "B", "role": "main" },
+    { "from": "B", "to": "C", "role": "main", "label": "git ls-files, lenguajes" },
+    { "from": "C", "to": "D", "role": "main", "label": "tier = direct" },
+    { "from": "D", "to": "E", "role": "main" }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Log de sizing (formato real)",
+      "items": [
+        "- path: direct · solo lectura, se responde leyendo",
+        "- ran: none (native)",
+        "- skipped: orchestrator hop (no hace falta: solo lectura, 2 ficheros)",
+        "- skipped: .swarm/ init (no hace falta: solo lectura, 2 ficheros)",
+        "- skipped: memory pack (no hace falta: solo lectura, 2 ficheros)",
+        "- skipped: discovery (no hace falta: solo lectura, 2 ficheros)",
+        "- skipped: lenses (no hace falta: solo lectura, 2 ficheros)",
+        "- skipped: review panel (no hace falta: solo lectura, 2 ficheros)",
+        "- skipped: blind judge (no hace falta: solo lectura, 2 ficheros)"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Ejecución real medida",
+      "items": [
+        "23,5 s · $0,36 · 0 subagentes · 0 ficheros modificados",
+        "vs 356 s · $4,28 antes (pipeline completo)"
+      ]
+    }
+  ]
+}

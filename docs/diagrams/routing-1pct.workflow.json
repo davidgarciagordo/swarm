@@ -1,0 +1,150 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "1% swarm — question / analysis",
+    "locale": "en",
+    "output": "routing-1pct.html",
+    "animation": "none",
+    "visual_preset": "classic",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "ask", "label": "Owner asks" },
+    { "id": "sizing", "label": "Sizing (Step 0)" },
+    { "id": "native", "label": "Native answer" },
+    { "id": "skipped", "label": "Skipped (not needed)", "variant": "exception" }
+  ],
+  "nodes": [
+    {
+      "id": "A",
+      "lane": "ask",
+      "col": 0,
+      "type": "external",
+      "label": "Owner",
+      "sublabel": "\"What does X do?\" (analysis only)",
+      "width": 280
+    },
+    {
+      "id": "B",
+      "lane": "sizing",
+      "col": 1,
+      "type": "backend",
+      "label": "/swarm:run sizing",
+      "sublabel": "cheap repo probe (sizing.md)",
+      "width": 320
+    },
+    {
+      "id": "C",
+      "lane": "sizing",
+      "col": 2,
+      "type": "backend",
+      "label": "path: direct",
+      "sublabel": "read-only, answerable by reading",
+      "width": 320
+    },
+    {
+      "id": "D",
+      "lane": "native",
+      "col": 3,
+      "type": "backend",
+      "label": "Read + Grep",
+      "sublabel": "e.g. 2 files, no subagent",
+      "width": 260
+    },
+    {
+      "id": "E",
+      "lane": "native",
+      "col": 4,
+      "type": "backend",
+      "label": "Report to owner",
+      "sublabel": "- ran: none (native)",
+      "width": 280
+    },
+    {
+      "id": "S1",
+      "lane": "skipped",
+      "col": 0,
+      "type": "backend",
+      "label": "orchestrator hop",
+      "sublabel": "not needed: read-only, 2 files",
+      "width": 260
+    },
+    {
+      "id": "S2",
+      "lane": "skipped",
+      "col": 1,
+      "type": "backend",
+      "label": ".swarm/ init",
+      "sublabel": "not needed: read-only, 2 files",
+      "width": 250
+    },
+    {
+      "id": "S3",
+      "lane": "skipped",
+      "col": 2,
+      "type": "backend",
+      "label": "memory pack",
+      "sublabel": "not needed: read-only, 2 files",
+      "width": 250
+    },
+    {
+      "id": "S4",
+      "lane": "skipped",
+      "col": 3,
+      "type": "backend",
+      "label": "discovery",
+      "sublabel": "not needed: read-only, 2 files",
+      "width": 240
+    },
+    {
+      "id": "S5",
+      "lane": "skipped",
+      "col": 4,
+      "type": "backend",
+      "label": "lenses + review panel",
+      "sublabel": "not needed: read-only, 2 files",
+      "width": 320
+    },
+    {
+      "id": "S6",
+      "lane": "skipped",
+      "col": 5,
+      "type": "backend",
+      "label": "blind judge",
+      "sublabel": "not needed: read-only, 2 files",
+      "width": 250
+    }
+  ],
+  "edges": [
+    { "from": "A", "to": "B", "role": "main" },
+    { "from": "B", "to": "C", "role": "main", "label": "git ls-files, languages" },
+    { "from": "C", "to": "D", "role": "main", "label": "tier = direct" },
+    { "from": "D", "to": "E", "role": "main" }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Sizing log (real format)",
+      "items": [
+        "- path: direct · read-only, answerable by reading",
+        "- ran: none (native)",
+        "- skipped: orchestrator hop (not needed: read-only, 2 files)",
+        "- skipped: .swarm/ init (not needed: read-only, 2 files)",
+        "- skipped: memory pack (not needed: read-only, 2 files)",
+        "- skipped: discovery (not needed: read-only, 2 files)",
+        "- skipped: lenses (not needed: read-only, 2 files)",
+        "- skipped: review panel (not needed: read-only, 2 files)",
+        "- skipped: blind judge (not needed: read-only, 2 files)"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Measured real run",
+      "items": [
+        "23.5 s · $0.36 · 0 subagents · 0 files changed",
+        "vs 356 s · $4.28 before (full pipeline)"
+      ]
+    }
+  ]
+}

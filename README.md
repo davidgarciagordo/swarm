@@ -72,6 +72,14 @@ No flag is needed; `--tier=direct|light|full` is an optional override. A read-on
 initializes the swarm nor edits `.gitignore`, and an agent whose Bash is denied reads with
 `Read`/`Grep`/`Glob` and reports `BLOCKED needs Bash: <cmd>` once instead of retrying.
 
+[![1% swarm — question / analysis](docs/diagrams/routing-1pct.png)](docs/diagrams/routing-1pct.html)
+
+*Interactive version: open `docs/diagrams/routing-1pct.html` locally in a browser.*
+
+[![~20% swarm — add login to an existing app](docs/diagrams/routing-20pct.png)](docs/diagrams/routing-20pct.html)
+
+*Interactive version: open `docs/diagrams/routing-20pct.html` locally in a browser.*
+
 ## ⚙️ How it works
 
 ### Architecture

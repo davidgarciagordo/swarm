@@ -1,0 +1,163 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "~20% swarm — add login to an existing app",
+    "locale": "en",
+    "output": "routing-20pct.html",
+    "animation": "none",
+    "visual_preset": "classic",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "ask", "label": "Owner asks" },
+    { "id": "sizing", "label": "Sizing (Step 0)" },
+    { "id": "native", "label": "Native plan+code" },
+    { "id": "pulled", "label": "Swarm - pulled" },
+    { "id": "skipped", "label": "Skipped (not needed)", "variant": "exception" }
+  ],
+  "nodes": [
+    {
+      "id": "A",
+      "lane": "ask",
+      "col": 0,
+      "type": "external",
+      "label": "Owner",
+      "sublabel": "\"Add login to this app\"",
+      "width": 260
+    },
+    {
+      "id": "B",
+      "lane": "sizing",
+      "col": 1,
+      "type": "backend",
+      "label": "/swarm:run sizing",
+      "sublabel": "probe: touches auth/, existing app",
+      "width": 340
+    },
+    {
+      "id": "C",
+      "lane": "sizing",
+      "col": 2,
+      "type": "backend",
+      "label": "path: light",
+      "sublabel": "bounded feature, one focused component",
+      "width": 340
+    },
+    {
+      "id": "D",
+      "lane": "native",
+      "col": 3,
+      "type": "backend",
+      "label": "Claude plans + implements",
+      "sublabel": "native Read/Edit, not a subagent",
+      "width": 360
+    },
+    {
+      "id": "P1",
+      "lane": "pulled",
+      "col": 2,
+      "type": "database",
+      "label": "context pack",
+      "sublabel": "several agents need the same repo context",
+      "width": 340
+    },
+    {
+      "id": "P2",
+      "lane": "pulled",
+      "col": 3,
+      "type": "security",
+      "label": "security-auditor",
+      "sublabel": "diff touches auth/",
+      "width": 260
+    },
+    {
+      "id": "P3",
+      "lane": "pulled",
+      "col": 4,
+      "type": "security",
+      "label": "blind judge (plan)",
+      "sublabel": "high blast radius",
+      "width": 260
+    },
+    {
+      "id": "P4",
+      "lane": "pulled",
+      "col": 5,
+      "type": "backend",
+      "label": "test-writer",
+      "sublabel": "maybe: only if native skipped tests",
+      "width": 290
+    },
+    {
+      "id": "K1",
+      "lane": "skipped",
+      "col": 0,
+      "type": "backend",
+      "label": "discovery",
+      "sublabel": "decision already made",
+      "width": 240
+    },
+    {
+      "id": "K2",
+      "lane": "skipped",
+      "col": 1,
+      "type": "backend",
+      "label": "performance lens",
+      "sublabel": "not touched",
+      "width": 240
+    },
+    {
+      "id": "K3",
+      "lane": "skipped",
+      "col": 2,
+      "type": "backend",
+      "label": "data-model lens",
+      "sublabel": "not touched",
+      "width": 240
+    },
+    {
+      "id": "K4",
+      "lane": "skipped",
+      "col": 3,
+      "type": "backend",
+      "label": "delivery",
+      "sublabel": "push only on explicit request",
+      "width": 280
+    }
+  ],
+  "edges": [
+    { "from": "A", "to": "B", "role": "main" },
+    { "from": "B", "to": "C", "role": "main", "label": "cheap repo probe" },
+    { "from": "C", "to": "D", "role": "main", "label": "tier = light" },
+    { "from": "D", "to": "P1", "role": "branch", "variant": "dashed", "label": "spawn: shared context needed" },
+    { "from": "P1", "to": "P2", "role": "main", "label": "spawn: diff touches auth/" },
+    { "from": "P1", "to": "P3", "role": "main", "label": "spawn: high blast radius" },
+    { "from": "P1", "to": "P4", "role": "branch", "variant": "dashed", "label": "spawn: maybe" }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Sizing log (real format)",
+      "items": [
+        "- path: light · bounded feature, decision already made",
+        "- spawn context-pack: several agents need the same repo context",
+        "- spawn security-auditor: diff touches auth/",
+        "- spawn blind-judge (plan): high blast radius",
+        "- spawn test-writer: maybe, if native skipped tests",
+        "- skipped: discovery (decision already made)",
+        "- skipped: performance lens (not touched)",
+        "- skipped: data-model lens (not touched)",
+        "- skipped: delivery (push only on explicit request)"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Illustrative example",
+      "items": [
+        "Not a measured run — the pulled-component set varies by diff shape/size",
+        "Spawn/skip lines follow sizing.md's real log format"
+      ]
+    }
+  ]
+}

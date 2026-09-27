@@ -1,0 +1,162 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "swarm al ~20% — añadir login a una app existente",
+    "output": "routing-20pct.es.html",
+    "animation": "none",
+    "visual_preset": "classic",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "ask", "label": "El owner pregunta" },
+    { "id": "sizing", "label": "Sizing (Step 0)" },
+    { "id": "native", "label": "Plan+código nativo" },
+    { "id": "pulled", "label": "Swarm - se llama" },
+    { "id": "skipped", "label": "Omitido (no hace falta)", "variant": "exception" }
+  ],
+  "nodes": [
+    {
+      "id": "A",
+      "lane": "ask",
+      "col": 0,
+      "type": "external",
+      "label": "Owner",
+      "sublabel": "\"Añade login a esta app\"",
+      "width": 280
+    },
+    {
+      "id": "B",
+      "lane": "sizing",
+      "col": 1,
+      "type": "backend",
+      "label": "/swarm:run sizing",
+      "sublabel": "probe: toca auth/, app existente",
+      "width": 340
+    },
+    {
+      "id": "C",
+      "lane": "sizing",
+      "col": 2,
+      "type": "backend",
+      "label": "path: light",
+      "sublabel": "feature acotada, un componente puntual",
+      "width": 360
+    },
+    {
+      "id": "D",
+      "lane": "native",
+      "col": 3,
+      "type": "backend",
+      "label": "Claude planifica e implementa",
+      "sublabel": "nativo con Read/Edit, sin subagente",
+      "width": 380
+    },
+    {
+      "id": "P1",
+      "lane": "pulled",
+      "col": 2,
+      "type": "database",
+      "label": "context pack",
+      "sublabel": "varios agentes necesitan el mismo contexto",
+      "width": 350
+    },
+    {
+      "id": "P2",
+      "lane": "pulled",
+      "col": 3,
+      "type": "security",
+      "label": "security-auditor",
+      "sublabel": "el diff toca auth/",
+      "width": 260
+    },
+    {
+      "id": "P3",
+      "lane": "pulled",
+      "col": 4,
+      "type": "security",
+      "label": "juez ciego (plan)",
+      "sublabel": "radio de impacto alto",
+      "width": 270
+    },
+    {
+      "id": "P4",
+      "lane": "pulled",
+      "col": 5,
+      "type": "backend",
+      "label": "test-writer",
+      "sublabel": "quizás: si lo nativo se salta tests",
+      "width": 300
+    },
+    {
+      "id": "K1",
+      "lane": "skipped",
+      "col": 0,
+      "type": "backend",
+      "label": "discovery",
+      "sublabel": "decisión ya tomada",
+      "width": 240
+    },
+    {
+      "id": "K2",
+      "lane": "skipped",
+      "col": 1,
+      "type": "backend",
+      "label": "lente de rendimiento",
+      "sublabel": "no se toca",
+      "width": 270
+    },
+    {
+      "id": "K3",
+      "lane": "skipped",
+      "col": 2,
+      "type": "backend",
+      "label": "lente de modelo de datos",
+      "sublabel": "no se toca",
+      "width": 300
+    },
+    {
+      "id": "K4",
+      "lane": "skipped",
+      "col": 3,
+      "type": "backend",
+      "label": "delivery",
+      "sublabel": "push solo si se pide explícitamente",
+      "width": 300
+    }
+  ],
+  "edges": [
+    { "from": "A", "to": "B", "role": "main" },
+    { "from": "B", "to": "C", "role": "main", "label": "probe barato del repo" },
+    { "from": "C", "to": "D", "role": "main", "label": "tier = light" },
+    { "from": "D", "to": "P1", "role": "branch", "variant": "dashed", "label": "spawn: hace falta contexto compartido" },
+    { "from": "P1", "to": "P2", "role": "main", "label": "spawn: el diff toca auth/" },
+    { "from": "P1", "to": "P3", "role": "main", "label": "spawn: radio de impacto alto" },
+    { "from": "P1", "to": "P4", "role": "branch", "variant": "dashed", "label": "spawn: quizás" }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Log de sizing (formato real)",
+      "items": [
+        "- path: light · feature acotada, decisión ya tomada",
+        "- spawn context-pack: varios agentes necesitan el mismo contexto del repo",
+        "- spawn security-auditor: el diff toca auth/",
+        "- spawn blind-judge (plan): radio de impacto alto",
+        "- spawn test-writer: quizás, si lo nativo se saltó los tests",
+        "- skipped: discovery (decisión ya tomada)",
+        "- skipped: lente de rendimiento (no se toca)",
+        "- skipped: lente de modelo de datos (no se toca)",
+        "- skipped: delivery (push solo si se pide explícitamente)"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Ejemplo ilustrativo",
+      "items": [
+        "No es una ejecución medida — el conjunto de componentes llamados varía según el diff",
+        "Las líneas de spawn/skip siguen el formato real de log de sizing.md"
+      ]
+    }
+  ]
+}

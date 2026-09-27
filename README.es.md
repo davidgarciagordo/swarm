@@ -76,6 +76,14 @@ No hace falta ningún flag; `--tier=direct|light|full` es un override opcional. 
 lectura nunca inicializa el enjambre ni edita `.gitignore`, y un agente al que se le deniega Bash lee
 con `Read`/`Grep`/`Glob` y reporta `BLOCKED needs Bash: <cmd>` una vez en vez de reintentar.
 
+[![swarm al 1% — pregunta / análisis](docs/diagrams/routing-1pct.es.png)](docs/diagrams/routing-1pct.es.html)
+
+*Versión interactiva: abre `docs/diagrams/routing-1pct.es.html` localmente en un navegador.*
+
+[![swarm al ~20% — añadir login a una app existente](docs/diagrams/routing-20pct.es.png)](docs/diagrams/routing-20pct.es.html)
+
+*Versión interactiva: abre `docs/diagrams/routing-20pct.es.html` localmente en un navegador.*
+
 ## ⚙️ Cómo funciona
 
 ### Arquitectura
