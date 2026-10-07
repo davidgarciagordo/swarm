@@ -191,7 +191,7 @@ contract needs that shape).
 ## 📚 Core vs on-demand material
 
 Every agent loads only its **core** file plus the preloaded `swarm-protocol` skill (both kept short:
-leaf ≤80 lines, domain orchestrator ≤150, root ≤250, `SKILL.md` ≤120). Material an agent needs only in
+leaf ≤80 lines, domain orchestrator ≤150, root ≤370, `SKILL.md` ≤120). Material an agent needs only in
 some situations lives in plain `.md` files it `Read`s when an explicit `WHEN <condition> → Read <path>`
 line in its core fires: `skills/swarm-protocol/references/` (memory-script signatures, the guard's
 quoting rules, `WAITING`, model-tier resolution, worktree mode, authoring rules),
@@ -210,9 +210,9 @@ role's line/byte budget.
 ## 💰 Cost
 
 Measured, not estimated — `a07e655` (the checkpoint right before this slim pass) → `c26aee1` (the
-first slim commit) → now (further hooks/test hardening on top of the same split):
+first slim commit) → `a39cbd4` (further hooks/test hardening on top of the same split):
 
-| | `a07e655` | `c26aee1` | now |
+| | `a07e655` | `c26aee1` | `a39cbd4` |
 |---|---|---|---|
 | `SKILL.md` (preloaded into every agent) | 398 lines | 119 lines | 114 lines (~2.4k tok) |
 | on-demand files (`references/` + `playbooks/` + `judgement.md`) | 1 file / 145 lines | 30 files / 1652 lines | 31 files / 1665 lines |
@@ -220,12 +220,17 @@ first slim commit) → now (further hooks/test hardening on top of the same spli
 | typical run: required on-demand reads | n/a | `model-tiers.md` ~2.7k + `judgement.md` ~4.5k | `model-tiers.md` 0 (read only on a resolve failure/escalation now) + `judgement.md` ~1.6k + `worktree.md` 4×~0.23k |
 | **typical run, total** | **~147.8k+ tok** | **~67.4k tok** | **~61.8k tok (−8% vs `c26aee1`, −58% vs `a07e655`)** |
 
+Not re-measured since `a39cbd4`: today `SKILL.md` is 118 lines and there are 32 on-demand files /
+1704 lines (0.2.2 added `playbooks/orchestrator/sizing.md`).
+
 **Always-on cost** (what installing the plugin adds to *every* session, before any swarm call —
 agent and skill descriptions listed to the model), measured with `claude plugin details`:
 ~3,581 tok in 0.2.0 → **~1,196 tok** in 0.2.1. Only the entry points (`orchestrator`, `/swarm:*`)
-keep a trigger description; every agent an orchestrator spawns carries one line.
+keep a trigger description; every agent an orchestrator spawns carries one line. Claude Code
+2.1.292 reports ~1,838 tok for 0.2.3: its estimate changed, the description text did not grow
+(14,975 chars in 0.2.0 → 4,757 in 0.2.1 → 4,691 in 0.2.3).
 
-All size budgets are still met: leaf ≤80 lines, domain orchestrator ≤150, root ≤250, `SKILL.md` ≤120
+All size budgets are still met: leaf ≤80 lines, domain orchestrator ≤150, root ≤370, `SKILL.md` ≤120
 — `tests/structure.json` also caps bytes per role, catching a long-line file the line count alone
 would miss.
 
