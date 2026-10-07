@@ -307,7 +307,7 @@ librerías están desactualizadas?", "instala phpstan", "sube doctrine a la 3" �
 `agents/orchestrator.md` §11.
 
 **El gate de instalación — el enjambre nunca instala nada por su propio criterio.** Instalar o
-actualizar dependencias muta el repo fuera de cualquier worktree, sin pasar por `reviewer`. Por eso
+actualizar dependencias muta el repo fuera de cualquier worktree, sin pasar por el panel de revisión. Por eso
 la raíz siempre audita primero, y luego te presenta UN batch **multi-select** con
 `AskUserQuestion` — una opción por paquete concreto, más "no instalar nada" — y solo los paquetes
 que de verdad marcaste se traducen a una línea literal `approved: <paquete>:<versión> ...` que
@@ -440,8 +440,8 @@ contrato público) y el presupuesto de turnos lo permite, escribiendo la documen
 del stack pack activo más una entrada de changelog, dentro del mismo worktree; `quality-fixer`
 ejecuta después el `--fix` determinista del stack (lint/format) y parchea lo que no puede
 auto-arreglar; y el panel de revisión (`review-orchestrator`, artifact-type `diff`) hace de gate con
-hallazgos etiquetados por severidad y la puntuación de un juez *antes* de que nada se fusione
-(`reviewer` queda solo como alias fino). Solo después de que ese gate pasa, `implementation-orchestrator` fusiona el commit del
+hallazgos etiquetados por severidad y la puntuación de un juez *antes* de que nada se fusione.
+Solo después de que ese gate pasa, `implementation-orchestrator` fusiona el commit del
 worktree localmente a la rama propia del run y limpia el worktree.
 
 **Qué lo dispara:** solo una petición explícita que nombre un plan ("implementa el plan de X",
@@ -458,13 +458,13 @@ revisión encontró algo por debajo de la severidad que bloquea el merge, línea
 **Ejemplo real:** `implementation-orchestrator`, invocado adhoc sobre un plan real para un value object `Money` con un
 invariante de moneda, produjo dos commits reales en `run-branch` (el commit RED de `test-writer`,
 `7e144a9`; el commit GREEN de `implementer`, `a293ff5`, con citas reales `fichero:línea` para cada
-paso marcado), `quality-fixer` iteró dos veces, y `reviewer` encontró tres problemas reales `MINOR`
+paso marcado), `quality-fixer` iteró dos veces, y el panel de revisión encontró tres problemas reales `MINOR`
 (moneda sin validar, overflow de `PHP_INT_MAX`, `.gitignore` sin `vendor/`) que quedaron aparcados
 explícitamente sin bloquear el merge. El veredicto final:
 ```
 DONE
 evidence: files=9 cmds=17 turns=19/25
-- implementation: Phase 1 fusionada a run-branch (test-writer→implementer→quality-fixer×2→reviewer), 2 steps [x]
+- implementation: Phase 1 fusionada a run-branch (test-writer→implementer→quality-fixer×2→review-orchestrator), 2 steps [x]
 ```
 Nunca toca `master` ni una rama compartida, y nunca ejecuta `git push` — ningún agente de este
 dominio tiene siquiera esa herramienta en su lista permitida.

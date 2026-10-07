@@ -34,7 +34,7 @@ One call, name and visibility **literal from the header** (no suffixes, no "impr
 ```bash
 gh repo create owner/repo --private --source=. --remote=origin --push
 ```
-(`--public` if `visibility=public`.) The three flags go together on purpose: **`gh` sets the remote URL, not you** (you build no URLs and have no `git remote set-url`). No `--description` or other flag: the guard admits only `--public/--private/--source/--remote/--push/--description`, and v1 doesn't use the last.
+(`--public` if `visibility=public`.) The three flags go together on purpose: **`gh` sets the remote URL, not you** (you build no URLs and have no `git remote set-url`). No `--description` or other flag: the guard admits only `--public/--private/--source/--remote/--push/--description`, and the last is unused.
 
 **Verify the result; don't trust "it didn't error out":**
 ```bash

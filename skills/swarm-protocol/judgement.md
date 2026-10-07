@@ -64,7 +64,7 @@ re-scanning the repo, opens only what it must verify, returns terse findings.
 `TAG · where · Pn problem → fix` — `where` is `file:line` whenever one exists (the artifact's own
 line when the finding is about the artifact). `P1` = blocking (would make the artifact wrong or
 unsafe to act on), `P2` = significant, `P3` = minor. A finding without `Pn` is treated as `P1`
-by `review-dedup.sh` (checked by the refuter, never silently hidden). Mapping to the old reviewer
+by `review-dedup.sh` (checked by the refuter, never silently hidden). Severity
 vocabulary: P1 = Critical, P2 = Important, P3 = Minor.
 
 ## 5. Flow
@@ -129,10 +129,8 @@ stderr note ⇒ the orchestrator adds `- warn: judge independence not guaranteed
 
 - `design-orchestrator`: after `planner` writes the plan (artifact-type `plan`, tier full); the grill
   lenses run inside the panel.
-- `implementation-orchestrator`: before the local merge (artifact-type `diff`). `reviewer` is kept
-  only as a thin alias: its checks (plan compliance, invariants, quality, tests) are fully covered
-  by completeness-critic + rules-auditor + defect-hunter on a diff, so a separate reviewer would
-  only pay twice for the same signal.
+- `implementation-orchestrator`: before the local merge (artifact-type `diff`). Plan compliance, invariants,
+  quality and tests are covered by completeness-critic + rules-auditor + defect-hunter on the diff.
 - root `orchestrator`: final verdict of analysis runs (artifact-type `report`).
 
 **Not paneled:** a `direct` objective (the root answers a trivial one-file objective itself, opens

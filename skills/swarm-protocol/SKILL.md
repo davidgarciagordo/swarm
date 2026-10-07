@@ -113,6 +113,6 @@ judgement never goes down to a weaker tier's model.
   (and your own file does not write that command) → Read `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/references/model-tiers.md`
   BEFORE retrying. Resolve-then-spawn itself is inline in every orchestrator.
 - WHEN you launch the review panel (a caller) → Read ONLY §2, §7, §9 of `${CLAUDE_PLUGIN_ROOT}/skills/swarm-protocol/judgement.md`
-  (lines 19-34, 98-119, 128-141) BEFORE launching. `review-orchestrator` Reads it whole at startup. A panel leaf needs
+  (lines 19-34, 98-119, 128-139) BEFORE launching. `review-orchestrator` Reads it whole at startup. A panel leaf needs
   NO Read (its file carries its rules); one citing §5/§6 may Read `judgement.md` lines 70-97 only.
 
