@@ -11,7 +11,7 @@ call gets no opinion (exit 0, no output).
 The regression table tests/fixtures/guard_cases.jsonl was captured from the previous guard's
 suite: every old DENY stays a deny (a rewrite may never loosen), old ALLOWs are kept unless the
 metachar contract above refuses them, they fell to `default` (no `find`: agents with no entry,
-the Bash-less `reviewer` included, get the tightest list), or their `SWARM_ROOT=` names a directory
+get the tightest list), or their `SWARM_ROOT=` names a directory
 that is not an existing `.swarm` (three rows, flipped in 0.2: /abs/..., /tmp/x, /absolute/path/...), or
 their writer `cd` names a path that is not an existing linked worktree (two `cd /tmp/wt` rows, flipped in
 0.2: the real-worktree allow lives in P11), or they are dependency-installer installs without `--no-scripts

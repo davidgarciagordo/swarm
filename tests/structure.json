@@ -41,9 +41,7 @@
     "background",
     "isolation"
   ],
-  "unspawned_ok": {
-    "reviewer": "deprecated alias kept only so an old launch by name gets a BLOCKED redirect"
-  },
+  "unspawned_ok": {},
   "external_children": [
     "working-methods:grill-architect",
     "working-methods:grill-operator",

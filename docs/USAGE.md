@@ -292,7 +292,7 @@ part of the `/swarm:run` pipeline. `audit-deps` and `install` run *inside* a `/s
 "install phpstan", "bump doctrine to 3" — see `agents/orchestrator.md` §11.
 
 **The install gate — the swarm never installs anything on its own judgement.** Installing or
-updating dependencies mutates the repo outside any worktree, without going through `reviewer`.
+updating dependencies mutates the repo outside any worktree, without going through the review panel.
 So the root always audits first, then presents you with **one** `AskUserQuestion` **multi-select**
 batch — one option per concrete package, plus "install nothing" — and only the packages you
 actually check get translated into a literal `approved: <pkg>:<version> ...` line that
@@ -421,8 +421,7 @@ behaviour (a new use case, endpoint, console command, public contract) and the t
 it, writing docs in the active stack pack's format plus a changelog entry, inside the same worktree;
 `quality-fixer` then runs the stack's deterministic `--fix` (lint/format) and patches whatever it
 can't auto-fix; and the review panel (`review-orchestrator`, artifact-type `diff`) gates the result
-with severity-tagged findings and a judge score *before* anything merges (`reviewer` remains only as
-a thin alias). Only after that gate passes does `implementation-orchestrator` merge the worktree's commit
+with severity-tagged findings and a judge score *before* anything merges. Only after that gate passes does `implementation-orchestrator` merge the worktree's commit
 locally into the run's own branch and clean up the worktree.
 
 **What triggers it:** only an explicit request naming a plan ("implement the plan for X", "build X
@@ -438,13 +437,13 @@ silently swallowed.
 **Real example:** `implementation-orchestrator`, invoked adhoc on a real plan for a `Money` value object with a
 currency invariant, produced two real commits on `run-branch` (`test-writer`'s RED commit
 `7e144a9`, `implementer`'s GREEN commit `a293ff5` with real `fichero:línea` citations for each
-checked-off step), `quality-fixer` iterated twice, and `reviewer` found three real `MINOR` issues
+checked-off step), `quality-fixer` iterated twice, and the review panel found three real `MINOR` issues
 (unvalidated currency, `PHP_INT_MAX` overflow, `.gitignore` missing `vendor/`) that were explicitly
 parked rather than blocking the merge. The final verdict:
 ```
 DONE
 evidence: files=9 cmds=17 turns=19/25
-- implementation: Phase 1 fusionada a run-branch (test-writer→implementer→quality-fixer×2→reviewer), 2 steps [x]
+- implementation: Phase 1 fusionada a run-branch (test-writer→implementer→quality-fixer×2→review-orchestrator), 2 steps [x]
 ```
 It never touches `master` or a shared branch, and never runs `git push` — no agent in this domain
 even has that tool in its allowlist.

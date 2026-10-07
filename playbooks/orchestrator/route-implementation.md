@@ -20,7 +20,7 @@ Agent(subagent_type: "swarm:implementation-orchestrator", name: "implementation-
 ### 10.3 Forwarding the result
 
 Forward its `- implementation: …` line as-is (§4 forwarding rule: no §5.0 in output). Its `BLOCKED …`/`KO …` is
-propagated literally, and the closing `summary --line` goes through §5.0's sanitization (its reason can cite `reviewer`
+propagated literally, and the closing `summary --line` goes through §5.0's sanitization (its reason can cite review-panel
 findings about real repo code, with backticks/`$(...)`); then `curate`, wait for `DONE`, return.
 
 ### 10.4 Close

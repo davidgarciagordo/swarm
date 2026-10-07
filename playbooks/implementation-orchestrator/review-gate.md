@@ -4,8 +4,7 @@ Commands use <plugin-root>, <swarm-root>, <run> placeholders (protocol §1): sub
 
 ### 6. `review-orchestrator` — gate BEFORE merging, never after
 
-The pre-merge review is the review panel (`<plugin-root>/skills/swarm-protocol/judgement.md`;
-`reviewer` is only a thin alias of it — its checks are covered by the panel's diff lenses). Register
+The pre-merge review is the review panel (`<plugin-root>/skills/swarm-protocol/judgement.md`). Register
 `review-orchestrator` in the manifest (same `register` command as the other children), resolve tier
 `judgement`, then launch it with this literal header:
 ```
