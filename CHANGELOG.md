@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.3
+
+### Removed
+- **`reviewer` agent.** The retired alias only returned a `BLOCKED` redirect to
+  `review-orchestrator`, yet its description loaded in every session. The pre-merge gate is the
+  review panel on `artifact-type: diff`, as before. 44 agents.
+- Internal dogfood files (`.forge/grill-context.md`, `.swarm/decisions.md`, `.swarm/memory.json`)
+  no longer ship with the plugin; they were gitignored but still tracked.
+
+### Changed
+- Docs and playbooks no longer mention the `reviewer` alias or a leftover `v1` tag.
+
 ## 0.2.2
 
 ### Changed
