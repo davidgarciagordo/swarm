@@ -198,7 +198,7 @@ vendor/bin/phpunit` — ningún contrato del repo necesita esa forma).
 ## 📚 Núcleo vs material bajo demanda
 
 Cada agente carga solo su fichero **núcleo** más el skill precargado `swarm-protocol` (ambos cortos:
-hoja ≤80 líneas, orquestador de dominio ≤150, raíz ≤250, `SKILL.md` ≤120). Lo que un agente solo necesita
+hoja ≤80 líneas, orquestador de dominio ≤150, raíz ≤370, `SKILL.md` ≤120). Lo que un agente solo necesita
 en ciertas situaciones vive en ficheros `.md` que lee con `Read` cuando se cumple una línea explícita
 `WHEN <condición> → Read <ruta>` de su núcleo: `skills/swarm-protocol/references/` (firmas de los scripts
 de memoria, reglas de comillas del guard, `WAITING`, resolución de tiers de modelo, modo worktree, reglas
@@ -217,10 +217,10 @@ en ese núcleo. Es un invariante comprobado por test, no una convención a recor
 ## 💰 Coste
 
 Medido, no estimado — `a07e655` (el checkpoint justo antes de este pase de adelgazamiento) →
-`c26aee1` (el primer commit del adelgazamiento) → ahora (más endurecido de hooks/tests sobre el
+`c26aee1` (el primer commit del adelgazamiento) → `a39cbd4` (más endurecido de hooks/tests sobre el
 mismo split):
 
-| | `a07e655` | `c26aee1` | ahora |
+| | `a07e655` | `c26aee1` | `a39cbd4` |
 |---|---|---|---|
 | `SKILL.md` (precargado en cada agente) | 398 líneas | 119 líneas | 114 líneas (~2.4k tok) |
 | ficheros bajo demanda (`references/` + `playbooks/` + `judgement.md`) | 1 fichero / 145 líneas | 30 ficheros / 1652 líneas | 31 ficheros / 1665 líneas |
@@ -228,13 +228,18 @@ mismo split):
 | run típico: lecturas bajo demanda necesarias | n/a | `model-tiers.md` ~2.7k + `judgement.md` ~4.5k | `model-tiers.md` 0 (solo se lee ante un fallo de resolución/escalado) + `judgement.md` ~1.6k + `worktree.md` 4×~0.23k |
 | **run típico, total** | **~147.8k+ tok** | **~67.4k tok** | **~61.8k tok (−8% vs `c26aee1`, −58% vs `a07e655`)** |
 
+Sin volver a medir desde `a39cbd4`: hoy `SKILL.md` tiene 118 líneas y hay 32 ficheros bajo demanda /
+1704 líneas (0.2.2 añadió `playbooks/orchestrator/sizing.md`).
+
 **Coste siempre presente** (lo que instalar el plugin añade a *cada* sesión, antes de llamar al
 swarm — las descripciones de agentes y skills que ve el modelo), medido con `claude plugin details`:
 ~3,581 tok en 0.2.0 → **~1,196 tok** en 0.2.1. Solo los puntos de entrada (`orchestrator`, `/swarm:*`)
 conservan una descripción de disparo; cada agente que lanza un orquestador lleva una sola línea.
+Claude Code 2.1.292 informa ~1,838 tok para 0.2.3: cambió su estimación, el texto de las descripciones
+no creció (14.975 caracteres en 0.2.0 → 4.757 en 0.2.1 → 4.691 en 0.2.3).
 
 Todos los presupuestos de tamaño se siguen cumpliendo: hoja ≤80 líneas, orquestador de dominio ≤150,
-raíz ≤250, `SKILL.md` ≤120 — `tests/structure.json` también acota bytes por rol, para pillar un
+raíz ≤370, `SKILL.md` ≤120 — `tests/structure.json` también acota bytes por rol, para pillar un
 fichero con líneas muy largas que el recuento de líneas por sí solo no vería.
 
 ## 🏷️ Convención de nombres
