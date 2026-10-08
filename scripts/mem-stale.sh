@@ -79,12 +79,32 @@ cmd_seal() {
   return 0
 }
 
+# stub: a near-empty repo (<= STUB_MAX files outside .swarm/) gets its pack from mem-scan.sh alone,
+# sealed here, so memory-orchestrator does not spawn memory-builder to describe nothing.
+# Exit 0 `stub: …` (pack written and sealed) · 3 `not tiny: …` (launch the builder as usual).
+STUB_MAX=5
+cmd_stub() {
+  local n swarm_rel covers
+  swarm_rel="$(basename "$SWARM_ROOT")"
+  n="$(cd "$REPO_ROOT" && git ls-files --cached --others --exclude-standard -- . ":(exclude)$swarm_rel" 2>/dev/null | wc -l | tr -d ' ')"
+  if ! (cd "$REPO_ROOT" && git rev-parse --git-dir >/dev/null 2>&1); then echo "not tiny: not a git repository"; return 3; fi
+  if [ "$n" -gt "$STUB_MAX" ]; then echo "not tiny: $n files"; return 3; fi
+  [ -d "$SWARM_ROOT" ] || { echo "not tiny: $SWARM_ROOT missing"; return 3; }
+  "$(dirname "${BASH_SOURCE[0]}")/mem-scan.sh" --root "$REPO_ROOT" > "$SWARM_ROOT/context-pack.md" || return 3
+  covers="$(grep '^covers:' "$SWARM_ROOT/context-pack.md" | head -1)"
+  printf '# index\n%s\n' "${covers:-covers: src}" > "$INDEX"
+  cmd_seal >/dev/null
+  echo "stub: $n files, pack written without a builder"
+  return 0
+}
+
 case "${1:-}" in
+  stub) shift; cmd_stub "$@" ;;
   hash) shift; cmd_hash "$@" ;;
   check) shift; cmd_check "$@" ;;
   seal) shift; cmd_seal "$@" ;;
   *)
-    echo "usage: mem-stale.sh {hash|check|seal}" >&2
+    echo "usage: mem-stale.sh {hash|check|seal|stub}" >&2
     exit 64
     ;;
 esac

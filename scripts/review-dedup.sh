@@ -18,6 +18,9 @@
 #       increments <swarm-root>/run/<run>/review/<stage>.<artifact-key>.round (under mem-lock.sh)
 #       and prints the new round number. Past 2 it prints `exceeded: round <n> > 2` and exits 1:
 #       the panel's round limit never depends on the caller remembering a `round:` header.
+#   review-dedup.sh prior --swarm-root <abs> --run <id> --stage <s> --artifact <path> [--save <line>]...
+#       with --save (repeatable): stores round 1's blocking findings; without: prints them (nothing if
+#       none). Round 2 is a delta review against them. `reset` deletes them with the counter.
 #   review-dedup.sh reset --swarm-root <abs> --run <id> --stage <s> --artifact <path>
 #       deletes that counter; called when a review ends OK, so a later review of the same
 #       stage + artifact starts again at round 1.
@@ -26,7 +29,7 @@ set -u
 
 usage() { echo "review-dedup.sh: $1" >&2; exit 64; }
 
-[ $# -ge 1 ] || usage "missing subcommand (lenses|dedup|record|round|reset)"
+[ $# -ge 1 ] || usage "missing subcommand (lenses|dedup|record|round|reset|prior)"
 SUB="$1"; shift
 
 case "$SUB" in
@@ -162,8 +165,8 @@ PYEOF
     echo "recorded"
     exit 0 ;;
 
-  round|reset)
-    SR=""; RUN=""; STAGE=""; ART=""
+  round|reset|prior)
+    SR=""; RUN=""; STAGE=""; ART=""; SAVE=0; PRIOR_LINES=""
     while [ $# -gt 0 ]; do
       [ $# -ge 2 ] || usage "$1 requires a value"
       case "$1" in
@@ -171,6 +174,10 @@ PYEOF
         --run) RUN="$2" ;;
         --stage) STAGE="$2" ;;
         --artifact) ART="$2" ;;
+        --save)
+          [ "$SUB" = prior ] || usage "--save is only for prior"
+          case "$2" in *$'\n'*|*$'\r'*) usage "--save takes one line per value" ;; esac
+          SAVE=1; PRIOR_LINES="${PRIOR_LINES}${2}"$'\n' ;;
         *) usage "unknown argument: $1" ;;
       esac
       shift 2
@@ -192,8 +199,16 @@ PYEOF
     LOCK="$(dirname "$0")/mem-lock.sh"
     SWARM_ROOT="$SR" "$LOCK" acquire || usage "cannot acquire the swarm lock"
     trap 'SWARM_ROOT="$SR" "$LOCK" release' EXIT INT TERM
+    PFILE="$RDIR/$STAGE.$AKEY.prior"
+    if [ "$SUB" = prior ]; then
+      if [ "$SAVE" -eq 1 ]; then
+        printf '%s' "$PRIOR_LINES" > "$PFILE" || usage "cannot write $PFILE"
+        echo "saved"
+      elif [ -f "$PFILE" ]; then cat "$PFILE"; fi
+      exit 0
+    fi
     if [ "$SUB" = reset ]; then
-      rm -f "$RFILE" || usage "cannot delete $RFILE"
+      rm -f "$RFILE" "$PFILE" || usage "cannot delete $RFILE"
       echo "reset"
       exit 0
     fi
@@ -206,5 +221,5 @@ PYEOF
     echo "$N"
     exit 0 ;;
 
-  *) usage "unknown subcommand: $SUB (lenses|dedup|record|round|reset)" ;;
+  *) usage "unknown subcommand: $SUB (lenses|dedup|record|round|reset|prior)" ;;
 esac

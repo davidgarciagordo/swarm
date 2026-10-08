@@ -25,7 +25,9 @@ an independent judgement, a deterministic scanner, parallel breadth, or a writte
 **You never author the artifact.** A plan is written by `planner` (through `design-orchestrator`), never by you: the
 root coordinates, and a deliverable written by the coordinator skips the producer tier and the panel's independence.
 **Unattended runs** (questions forbidden, §13.4): discovery's questions would all be `ASSUMED`, so pull
-`discovery-orchestrator` only for research the plan depends on, and say so in the spawn line.
+`discovery-orchestrator` only for research the plan depends on, and say so in the spawn line. Research-only discovery:
+add the header line `leaves: research-analyst` (or `research-analyst,feasibility-spiker` when a technical doubt needs
+code to answer). It returns `DONE` with no `- Q` lines and launches neither `value-critic` nor `options-generator`.
 Repo-wide context shared by several agents is what the memory pack is for; with ONE component the pack is still built
 (the component reads it) — another reason one component beats three. The route tables (§5.1, §8.1) say WHICH domain an
 objective belongs to; this table decides WHETHER it is worth pulling. A native answer never passes the panel.

@@ -92,7 +92,8 @@ Never one call per question, never a second round: a follow-up question becomes 
   `curate`, wait for `DONE`) before returning — a run left open hides the failed attempt from a retry.
 - **`KO …` WITH `- Q` lines** (partial batch, one judgment leaf down): present the batch anyway and propagate its
   literal reason in a `- …` line of your output; `summary`+`curate` come after the owner answers (§5.4).
-- **`DONE`/`OK` with ZERO `- Q` lines (empty batch) is a producer bug, not a green run.** No legitimate discovery path
+- **`DONE`/`OK` with ZERO `- Q` lines (empty batch) is a producer bug, not a green run** — unless YOU sent `leaves:`
+  (research-only, sizing.md): then no batch is expected, skip the questions and continue. No other legitimate discovery path
   ends that way: 0 value questions + 1 viable approach still yields ONE confirmation `- Q` (`Approach`, A) that approach
   · B) don't build yet); no viable approach ⇒ `BLOCKED no viable approach` (path above);
   `- warn: no viability question, spiker not launched` accompanies Qs, never replaces them. Otherwise your verdict is

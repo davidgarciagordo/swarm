@@ -228,8 +228,8 @@ mismo split):
 | run típico: lecturas bajo demanda necesarias | n/a | `model-tiers.md` ~2.7k + `judgement.md` ~4.5k | `model-tiers.md` 0 (solo se lee ante un fallo de resolución/escalado) + `judgement.md` ~1.6k + `worktree.md` 4×~0.23k |
 | **run típico, total** | **~147.8k+ tok** | **~67.4k tok** | **~61.8k tok (−8% vs `c26aee1`, −58% vs `a07e655`)** |
 
-Sin volver a medir desde `a39cbd4`: hoy `SKILL.md` tiene 118 líneas y hay 32 ficheros bajo demanda /
-1704 líneas (0.2.2 añadió `playbooks/orchestrator/sizing.md`).
+Sin volver a medir desde `a39cbd4`: hoy `SKILL.md` tiene 118 líneas y hay 34 ficheros bajo demanda /
+1741 líneas (0.2.2 añadió `playbooks/orchestrator/sizing.md`; 0.2.4, las rutas de plan y de solo investigación).
 
 **Coste siempre presente** (lo que instalar el plugin añade a *cada* sesión, antes de llamar al
 swarm — las descripciones de agentes y skills que ve el modelo), medido con `claude plugin details`:

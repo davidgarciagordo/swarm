@@ -89,7 +89,9 @@ recipient, `--from` sender) — else the domain orchestrator and late leaves sta
 "${CLAUDE_PLUGIN_ROOT}/scripts/mem-stale.sh" check
 ```
 - exit 0 (`fresh: …`) → **don't rebuild and don't launch anyone**: `OK` with evidence, stop.
-- exit 1 (`stale: …`) or 2 (`no pack-index: …`) → LAUNCH `memory-builder` with the `Agent` tool
+- exit 1 (`stale: …`) or 2 (`no pack-index: …`) → first `"${CLAUDE_PLUGIN_ROOT}/scripts/mem-stale.sh" stub`: exit 0
+  (`stub: …`, near-empty repo, pack written and sealed by the script) ⇒ `DONE`, launch nobody. Exit 3 (`not tiny: …`)
+  → LAUNCH `memory-builder` with the `Agent` tool
   (`subagent_type: swarm:memory-builder`, `name: "memory-builder"`), never `SendMessage` (it only reaches
   live agents). Prompt, on separate lines: `build`, `run-id: <run>` (omit if adhoc), plus optional
   `hint:` lines (claude-mem-mirror.md).
