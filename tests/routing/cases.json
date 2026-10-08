@@ -1,0 +1,30 @@
+{
+  "_doc": "Routing evals: each case runs a real /swarm:run headless in a scratch repo and asserts which agents were spawned. They cost money, so tests/run.sh never runs them: use tests/routing/run.sh <case>. budget_usd is passed to --max-budget-usd.",
+  "cases": [
+    {
+      "name": "direct-question",
+      "goal": "What does the README say this project does? Answer in one line. Analysis only, do not modify anything.",
+      "budget_usd": 1,
+      "max_agents": 0,
+      "no_swarm_dir": true
+    },
+    {
+      "name": "plan-only",
+      "goal": "Write a plan in docs/plan.md to add a CSV export command to this tool. I only want the plan, do not implement it. Unattended run: no questions, take the recommended option where you would ask and mark it ASSUMED.",
+      "budget_usd": 6,
+      "require": ["swarm:orchestrator", "swarm:design-orchestrator", "swarm:planner", "swarm:review-orchestrator"],
+      "forbid": ["swarm:discovery-orchestrator", "swarm:memory-builder", "swarm:pattern-advisor", "swarm:domain-modeler"],
+      "at_most": {"swarm:blind-judge": 1, "swarm:planner": 1},
+      "root_on_judgement_model": true
+    },
+    {
+      "name": "plan-with-research",
+      "goal": "Write a plan in docs/plan.md to publish this tool on a public package registry: compare two registries and their current publishing requirements. I only want the plan. Unattended run: no questions, take the recommended option where you would ask and mark it ASSUMED.",
+      "budget_usd": 8,
+      "require": ["swarm:discovery-orchestrator", "swarm:research-analyst", "swarm:planner"],
+      "forbid": ["swarm:value-critic", "swarm:options-generator"],
+      "at_most": {"swarm:blind-judge": 1},
+      "root_on_judgement_model": true
+    }
+  ]
+}

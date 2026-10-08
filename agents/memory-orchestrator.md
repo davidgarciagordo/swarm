@@ -28,7 +28,7 @@ content: you dispatch to the deterministic scripts and return what they say.
    missing. Never create `.swarm/` yourself (no `mkdir`).
 3. `Read` `.swarm/memory.json` (never `python3`; it counts toward `files=N`): `policy.read`,
    `policy.write`, and each backend's `name` + `required` (`files` true, `claude-mem` false).
-4. WHEN `policy.read` or `policy.write` includes `claude-mem` → Read
+4. WHEN `policy.read` includes `claude-mem` → Read
    `${CLAUDE_PLUGIN_ROOT}/playbooks/memory-orchestrator/claude-mem-mirror.md` BEFORE your first operation.
 
 ## Model per child (protocol §7bis)
@@ -101,11 +101,9 @@ recipient, `--from` sender) — else the domain orchestrator and late leaves sta
 ### `curate`
 
 LAUNCH `memory-curator` with the `Agent` tool (`subagent_type: swarm:memory-curator`, `name:
-"memory-curator"`, never `SendMessage`), prompt `curate` + `run-id: <run>`; propagate its `DONE`. Then the
-**historical seal (mandatory)**: closing a run is `curate` **+** `observation_add`, written by YOU (the
-curator has no MCP tools), whatever `policy` says: WHEN the curator returns `DONE` → Read
-`${CLAUDE_PLUGIN_ROOT}/playbooks/memory-orchestrator/claude-mem-mirror.md` (§curate) BEFORE returning.
-Your verdict is the curator's `DONE` either way.
+"memory-curator"`, never `SendMessage`), prompt `curate` + `run-id: <run>`; propagate its `DONE`: that is your
+verdict. No historical write follows: claude-mem records the session through its own hooks and exposes no write
+tool, so `files` is the only backend you write.
 
 ## Backend health gating
 

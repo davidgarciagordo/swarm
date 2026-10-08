@@ -28,7 +28,13 @@ generic_fixture="$(mktemp -d "${TMPDIR:-/tmp}/swarm-generic.XXXXXX")"
 mkdir -p "$generic_fixture/src"
 out2="$("$MEM_SCAN" --root "$generic_fixture")"
 assert_eq "0" "$(echo "$out2" | grep -q '^stack: generic$' && echo 0 || echo 1)" "no composer.json falls back to generic"
-assert_eq "0" "$(echo "$out2" | grep -q 'warning: stack no detectado' && echo 0 || echo 1)" "generic fallback includes warning line"
+assert_eq "0" "$(echo "$out2" | grep -q 'warning: no stack pack matched' && echo 0 || echo 1)" "generic fallback includes warning line"
+
+# covers falls back to the top-level directories that exist, never to a `src` that is not there
+nosrc="$(mktemp -d "${TMPDIR:-/tmp}/swarm-nosrc.XXXXXX")"
+mkdir -p "$nosrc/agents" "$nosrc/scripts" "$nosrc/node_modules" "$nosrc/.hidden"
+assert_eq "covers: agents,scripts" "$("$MEM_SCAN" --root "$nosrc" | grep '^covers:')" "covers lists existing top-level dirs, not a missing src"
+rm -rf "$nosrc"
 
 rm -rf "$fixture" "$generic_fixture"
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi

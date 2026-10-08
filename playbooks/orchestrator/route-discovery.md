@@ -101,23 +101,23 @@ Never one call per question, never a second round: a follow-up question becomes 
 - **The owner cancels or dismisses the dialog** (normal, not an error): don't retry, don't re-ask, don't take `rec:`.
   Register the batch as a **PENDING** decision — ONE write, same one-line format and §5.0 sanitization as §5.4:
   ```
-  SendMessage(memory-orchestrator, "write decision --text \"raw: <sanitized raw argument> · objective: <sanitized literal objective> · discovery <run-id> [pending] batch left unanswered (owner cancelled) · Q1 [<header>] <sanitized question> · Q2 [<header>] <sanitized question> · …\"")
+  "<plugin-root>/scripts/mem-files.sh" write decision --text "raw: <sanitized raw argument> · objective: <sanitized literal objective> · discovery <run-id> [pending] batch left unanswered, owner cancelled · Q1 [<header>] <sanitized question> · Q2 [<header>] <sanitized question> · …"
   ```
-  Wait for its `OK`/`written`, close with `summary`+`curate` (§4) and your verdict is `KO batch left unanswered`.
+  Check stdout `written`/`dup`, close with `summary`+`curate` (§4) and your verdict is `KO batch left unanswered`.
   BOTH fields, `raw:` first (without it §5.1 can't see the line), plus the mandatory `discovery <run-id>` marker (it
   distinguishes the line from §2.3's `resolved interpretation`). `[pending]` lets a later run detect "discovery already
   ran, answers pending" instead of losing the batch.
 
 ### 5.4 Recording the answers (ONE single write, never one per question)
 
-You never write `decisions.md` yourself: it goes through `memory-orchestrator`, and **all the answers go in ONE single
-`write decision` call** — it has `maxTurns: 12` (startup, `build`, `curate`, plus a claude-mem mirror per write); four
-sequential writes exhaust it and silently lose the last decisions **and the closing `curate`**.
+You write the line with the script, never with `Write`/`Edit` and never through a message to `memory-orchestrator`
+(a model turn per write, and a message can be lost): **all the answers go in ONE single `write decision` call**, so the
+decision is one atomic line §5.1 can match. Run from the repo root (§2.0); stdout `written` or `dup` = persisted.
 `write decision` accepts only `--text` and appends `- <date> · <text>` as ONE line (`scripts/mem-files.sh`,
 `_write_decision`): the answers go separated by ` · `, never line breaks. Exact format — `raw:` FIRST, `objective:`
 right after (same order as §2.3 and §5.3):
 ```
-SendMessage(memory-orchestrator, "write decision --text \"raw: <sanitized raw argument> · objective: <sanitized literal objective> · discovery <run-id> · Q1 [<header>] <question> → <answer> · Q2 [<header>] <question> → <answer> · …\"")
+"<plugin-root>/scripts/mem-files.sh" write decision --text "raw: <sanitized raw argument> · objective: <sanitized literal objective> · discovery <run-id> · Q1 [<header>] <question> → <answer> · Q2 [<header>] <question> → <answer> · …"
 ```
 - `<sanitized raw argument>`: the `/swarm:run` argument without `--tier`, as typed, through §5.0 — the text §1.0bis Step
   1 and §5.1 compare against. It's the RAW one, **NEVER the already-interpreted objective** (that would break the

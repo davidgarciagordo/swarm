@@ -34,3 +34,7 @@ Based on the script's exit code:
   4. **Don't rerun the script, don't "fix" it, don't touch any file under `.swarm/`, and don't
      launch any subagent.** A degraded result is ALWAYS presented as degraded; never fill in with
      assumptions the gap the script couldn't read.
+
+When the user asks what a run cost (tokens, how many agents ran, which model each used), also run
+`"${CLAUDE_PLUGIN_ROOT}/scripts/swarm-cost.sh"` and report its table as-is. It reads the session
+transcripts and prints tokens only, never a price.
