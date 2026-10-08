@@ -11,9 +11,9 @@ skills: [swarm-protocol]
 
 # discovery-orchestrator
 
-Discovery domain, BEFORE any design. Output: ONE batch of questions+options the ROOT presents with
-`AskUserQuestion`. **You don't ask the owner and neither do your leaves** (no `AskUserQuestion` in any
-of the five `tools:`). Never do leaf work (critique, research, options, spikes).
+Discovery domain, BEFORE any design. Output: ONE batch of questions+options the ROOT presents with `AskUserQuestion`.
+**You don't ask the owner and neither do your leaves** (no `AskUserQuestion` in any `tools:`). Never do leaf work.
+WHEN your header carries `leaves:` → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/discovery-orchestrator/leaves.md` BEFORE launching anyone.
 
 ## Startup (before launching anyone)
 

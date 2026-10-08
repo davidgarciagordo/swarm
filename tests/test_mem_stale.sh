@@ -28,6 +28,16 @@ assert_eq "1" "$?" "still stale until reseal, even after commit"
 "$MEM_STALE" check >/dev/null 2>&1
 assert_eq "0" "$?" "fresh again after reseal"
 
+# stub: a near-empty repo gets a sealed pack from the script alone; a real repo does not
+"$MEM_STALE" stub >/dev/null 2>&1
+assert_eq "0" "$?" "stub writes the pack for a near-empty repo"
+assert_file_contains "$SWARM_ROOT/context-pack.md" "^# context-pack" "stub pack has the skeleton header"
+"$MEM_STALE" check >/dev/null 2>&1
+assert_eq "0" "$?" "stub leaves the pack sealed and fresh"
+for i in 1 2 3 4 5 6; do echo "x" > "$fixture/src/App/F$i.php"; done
+"$MEM_STALE" stub >/dev/null 2>&1
+assert_eq "3" "$?" "stub refuses a repo with more than a handful of files"
+
 rm -rf "$fixture"
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

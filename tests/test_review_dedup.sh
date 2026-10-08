@@ -91,5 +91,18 @@ for t in plan diff report; do for tier in light full; do for wm in "" --working-
   done
 done; done; done
 
+# prior: round 1's blocking findings are stored per stage + artifact and read back for the round-2 delta review
+P1A="DEFECT · docs/plan.md:69 · P1 arithmetic contradicts line 41 → recompute"
+P1B="MISSING · docs/plan.md:133 · P1 no fallback → add manual fallback"
+assert_eq "" "$("$S" prior --swarm-root "$SR" --run r-9 --stage design --artifact "$A1")" "prior prints nothing before a save"
+assert_eq "saved" "$("$S" prior --swarm-root "$SR" --run r-9 --stage design --artifact "$A1" --save "$P1A" --save "$P1B")" "prior --save stores the lines"
+assert_eq "$P1A
+$P1B" "$("$S" prior --swarm-root "$SR" --run r-9 --stage design --artifact "$A1")" "prior prints the saved lines verbatim"
+assert_eq "" "$("$S" prior --swarm-root "$SR" --run r-9 --stage design --artifact "$A1.other")" "prior is per artifact"
+"$S" round --swarm-root "$SR" --run r-9 --stage design --artifact "$A1" --save x >/dev/null 2>&1
+assert_eq "64" "$?" "--save is refused outside prior"
+"$S" reset --swarm-root "$SR" --run r-9 --stage design --artifact "$A1" >/dev/null
+assert_eq "" "$("$S" prior --swarm-root "$SR" --run r-9 --stage design --artifact "$A1")" "reset drops the prior findings"
+
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

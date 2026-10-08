@@ -52,6 +52,13 @@ assert_file_contains "$SWARM_ROOT/run/adhoc/mailbox/late-agent.md" "\[from:orche
 result="$("$MEM_FILES" query "sonnet" --scope decisions)"
 assert_eq "0" "$( echo "$result" | grep -q "sonnet" && echo 0 || echo 1 )" "query finds decision text"
 
+# default root: called from a subdirectory without SWARM_ROOT, the repo's .swarm is used and no
+# second .swarm/ is planted (regression: a run dir got its own .swarm/decisions.md)
+sub="$SWARM_ROOT/run/adhoc"; mkdir -p "$sub"
+( unset SWARM_ROOT; cd "$sub" && "$MEM_FILES" write decision --text "nested call lands in the repo memory" >/dev/null 2>&1 )
+assert_eq "0" "$( [ -e "$sub/.swarm" ] && echo 1 || echo 0 )" "no nested .swarm created from a subdirectory"
+assert_file_contains "$SWARM_ROOT/decisions.md" "nested call lands in the repo memory" "subdirectory write reaches the repo .swarm"
+
 rm -rf "$fixture"
 if [ "$TESTS_FAILED" -gt 0 ]; then exit 1; fi
 exit 0

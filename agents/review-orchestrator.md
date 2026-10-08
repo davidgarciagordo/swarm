@@ -58,6 +58,9 @@ artifact: <absolute path(s)>
 objective: <owner's literal objective>
 context-pack: <swarm-root>/context-pack.md
 ```
+**Round 2 is a delta review**: `review-dedup.sh prior` (same four flags as `round`) prints round 1's blocking lines;
+append `round: 2` and `prior:` + those lines to every lens header, then: `Check each prior finding is resolved. Report
+a NEW finding only where the revision introduced it or it blocks the objective; unchanged text was reviewed in round 1.`
 For a diff, append `git diff --stat <base>..<branch>` and, under ~400 lines, `git diff <base>..<branch>`
 (grill/critic lenses have no Bash; all `Read` the changed files at the worktree path in `artifact`).
 
@@ -108,7 +111,8 @@ findings:
 ```
 Then your verdict:
 - judge `OK` ⇒ `OK`, with `- score: <n>` and the surviving P2/P3 lines.
-- judge `KO` on round 1 ⇒ `KO score=<n> <worst finding>` + `- score: <n>` + surviving findings:
+- judge `KO` on round 1 ⇒ `review-dedup.sh prior <the four flags> --save "<P1 line>"` (one `--save` per surviving
+  P1), then `KO score=<n> <worst finding>` + `- score: <n>` + surviving findings:
   your caller re-runs its stage ONCE (escalated tier) and calls you again with `round: 2`.
 - judge `KO` on round 2 ⇒ `BLOCKED review KO after 2 rounds: <worst finding>` — the caller
   escalates to the owner. Never a third round.

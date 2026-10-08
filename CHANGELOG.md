@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.2.4
+
+Found by running the plugin on a real plan-only goal: 18 agents and two panel rounds for one plan,
+which the root wrote itself.
+
+### Added
+- **Plan route.** A goal whose deliverable is a written plan now pulls `design-orchestrator` with
+  `tier: light`: the planner alone plus one panel round (`playbooks/design-orchestrator/light.md`).
+  A panel `KO` gets one revision and is reported as not re-judged; a second round is the owner's call.
+- `sizing.md`: the root never authors the artifact, and an unattended run pulls discovery only for
+  research the plan depends on.
+- **Research-only discovery.** A `leaves:` header line makes `discovery-orchestrator` launch only
+  `research-analyst` (and `feasibility-spiker` when asked): no question batch, no `value-critic`,
+  no `options-generator` (`playbooks/discovery-orchestrator/leaves.md`).
+
+### Changed
+- **Round 2 of the panel is a delta review.** Round 1's blocking findings are stored
+  (`review-dedup.sh prior`) and handed to every lens: check they are resolved, report new findings
+  only where the revision introduced them or they block the objective. Round 2 used to re-review
+  from scratch and return a different set of blockers.
+- A near-empty repository (5 files or fewer) gets its context pack from `mem-stale.sh stub`; no
+  `memory-builder` is launched to describe nothing.
+
+### Fixed
+- `/swarm:run` resolves the root's `judgement` tier before launching it; it used to run on the
+  default subagent model.
+- Memory scripts called from a subdirectory planted a second `.swarm/` there. They now use the
+  nearest existing `.swarm/` up to the repository top (`scripts/lib/root.sh`).
+- The output hook names the offending line and its length when it rejects narration, so the one
+  retry fixes that line instead of guessing.
+
 ## 0.2.3
 
 ### Removed

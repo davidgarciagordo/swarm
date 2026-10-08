@@ -381,13 +381,14 @@ swarm's native ones otherwise), plus `completeness-critic`, `fact-checker` and `
 a `refuter` for blocking findings and a `blind-judge` score. `design-orchestrator` itself arbitrates
 the surviving findings and revises the plan — without ever asking you anything mid-design.
 
-**What triggers it:** only `tier: full`, via either of two independent paths. (1) After discovery
+**What triggers it:** in `tier: full`, either of two independent paths. (1) After discovery
 has closed its decisions (either in this same run, or in an earlier one over the same objective) —
 the classic path. (2) Directly from a **refactor/migration objective** ("refactor X with SOLID",
 "migrate the old parser to a better design") even though discovery skipped for it — there's no
 product decision to design against there, but there is a real redesign to do, and this is the path
-that does it, fed the literal objective with no discovery context. It's never launched in `tier:
-light` (light is single-domain by design) regardless of path, and it's skipped only when discovery
+that does it, fed the literal objective with no discovery context. In `tier: light` it runs only
+when a written plan is itself the deliverable ("write me a plan for X"): the planner alone plus one
+panel round, with no design leaves and no second round. Otherwise it's skipped only when discovery
 skipped for a pure bugfix/docs/tests/infra reason (no product decision AND no redesign objective) —
 or when the objective also matched analysis, which takes precedence over this path (see Analysis
 above).

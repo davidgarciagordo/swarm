@@ -2,7 +2,8 @@
 # scripts/mem-lock.sh — atomic mkdir-based lock (macOS bash 3.2, no flock)
 set -u
 
-SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/root.sh"
+SWARM_ROOT="${SWARM_ROOT:-$(swarm_default_root)}"
 LOCK_DIR="$SWARM_ROOT/.lock.d"
 STALE_SECONDS=30
 TIMEOUT_SECONDS=10

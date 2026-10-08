@@ -400,13 +400,14 @@ y `simplicity-critic`, un `refuter` para los hallazgos bloqueantes y la puntuaci
 `blind-judge`. `design-orchestrator` mismo arbitra los hallazgos que sobreviven y revisa el plan —
 sin preguntarte nada nunca durante el diseño.
 
-**Qué lo dispara:** solo `tier: full`, por cualquiera de DOS vías independientes. (1) Después de que
+**Qué lo dispara:** en `tier: full`, cualquiera de DOS vías independientes. (1) Después de que
 discovery haya cerrado sus decisiones (ya sea en este mismo run, o en uno anterior sobre el mismo
 objetivo) — la vía clásica. (2) Directamente desde un **objetivo de refactor/migración** ("refactoriza
 X con SOLID", "migra el parser antiguo a un mejor diseño") aunque discovery se haya saltado para
 él — ahí no hay decisión de producto contra la que diseñar, pero SÍ hay un rediseño real que hacer,
-y esta es la vía que lo cubre, alimentada con el objetivo literal y sin contexto de discovery. Nunca
-se lanza en `tier: light` (light es de un solo dominio por diseño) sea cual sea la vía, y se salta
+y esta es la vía que lo cubre, alimentada con el objetivo literal y sin contexto de discovery. En
+`tier: light` corre solo cuando el entregable es un plan escrito («hazme un plan para X»): el planner
+y una ronda de panel, sin hojas de diseño ni segunda ronda. Si no, se salta
 solo cuando discovery se saltó por un motivo de bugfix/docs/tests/infra puro (sin decisión de
 producto NI objetivo de rediseño) — o cuando el objetivo también casaba con análisis, que tiene
 precedencia sobre esta vía (ver Análisis arriba).

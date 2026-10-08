@@ -6,7 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_SCRIPT="$SCRIPT_DIR/mem-lock.sh"
 MANIFEST_SCRIPT="$SCRIPT_DIR/mem-manifest.sh"
 . "$SCRIPT_DIR/lib/validate.sh"
-SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/root.sh"
+SWARM_ROOT="${SWARM_ROOT:-$(swarm_default_root)}"
 export SWARM_ROOT
 REPO_ROOT="$(dirname "$SWARM_ROOT")"
 
