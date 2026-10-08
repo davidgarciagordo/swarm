@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/mem-scan.sh — imprime un esqueleto de context-pack a stdout (spec §8.1, §4.4)
+# scripts/mem-scan.sh — prints a context-pack skeleton to stdout (spec §8.1, §4.4)
 set -u
 
 ROOT="$PWD"
@@ -19,7 +19,7 @@ warning=""
 if [ -f "$ROOT/composer.json" ] && grep -q "symfony/" "$ROOT/composer.json" 2>/dev/null; then
   stack="php-ddd-symfony8"
 else
-  warning="warning: stack no detectado con confianza → generic"
+  warning="warning: no stack pack matched → generic"
 fi
 echo "stack: $stack"
 [ -n "$warning" ] && echo "$warning"
@@ -34,6 +34,17 @@ for dir in src app lib; do
     fi
   fi
 done
+# No conventional source dir: cover the top-level directories that exist (a `covers: src` that is not
+# there makes the freshness hash watch nothing). Hidden dirs and dependency trees are never covered.
+if [ -z "$covers" ]; then
+  for path in "$ROOT"/*/; do
+    [ -d "$path" ] || continue
+    dir="$(basename "$path")"
+    case "$dir" in vendor|node_modules|var|dist|build|target) continue ;; esac
+    case "$dir" in *[!A-Za-z0-9._-]*) continue ;; esac
+    if [ -n "$covers" ]; then covers="${covers},${dir}"; else covers="$dir"; fi
+  done
+fi
 [ -z "$covers" ] && covers="src"
 echo "covers: $covers"
 

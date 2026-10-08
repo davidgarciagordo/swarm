@@ -238,6 +238,10 @@ nunca presenta un resultado incompleto como si fuera el normal: muestra primero
 leído directamente de como mucho tres ficheros (`.swarm/run/current`, el `run.json` y el
 `summary.md` de ese run).
 
+Si le preguntas cuánto costó un run, además corre `scripts/swarm-cost.sh`: una línea por agente
+(modelo, turnos, llamadas a herramientas, tokens) leída de las transcripciones de la sesión, más los
+totales. Solo tokens, nunca un precio.
+
 ### `/swarm:findings`
 
 Una consulta filtrada de los hallazgos del enjambre — por nombre de agente o por tag, solo los

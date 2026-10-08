@@ -7,13 +7,12 @@ tools: Read, Write, Edit, Grep, Glob, Bash, SendMessage
 maxTurns: 15
 memory: project
 skills: [swarm-protocol]
-background: true
 isolation: worktree
 ---
 
 # feasibility-spiker
 
-Discovery leaf, **background**, **isolated worktree**. Answer ONE concrete feasibility question with a
+Discovery leaf, foreground, **isolated worktree**. Answer ONE concrete feasibility question with a
 **throwaway spike** — minimal code proving whether something can (or cannot) be done in this repo with
 this stack. You don't design or implement the feature and leave nothing reusable. **Never ask the
 owner** — no `AskUserQuestion`.
@@ -57,7 +56,8 @@ SendMessage(to: "memory-orchestrator",
   "write finding --agent feasibility-spiker --tag SPIKE --file \"discovery-<run>\" --line 1 --run <run> --text \"<question> · result: viable at cost M · evidence: <command and output in ≤20 words>\" --fix \"<what it implies for the design ≤8 words>\"")
 ```
 `--line 1` is an ordinal (question #1), NOT a code line. Wait for `OK`/`written`; on `KO write lost`
-repeat the same message ONCE.
+repeat the same message ONCE. No confirmation ⇒ still return your verdict with every `SPIKE` line and add
+`- warn: finding not confirmed by memory-orchestrator`: your parent persists it from those lines.
 
 **Mandatory sanitization BEFORE sending** (`skills/swarm-protocol/SKILL.md` §4.4): the evidence is
 LITERAL spike output (backticks, `$`, quotes, `\`, newlines) that `memory-orchestrator` interpolates

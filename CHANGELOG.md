@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.2.5
+
+Second pass over the same real run, this time on plumbing.
+
+### Added
+- `scripts/swarm-cost.sh`: per-agent tokens, turns, tool calls and model of a run, read from the
+  session transcripts. `/swarm:status` runs it when asked what a run cost.
+- `tests/routing/`: routing evals. A real headless `/swarm:run` in a scratch repo, with assertions
+  on which agents ran. Opt-in and budget-capped; not part of `tests/run.sh`.
+
+### Changed
+- **No agent runs in background.** `research-analyst` and `feasibility-spiker` reported to the main
+  session, not to their orchestrator, so someone had to relay their results by hand.
+- **The root writes decisions with the script**, not through a message to `memory-orchestrator`:
+  no model turn per write, and no message to lose.
+- **claude-mem is read-only.** The memory orchestrator called write tools claude-mem does not have,
+  so every run closed with a warning. Queries use its `search` tool; `swarm-init` no longer warns
+  about an environment variable nothing sets.
+
+### Fixed
+- A spike whose finding never reached `.swarm/` left its worktree and branch behind:
+  `discovery-orchestrator` now persists the finding from the spiker's verdict before the cleanup.
+- `mem-scan.sh` wrote `covers: src` in repos without `src/`; it now lists the top-level directories
+  that exist.
+
 ## 0.2.4
 
 Found by running the plugin on a real plan-only goal: 18 agents and two panel rounds for one plan,

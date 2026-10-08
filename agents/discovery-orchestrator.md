@@ -78,24 +78,19 @@ deleting both is YOUR job (step 1bis).
 
 ## Waiting and merging
 
-1. Wait for all four (or three). `value-critic`/`options-generator` answer in the launch turn;
-   `research-analyst`/`feasibility-spiker` (background) notify in a LATER turn — don't poll or relaunch.
-   **Turn ends with a background leaf running ⇒ your last message is NOT a verdict** but (protocol §4.5):
-   ```
-   WAITING <n>
-   pending: <leaf-1>, <leaf-2>
-   ```
-   (`n` = background leaves still running, then exactly those `n` names). No fixed margin: the only
-   limit is your `maxTurns` (15). ≤4 turns left with a background leaf silent ⇒ continue without it,
-   note `- warn: <leaf> no response (maxTurns)` (spiker: `- warn: feasibility-spiker no response`),
-   relaunch nobody.
-1bis. WHEN `feasibility-spiker` reports `DONE`/`BLOCKED`, or ≤4 `maxTurns` remain with it silent and
-   its `agentId` in hand → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/discovery-orchestrator/spiker-cleanup.md`
+1. Wait for all four (or three). Every leaf is foreground and launched in the one batch, so all answer in the
+   launch turn — nothing notifies later, nobody has to relay. A leaf that returns nothing ⇒ continue without
+   it, note `- warn: <leaf> no response` (spiker: `- warn: feasibility-spiker no response`), relaunch nobody.
+1bis. AFTER step 2's query, WHEN `feasibility-spiker` reported `DONE`/`BLOCKED`, or ≤4 `maxTurns` remain with it
+   silent and its `agentId` in hand → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/discovery-orchestrator/spiker-cleanup.md`
    (§1-timeout, §1bis) BEFORE your verdict (worktree+branch delete, soft failure). No `agentId` ⇒ skip.
 2. Read the leaves' detail (a `Bash`, counts toward `cmds=`; you never write findings):
    ```bash
    "${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" query "discovery-<run>:" --scope findings
    ```
+   **Spiker `DONE` but no `SPIKE` line in that output** (its message to `memory-orchestrator` was lost) ⇒ persist it
+   yourself from its verdict, sanitized, BEFORE the cleanup — the worktree would be the only copy:
+   `"${CLAUDE_PLUGIN_ROOT}/scripts/mem-files.sh" write finding --agent feasibility-spiker --tag SPIKE --file "discovery-<run>" --line 1 --run <run> --text "<its first SPIKE line>" --fix "<its fix>"`.
    **Leaves' file key is `discovery-<run>`, NEVER bare `discovery`** (a second run collides on WRITE via
    the dedup key and loses findings); confirm all four used `--file "discovery-<run>" --line <ordinal>`.
    Cap 20 lines (≤3 VALUE + ≤4 OPTION + ≤5 RESEARCH + ≤3 SPIKE).
@@ -145,5 +140,5 @@ evidence: files=1 cmds=9 turns=9/15
 `DONE` = batch ready. `BLOCKED empty objective` if `objective:` is absent or empty (launch nobody).
 `BLOCKED missing context-pack` if there's no pack and `memory-orchestrator` didn't build it.
 `BLOCKED judgment leaves unresponsive` if NEITHER `value-critic` NOR `options-generator` responded
-(background ones aren't enough). `KO <leaf> BLOCKED: <reason>` if one judgment leaf returned `BLOCKED`
+(research and spike alone aren't enough). `KO <leaf> BLOCKED: <reason>` if one judgment leaf returned `BLOCKED`
 and the other didn't — propagate its literal reason + the partial batch. `OK` with `files=0` is always rejected.

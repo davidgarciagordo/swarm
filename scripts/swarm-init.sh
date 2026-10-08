@@ -30,7 +30,7 @@ if [ ! -f "$SWARM_ROOT/memory.json" ]; then
   ],
   "policy": {
     "read": ["files", "claude-mem"],
-    "write": ["files", "claude-mem"],
+    "write": ["files"],
     "stale": { "mode": "tree-hash" }
   }
 }
@@ -56,12 +56,9 @@ for entry in .swarm/context-pack.md .swarm/index.md .swarm/findings/ .swarm/run/
   grep -qxF "$entry" "$GITIGNORE" 2>/dev/null || echo "$entry" >> "$GITIGNORE"
 done
 
-if [ -z "${CLAUDE_MEM_AVAILABLE:-}" ]; then
-  echo "swarm: init — warning: claude-mem not confirmed available (best-effort, non-blocking)" >&2
-fi
 
 echo "swarm: init complete"
-echo "  .swarm/memory.json      backend 'files' required (ok) + 'claude-mem' best-effort"
+echo "  .swarm/memory.json      backend 'files' required (ok) + 'claude-mem' read-only, best-effort"
 echo "  .swarm/decisions.md     skeleton created"
 echo "  .gitignore              swarm block added (idempotent)"
 exit 0

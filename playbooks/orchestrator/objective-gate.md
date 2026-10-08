@@ -55,9 +55,9 @@ Here both preconditions hold: the run is open (§2.1, there's a `<run-id>`) and 
 only writer of `.swarm/`). As soon as it answers its `operation: build` (`OK`/`DONE`), and BEFORE launching any domain
 orchestrator, persist the TWO texts §1.0bis already sanitized — don't rebuild or reinterpret them:
 ```
-SendMessage(memory-orchestrator, "write decision --text \"raw: <sanitized raw argument> · objective: <sanitized final text> · resolved interpretation (run <run-id>)\"")
+"<plugin-root>/scripts/mem-files.sh" write decision --text "raw: <sanitized raw argument> · objective: <sanitized final text> · resolved interpretation run <run-id>"
 ```
-Wait for its `OK`/`written` before continuing. The `raw:` field goes FIRST (same as §5.3/§5.4): it's the idempotency key
+Run it yourself (a script, not a message: no model turn, nothing to lose); stdout `written` or `dup` before continuing. The `raw:` field goes FIRST (same as §5.3/§5.4): it's the idempotency key
 and carries the sanitized RAW argument — never the already-interpreted text. The `<run-id>` goes LITERAL.
 
 **ONE write, only on this path.** `memory-orchestrator` has `maxTurns: 12`; a run with the gate spends startup + `build`

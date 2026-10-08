@@ -180,6 +180,8 @@ no pasa por el panel son los objetivos `direct`, que no abren run. Política:
 **`WAITING <n>`.** Un orquestador cuyos hijos `background: true` siguen corriendo cierra su turno con
 `WAITING <n>` + `pending: <nombres>` en vez de un veredicto prematuro; el hook de salida lo limita a 6
 por instancia de agente (se reinicia con su siguiente veredicto) y lo rechaza si no puede contarlo.
+Desde 0.2.5 ningún agente incluido corre en segundo plano: un hijo anidado en segundo plano avisaba a
+la sesión principal, que tenía que reenviar el resultado a mano.
 
 **Guard de Bash.** Deny-by-default: a un rol read-only se le deniega el comando entero si contiene
 CUALQUIER metacarácter de shell en cualquier parte (`| & > ( ) ; $ \` \ { } <`, un glob sin comillas,
@@ -229,7 +231,7 @@ mismo split):
 | **run típico, total** | **~147.8k+ tok** | **~67.4k tok** | **~61.8k tok (−8% vs `c26aee1`, −58% vs `a07e655`)** |
 
 Sin volver a medir desde `a39cbd4`: hoy `SKILL.md` tiene 118 líneas y hay 34 ficheros bajo demanda /
-1741 líneas (0.2.2 añadió `playbooks/orchestrator/sizing.md`; 0.2.4, las rutas de plan y de solo investigación).
+1729 líneas (0.2.2 añadió `playbooks/orchestrator/sizing.md`; 0.2.4, las rutas de plan y de solo investigación).
 
 **Coste siempre presente** (lo que instalar el plugin añade a *cada* sesión, antes de llamar al
 swarm — las descripciones de agentes y skills que ve el modelo), medido con `claude plugin details`:
@@ -262,6 +264,12 @@ romper su estructura o su comportamiento lo hace.
 ```bash
 bash tests/run.sh
 ```
+
+La suite no puede ver un error de enrutado: qué agentes trae un objetivo lo deciden los prompts. Eso
+lo comprueba `tests/routing/run.sh <caso>`: lanza un `/swarm:run` real en modo headless sobre un repo
+de prueba y verifica qué agentes se lanzaron, cuántas veces, y el modelo del raíz. Cada caso gasta
+dinero real (con tope por caso en `tests/routing/cases.json`), así que nunca corre con la suite. Lo
+que costó cualquier run, por agente y en tokens: `scripts/swarm-cost.sh`.
 
 ## ⚖️ Licencia
 

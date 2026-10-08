@@ -227,6 +227,9 @@ it never presents an incomplete result as if it were normal: it shows
 `- warn: modo degradado — swarm-status.sh falló (exit <code>)` first, then a best-effort summary read
 directly from at most three files (`.swarm/run/current`, that run's `run.json` and `summary.md`).
 
+Ask it what a run cost and it also runs `scripts/swarm-cost.sh`: one line per agent (model, turns,
+tool calls, tokens) read from the session transcripts, plus the totals. Tokens only, never a price.
+
 ### `/swarm:findings`
 
 A filtered read of the swarm's findings — by agent name or by tag, open ones only unless you ask for

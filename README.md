@@ -173,7 +173,9 @@ deterministic dedup (`scripts/review-dedup.sh`), a `refuter` for blocking findin
 
 **`WAITING <n>`.** An orchestrator whose `background: true` children are still running ends its
 turn with `WAITING <n>` + `pending: <names>` instead of a premature verdict; the output hook caps it
-at 6 per agent instance (reset by its next verdict) and rejects it when it can't count it.
+at 6 per agent instance (reset by its next verdict) and rejects it when it can't count it. Since
+0.2.5 no bundled agent runs in background: a nested background child reported to the main session,
+which had to relay the result by hand.
 
 **Bash guard.** Deny-by-default: a read-only role's command is denied outright if it contains ANY
 shell metacharacter anywhere (`| & > ( ) ; $ \` \ { } <`, an unquoted glob, `~`), quoted or not — one
@@ -221,7 +223,7 @@ first slim commit) → `a39cbd4` (further hooks/test hardening on top of the sam
 | **typical run, total** | **~147.8k+ tok** | **~67.4k tok** | **~61.8k tok (−8% vs `c26aee1`, −58% vs `a07e655`)** |
 
 Not re-measured since `a39cbd4`: today `SKILL.md` is 118 lines and there are 34 on-demand files /
-1741 lines (0.2.2 added `playbooks/orchestrator/sizing.md`; 0.2.4 the plan and research-only routes).
+1729 lines (0.2.2 added `playbooks/orchestrator/sizing.md`; 0.2.4 the plan and research-only routes).
 
 **Always-on cost** (what installing the plugin adds to *every* session, before any swarm call —
 agent and skill descriptions listed to the model), measured with `claude plugin details`:
@@ -253,6 +255,12 @@ breaking its structure or behavior does.
 ```bash
 bash tests/run.sh
 ```
+
+The suite cannot see a routing mistake: which agents a goal pulls is decided by prompts. That is what
+`tests/routing/run.sh <case>` checks — it runs a real `/swarm:run` headless in a scratch repo and
+asserts which agents were spawned, how many times, and the root's model. Each case spends real money
+(capped per case in `tests/routing/cases.json`), so it never runs with the suite. What any run cost,
+per agent, in tokens: `scripts/swarm-cost.sh`.
 
 ## ⚖️ License
 
