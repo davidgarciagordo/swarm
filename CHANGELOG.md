@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+Found by running the plugin on a real plan-only goal: 18 agents and two panel rounds for one plan,
+which the root wrote itself.
+
+### Added
+- **Plan route.** A goal whose deliverable is a written plan now pulls `design-orchestrator` with
+  `tier: light`: the planner alone plus one panel round (`playbooks/design-orchestrator/light.md`).
+  A panel `KO` gets one revision and is reported as not re-judged; a second round is the owner's call.
+- `sizing.md`: the root never authors the artifact, and an unattended run pulls discovery only for
+  research the plan depends on.
+
+### Fixed
+- `/swarm:run` resolves the root's `judgement` tier before launching it; it used to run on the
+  default subagent model.
+- Memory scripts called from a subdirectory planted a second `.swarm/` there. They now use the
+  nearest existing `.swarm/` up to the repository top (`scripts/lib/root.sh`).
+- The output hook names the offending line and its length when it rejects narration, so the one
+  retry fixes that line instead of guessing.
+
 ## 0.2.3
 
 ### Removed

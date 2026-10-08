@@ -273,6 +273,7 @@ def main():
     evidence_line = lines[1].strip() if len(lines) >= 2 else ''
 
     reason = None
+    detail = ''
 
     agent_id = data.get('agent_id') if isinstance(data.get('agent_id'), str) else ''
     waited, waiting_path = _waiting_count(swarm_root, run_id, _waiting_key(agent_type, agent_id))
@@ -329,6 +330,10 @@ def main():
                     continue
                 if len(stripped) > MAX_FINDING_LINE_LEN:
                     reason = 'narration detected outside the format TAG · file:line · problem → fix'
+                    # Names the offending line so the retry fixes THAT line instead of guessing;
+                    # kept out of `reason`, which keys the retry counter.
+                    detail = ' — output line %d is %d chars (max %d): "%s…"' % (
+                        lines.index(line) + 1, len(stripped), MAX_FINDING_LINE_LEN, stripped[:48])
                     break
 
     if reason is None:
@@ -348,7 +353,7 @@ def main():
         )
 
     _bump_retry(swarm_root, retry_path, retries_dir, retry_count)
-    _block(reason)
+    _block(reason + detail)
 
 
 if __name__ == '__main__':

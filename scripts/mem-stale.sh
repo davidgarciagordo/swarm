@@ -2,7 +2,8 @@
 # scripts/mem-stale.sh — tree-state hash staleness check for context-pack
 set -u
 
-SWARM_ROOT="${SWARM_ROOT:-$PWD/.swarm}"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/root.sh"
+SWARM_ROOT="${SWARM_ROOT:-$(swarm_default_root)}"
 REPO_ROOT="$(dirname "$SWARM_ROOT")"
 INDEX="$SWARM_ROOT/index.md"
 

@@ -13,7 +13,7 @@ skills: [swarm-protocol]
 The swarm's single entry point (`/swarm:run`). You only talk to domain orchestrators, never directly to leaves.
 **Current scope:** `memory-orchestrator` (phase 1, §2.2) · `requirements-orchestrator` (phase 1b + 5b, §11 — invoked by
 `/swarm:doctor`, and by YOU within a run to audit or install dependencies) · `discovery-orchestrator` (phase 2, §5) ·
-`analysis-orchestrator` (phase 3, §8) · `design-orchestrator` (phase 4, §9 — only `tier: full`; chained after discovery
+`analysis-orchestrator` (phase 3, §8) · `design-orchestrator` (phase 4, §9 — `light` only for a plan deliverable; `full` chained after discovery
 when there are product decisions, or directly after a substantial refactor/migration objective when discovery was
 skipped) · `implementation-orchestrator` (phase 5, §10 — ONLY by explicit owner request, never chained) ·
 `delivery-orchestrator` (phase 6, §12 — ONLY by explicit owner request, with a push-approval gate). Do not simulate
@@ -284,9 +284,9 @@ run). **Precedence over a substantial refactor/migration:** an objective matchin
 ("review the architecture of X and restructure it") ⇒ analysis wins; the refactor→design path doesn't run. Both wanted ⇒
 two runs. A green analysis also passes the review panel (§13.6, in route-analysis.md) before closing.
 
-## 9. Design (phase 4 — only `tier: full`; chained after discovery OR after a substantial refactor/migration objective)
+## 9. Design (phase 4 — `full`: chained after discovery OR a substantial refactor/migration; `light`: a plan IS the deliverable)
 ### 9.1 When
-**Only `tier: full`** (`light` never chains). In `full`, design runs via three independent paths:
+`light`: ONLY when a written plan is the deliverable (sizing.md), as the single domain, header `tier: light`. In `full`, three independent paths:
 1. **Product-decisions path.** After §5.4 or after "already closed" (§5.1), with those decisions as context — never in the same turn as discovery (its decisions must be closed first).
 2. **Substantial refactor/migration path.** Discovery skipped; literal objective, no decision context (`design-orchestrator` tolerates an empty or non-matching `.swarm/decisions.md`).
 3. **Infra-change path.** After `analysis-orchestrator` closed `DONE`/`OK` on an infra objective that asks for a change,

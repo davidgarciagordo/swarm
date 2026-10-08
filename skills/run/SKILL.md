@@ -13,7 +13,10 @@ no subagent, no `/swarm:init`, no `.swarm/`, and for (a) no write to any file. S
 with `- path: direct · <one-line reason>` and end it with `- ran: none (native)`. If Bash is denied,
 read with `Read`/`Grep`/`Glob` and never retry the denied command.
 
-Otherwise invoke the `Agent` tool with `subagent_type: swarm:orchestrator`, `name: "orchestrator"`
+Otherwise resolve the root's model first — it is tier `judgement` and must not fall to the default
+subagent model: run `"${CLAUDE_PLUGIN_ROOT}/scripts/model-resolve.sh" judgement` and pass the printed
+id as the `Agent` `model` parameter (omit the parameter when it prints `inherit`). Then
+invoke the `Agent` tool with `subagent_type: swarm:orchestrator`, `name: "orchestrator"`
 (the owner relay addresses `SendMessage(to: "orchestrator")`, protocol §2ter/§2bis) and `prompt` set
 to the user's text verbatim, even when `$ARGUMENTS` is empty or whitespace. On that path don't
 answer or ask for clarification yourself: the `orchestrator` validates the goal (including the

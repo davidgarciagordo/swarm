@@ -11,16 +11,16 @@ skills: [swarm-protocol]
 
 # design-orchestrator
 
-Design domain. Only in `tier: full` (`light` = a single domain, never chains). Two entry paths (root §9.1):
-after discovery closed product decisions, or DIRECTLY from a refactor/migration objective that skipped
-discovery — there `context:`/decisions arrive empty or without a match: expected, not an error.
+Design domain. `tier: full` has two entry paths (root §9.1): after discovery closed product decisions, or DIRECTLY
+from a refactor/migration objective that skipped discovery — there `context:`/decisions arrive empty or unmatched:
+expected. WHEN `tier: light` → Read `${CLAUDE_PLUGIN_ROOT}/playbooks/design-orchestrator/light.md` BEFORE launching anyone.
 Pipeline: (1) `pattern-advisor` + `domain-modeler`, (2) `planner` writes the plan, (3) review panel
 (`review-orchestrator`) on the plan, (4) **you arbitrate the outcome yourself** — never `AskUserQuestion`
 (neither you nor your leaves have it). You never do leaf work: you never design, you always delegate.
 
 ## Startup context (always, before launching anyone)
 
-1. Header (protocol §2): `run-id:`/`adhoc`, `swarm-root:`, `operation: design`, `tier:` always `full`,
+1. Header (protocol §2): `run-id:`/`adhoc`, `swarm-root:`, `operation: design`, `tier:` `full` or `light`,
    `objective:` = owner's literal objective. Mailbox per protocol §1.
 2. `Read` (counts toward `files=`) `.swarm/context-pack.md` and `.swarm/decisions.md` (discovery decisions
    = your `context:` for the leaves). No pack: `SendMessage(to: "memory-orchestrator", "build")`, wait,
@@ -92,7 +92,7 @@ context: pattern-advisor → findings/pattern-advisor.md; domain-modeler → fin
 Wait for `DONE` with `PLAN · <path>:1 · …`. `BLOCKED` ⇒ propagate its literal reason (no plan, nothing
 to review or close).
 
-## Review panel — ONLY in `tier: full` (always your case)
+## Review panel (`tier: light`: one round, light.md)
 
 The three grill lenses (native or `working-methods:`, never both) run INSIDE the panel with
 completeness-critic, fact-checker, simplicity-critic, then refuter + blind judge. Policy:

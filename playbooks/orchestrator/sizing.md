@@ -17,9 +17,15 @@ an independent judgement, a deterministic scanner, parallel breadth, or a writte
 | an open product decision the owner must take | `discovery-orchestrator` | analysis |
 | multi-component build, or a redesign with high blast radius (`tier: full`) | `design-orchestrator` (planner + grill) | analysis unless asked |
 | implement an already-written plan (explicit request) | `implementation-orchestrator` (§10) | discovery, design |
-| a plan/report someone will act on with high blast radius | the review panel on THAT artifact | a panel on a native answer |
+| a written plan/strategy IS the deliverable, nothing is built in this run | `design-orchestrator` with `tier: light` (planner + ONE panel round) | discovery, analysis, writing the plan yourself |
+| …and that plan needs facts the repo can't give (market, prices, external tools) | `discovery-orchestrator` first, for its research | discovery when the repo already answers it |
+| a plan/report that ALREADY exists and someone will act on with high blast radius | the review panel on THAT artifact | a panel on a native answer |
 | dependencies / publish | `requirements-orchestrator` / `delivery-orchestrator` | everything else |
 
+**You never author the artifact.** A plan is written by `planner` (through `design-orchestrator`), never by you: the
+root coordinates, and a deliverable written by the coordinator skips the producer tier and the panel's independence.
+**Unattended runs** (questions forbidden, §13.4): discovery's questions would all be `ASSUMED`, so pull
+`discovery-orchestrator` only for research the plan depends on, and say so in the spawn line.
 Repo-wide context shared by several agents is what the memory pack is for; with ONE component the pack is still built
 (the component reads it) — another reason one component beats three. The route tables (§5.1, §8.1) say WHICH domain an
 objective belongs to; this table decides WHETHER it is worth pulling. A native answer never passes the panel.

@@ -92,6 +92,7 @@ out="$(python3 "$HOOK" <<EOF
 EOF
 )"
 assert_eq "0" "$(echo "$out" | grep -q '"decision": "block"' && echo 0 || echo 1)" "long narration behind a dash prefix is still rejected"
+assert_eq "0" "$(echo "$out" | grep -q 'output line 3 is 132 chars (max 120)' && echo 0 || echo 1)" "narration rejection names the offending line and its length"
 
 # short "- " lines (discovery-orchestrator's own - Q/- warn/- findings format) still pass
 out="$(python3 "$HOOK" <<'EOF'
